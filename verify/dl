@@ -14,8 +14,9 @@ RUNTIMES="lua luajit rex"
 say() { printf '%s\n' "$*"; }
 die() { printf 'dl: %s\n' "$*" >&2; exit 2; }
 
+# stub NAME WHERE: WHERE is a task number when known, otherwise the plan's build step
 stub() {
-  say "dl $1: not implemented, see task $2"
+  say "dl $1: not implemented, see $2"
   exit 2
 }
 
@@ -222,11 +223,11 @@ verify/dl: distilled-lua verification driver
   dl help                   this screen
 
   not implemented yet (exit 2):
-  dl trace <script>         task 02     dl expect <script>      task 02
-  dl conform <provider>     task 07     dl gen-diff <provider>  task 07
-  dl serve                  task 06     dl rex <script>         task 06
-  dl live <provider> <op>   task 08     dl canary               task 06
-  dl jaeger                 task 08
+  dl trace <script>         task 02         dl expect <script>      task 02
+  dl serve                  plan step 6     dl rex <script>         plan step 6
+  dl canary                 plan step 6     dl gen-diff <provider>  plan step 7
+  dl conform <provider>     plan step 7     dl live <provider> <op> plan step 8
+  dl jaeger                 plan step 8     (plan = ../distilled-lua-plan.md "Build order")
 EOF
 }
 
@@ -241,15 +242,15 @@ case $cmd in
   fmt) cmd_fmt "$@" ;;
   json-bench) cmd_json_bench "$@" ;;
   help | -h | --help) cmd_help ;;
-  trace) stub trace 02 ;;
-  expect) stub expect 02 ;;
-  conform) stub conform 07 ;;
-  gen-diff) stub gen-diff 07 ;;
-  serve) stub serve 06 ;;
-  rex) stub rex 06 ;;
-  live) stub live 08 ;;
-  canary) stub canary 06 ;;
-  jaeger) stub jaeger 08 ;;
+  trace) stub trace "task 02" ;;
+  expect) stub expect "task 02" ;;
+  conform) stub conform "the task for plan build step 7" ;;
+  gen-diff) stub gen-diff "the task for plan build step 7" ;;
+  serve) stub serve "the task for plan build step 6" ;;
+  rex) stub rex "the task for plan build step 6" ;;
+  live) stub live "the task for plan build step 8" ;;
+  canary) stub canary "the task for plan build step 6" ;;
+  jaeger) stub jaeger "the task for plan build step 8" ;;
   *)
     say "dl: unknown command $cmd"
     cmd_help
