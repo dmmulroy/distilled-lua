@@ -54,7 +54,7 @@ clients/neon/ + lua/distilled/ ─ require("neon") ─▶ your Lua program
 
 Behaviour follows Distilled's runtime closely and is checked against it:
 `verify/dl conform neon` feeds the same inputs and canned responses to both and diffs
-the requests and outcomes (2,093 cases, 0 mismatches; the few intended differences are
+the requests and outcomes (2,095 cases, 0 mismatches; the few intended differences are
 listed in `docs/usage.md` and `verify/features/conformance.md`).
 
 ## Documentation
@@ -86,8 +86,8 @@ verify/             verification toolkit: verify/dl, conformance, feature map
 
 - REST/JSON APIs with bearer or header auth (Neon). AWS signing, Cloudflare's envelope,
   GraphQL and gRPC are not supported yet.
-- Neon: all 178 operations generated; 177 compared request-for-request with Distilled,
-  the multipart upload operation is being added (task 08).
+- Neon: all 178 operations generated and compared request-for-request with Distilled,
+  including the multipart upload (`require("distilled.multipart").file{...}`).
 - The core is synchronous; streaming responses are not supported.
 - Not on LuaRocks: clients are vendored into the consuming project.
 

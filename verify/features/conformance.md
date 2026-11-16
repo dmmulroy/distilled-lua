@@ -13,7 +13,10 @@ client does, or the difference must be listed below with its reason.
     nulls on nullable members, `{ "$secret": v }` on sensitive members, an undeclared
     `zz_extra` key in `rand3`), then hand-written edge cases
     (`cases/neon_requests.lua`: `.`/`..`/empty/missing labels, `1e21` and `1e-6` in a
-    query, NUL bytes, nulls and undeclared keys in nested bodies). 902 cases.
+    query, NUL bytes, nulls and undeclared keys in nested bodies, multipart file and
+    line-break cases). Bytes are `{ "$bytes_b64": ... }` (a `Uint8Array` in TypeScript)
+    and files `{ "$file": { b64, filename, content_type } }` (`multipart.file` / `File`).
+    904 cases.
   - responses: per operation a success body built from the output schema (`ok-min`,
     `ok-full`, `ok-rand`, plus `ok-min-strict` and `ok-full-strict`; raw-bytes outputs get
     binary bodies), then `cases/neon_responses.lua`: empty, 204, non-JSON, null, array,
@@ -64,8 +67,14 @@ client does, or the difference must be listed below with its reason.
 | Transport failure | tag `TransportError`, category `NetworkError`, the transport's message | Effect's `HttpClientError`, no category | No Effect in Lua; the category makes it matchable |
 | asctime `Retry-After` | read as GMT (RFC 9110 5.6.7) | `Date.parse` reads it in the machine's local zone (here 5 h off) | Distilled's value depends on the machine; RFC says GMT |
 
-Not compared (skipped, with the reason printed): the multipart operation
-`create_project_branch_function_deployment` until `tasks/08-multipart.done.md` exists.
+Multipart (`create_project_branch_function_deployment`, 7 cases): Distilled's request
+holds a `FormData` that the HTTP client serializes later, so the dump lists its parts and
+the Lua body is parsed back into parts. Each part's name, filename, content type and
+bytes are compared after applying what undici's serializer does to the FormData (text
+values get CRLF line breaks, a file without a type is `application/octet-stream`), and
+Lua's `content-type` must be `multipart/form-data; boundary=...` (Distilled's request has
+none yet). This models the serializer; it is not a difference.
+
 No "transient until the budget runs out" flow: Distilled's transient policy has no budget
 and never stops.
 
@@ -104,8 +113,8 @@ Output: one `MISMATCH <category> <case id> (case: verify/conform/cases/neon/<fil
 per mismatch with `field: distilled <value> | lua <value>` lines, then a summary per
 category; exit 1 (an error in Rex) on any mismatch.
 
-Last run (task 07): members 178/178, requests 897 match + 5 skipped (multipart), responses
-972 match + 5 skipped, flows 36/36; 0 mismatches; 79 cases carry intended differences.
+Last run (task 07): members 178/178, requests 904/904, responses 977/977, flows 36/36
+(2,095 cases); 0 mismatches; 79 cases carry intended differences.
 
 ## Gotchas
 
