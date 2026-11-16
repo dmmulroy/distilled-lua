@@ -455,4 +455,21 @@ neon` ok (177/178 operations build; the multipart one is acknowledged, see below
 
 ## 09 polish
 
-(not started)
+**Done.** See `tasks/09-polish.done.md`.
+
+- `distilled.file{ data, filename?, content_type? }` (lazy; = `distilled.multipart.file`).
+  `protocol/rest.lua` passes `host = ctx.host` to `request.build`: the multipart boundary
+  comes from the client's `host.random`.
+- Transport misuse: `popen_curl` / `exec_curl` modules carry `transport_module`;
+  `distilled.host.check` (so `Class.new`, and `otlp_http`) raises when one is passed as a
+  transport. A transport returning a function, nothing or a non-table is a `ConfigError`
+  (`key = "transport"`, not retried); `host = <function>` says to call it.
+  `distilled.host.TRANSPORT_HINT` is the shared "what to pass" text.
+- `distilled.trace.expect` moved to `distilled.testing.expect` (not vendored).
+- Generated README: the example passes `host = require("distilled.host.popen")()` (it
+  passed the popen_curl module, the bug above), and lists multipart operations with
+  `distilled.file`. `clients/neon/` regenerated (README.md, types.lua).
+- Generator (found on PlanetScale's model): stylua layout for a call past the width and
+  for an assignment whose `target = {` cannot fit (`gen/emit.lua`). Neon output unchanged.
+- `docs/interfaces.md` updated to the code (all deviations listed in sections 01-08).
+- Still open: `verify/conform/node/*.mjs` bind only Neon.
