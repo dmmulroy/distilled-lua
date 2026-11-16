@@ -761,13 +761,10 @@ t.describe("rest: error response fields", function()
     function()
       local p = protocol_with({ error_fields_at = "/error" })
       local err = fail_on(
-        json_response(
-          {
-            error = { message = "no", state = "FAILED_PRECONDITION", details = { 1 } },
-            requestId = "r",
-          },
-          412
-        ),
+        json_response({
+          error = { message = "no", state = "FAILED_PRECONDITION", details = { 1 } },
+          requestId = "r",
+        }, 412),
         "plain",
         { protocol = p }
       )
