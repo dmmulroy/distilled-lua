@@ -1,0 +1,4 @@
+models/
+*.tmp
+.DS_Store
+/out/
