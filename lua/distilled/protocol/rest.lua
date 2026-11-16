@@ -299,6 +299,8 @@ function rest.new(opts)
       unknown_key_to_wire = opts.unknown_key_to_wire,
       empty_json_body = opts.empty_json_body,
       query_style = opts.query_style,
+      -- the multipart boundary comes from host.random (deterministic under a test host)
+      host = ctx.host,
     })
   end
 

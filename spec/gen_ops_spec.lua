@@ -269,11 +269,16 @@ t.describe("gen.ops: http trait and selection", function()
       },
     }
     local svc, files = service(opts)
+    local _, plain = service()
     t.eq(svc.ops.put_blob.content_type, "multipart")
     t.match(files["types.lua"], "---@class distilled.File\n", true)
     t.match(files["types.lua"], "---@field body distilled.File|string", true)
+    -- task 09: the docs name the constructor distilled.file{...}
+    t.match(files["types.lua"], "`distilled.file{ data, filename?, content_type? }`", true)
+    t.no_match(files["types.lua"], "distilled.multipart", true)
+    t.match(files["README.md"], "distilled.file({", true)
+    t.no_match(plain["README.md"], "distilled.file", true)
     -- a non-multipart blob member stays a string
-    local _, plain = service()
     t.match(plain["types.lua"], "---@field body string", true)
     t.no_match(plain["types.lua"], "---@field body distilled.File", true)
   end)

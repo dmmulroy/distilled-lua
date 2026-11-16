@@ -72,8 +72,8 @@ local branch, err3 = neon:update_project_branch({
   yourself with `distilled.json.array({})` when the schema says `unknown`.
 - Keys the model does not declare are sent in the body as given (as Distilled does).
 - Multipart operations (Neon's `create_project_branch_function_deployment`) take a file
-  as `require("distilled.multipart").file({ data = bytes, filename = "fn.zip",
-  content_type = "application/zip" })`, or a plain byte string (sent as a file part
+  as `distilled.file({ data = bytes, filename = "fn.zip", content_type = "application/zip" })`
+  (`filename` and `content_type` optional; `data` may be a secret), or a plain byte string (sent as a file part
   named after the member).
 - Responses are plain tables; JSON arrays are marked (`distilled.json.is_array`), nulls are
   `distilled.null`. Operations whose response is raw (Neon's bucket object download)

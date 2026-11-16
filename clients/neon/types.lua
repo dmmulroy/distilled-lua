@@ -22,7 +22,7 @@
 
 ---@class distilled.Secret
 
----A file part of a multipart body: `require("distilled.multipart").file{ data, filename?, content_type? }`.
+---A file part of a multipart body: `distilled.file{ data, filename?, content_type? }`.
 ---@class distilled.File
 ---@field data string|distilled.Secret The bytes
 ---@field filename? string Defaults to the member's wire name

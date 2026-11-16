@@ -281,7 +281,7 @@ function writer.readme(plan)
     local env = spec.auth.env and (" -- default: $" .. spec.auth.env) or ""
     add("  " .. spec.auth.from .. " = key," .. env)
   end
-  add('  transport = require("distilled.transport.popen_curl"),')
+  add('  host = require("distilled.host.popen")(), -- in Rex: require("distilled.host.rex")()')
   add("})")
   add("```")
   add()
@@ -317,6 +317,18 @@ function writer.readme(plan)
       .. "` (an unparseable body)."
   )
   add()
+  local multipart_ops = {}
+  for _, op in ipairs(plan.ops) do
+    if op.http.content_type == "multipart" then
+      multipart_ops[#multipart_ops + 1] = "`" .. op.method_name .. "`"
+    end
+  end
+  if #multipart_ops > 0 then
+    add("Multipart operations (" .. compat.concat(multipart_ops, ", ") .. ") take files as")
+    add('`distilled.file({ data = bytes, filename = "a.zip", content_type = "application/zip" })`')
+    add("(`filename` and `content_type` are optional), or a string of bytes.")
+    add()
+  end
   add("## Operations (" .. #plan.ops .. ")")
   add()
   add("| Method | HTTP | Summary |")

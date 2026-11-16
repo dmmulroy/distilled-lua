@@ -56,9 +56,10 @@ local req, err = request.build{ op = service.ops.get_project, input = { project_
 (`lua/distilled/multipart.lua`), following the multipart branch of Distilled's
 `buildRequest` and the bytes undici writes for a `FormData` (checked against Node 24).
 
-- A file value: `require("distilled.multipart").file{ data = "<bytes>", filename = "a.zip",
+- A file value: `distilled.file{ data = "<bytes>", filename = "a.zip",
   content_type = "application/zip" }` (filename and content_type optional; data may be a
-  secret). `multipart.is_file(v)` tells it from an ordinary table.
+  secret; the same function as `require("distilled.multipart").file`).
+  `multipart.is_file(v)` tells it from an ordinary table.
 - Each body member is a part under its wire name, in declaration order, undeclared keys
   after (sorted). A file is a file part with its own filename, or the wire name when it
   has none (Distilled's nameless Blob), and its content type, else
@@ -87,9 +88,9 @@ content types and every byte value. `verify/dl gen-diff neon` builds all 178 ope
 
 Gotchas:
 
-- Through a generated client the boundary does not come from the client's host yet: the
-  REST protocol (`protocol/rest.lua`, task 04) does not pass `random` to `request.build`
-  (proposed in STATUS.md, 08). It is random, just not the host's.
+- Through a generated client the boundary comes from the client's `host.random` (the REST
+  protocol passes `host = ctx.host` to `request.build`, task 09), so it is deterministic
+  under `testing.host` (`spec/neon_client_spec.lua` checks it).
 - Distilled's `FormDataFile()` binding (files appended under their own filename) has no
   Smithy trait in the models, so there is no such bind.
 - A file nested inside a JSON part is JSON-encoded as a table with its fields (Distilled

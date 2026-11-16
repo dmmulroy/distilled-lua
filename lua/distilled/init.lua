@@ -47,15 +47,25 @@ local LAZY = {
   credentials = "distilled.credentials",
   host = "distilled.host",
 }
+-- Functions of those modules, loaded the same way:
+-- distilled.file{ data, filename?, content_type? } is distilled.multipart.file, the file
+-- part of a multipart body (data may be a secret).
+local LAZY_FUNCTIONS = {
+  file = { "distilled.multipart", "file" },
+}
 setmetatable(distilled, {
   __index = function(t, k)
     local name = LAZY[k]
-    if name == nil then
+    local v
+    if name ~= nil then
+      v = require(name)
+    elseif LAZY_FUNCTIONS[k] ~= nil then
+      v = require(LAZY_FUNCTIONS[k][1])[LAZY_FUNCTIONS[k][2]]
+    else
       return nil
     end
-    local m = require(name)
-    rawset(t, k, m)
-    return m
+    rawset(t, k, v)
+    return v
   end,
 })
 

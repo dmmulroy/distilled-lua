@@ -16,7 +16,7 @@ package.path = dir .. "/?.lua;" .. dir .. "/?/init.lua;" .. package.path
 local Neon = require("neon")
 local client = Neon.new({
   api_key = key, -- default: $NEON_API_KEY
-  transport = require("distilled.transport.popen_curl"),
+  host = require("distilled.host.popen")(), -- in Rex: require("distilled.host.rex")()
 })
 ```
 
@@ -29,6 +29,10 @@ local client = Neon.new({
 
 Every method returns `value` or `nil, err`; `err.tag` is one of the operation's errors,
 a built-in tag, `UnknownNeonError` (nothing matched) or `NeonParseError` (an unparseable body).
+
+Multipart operations (`create_project_branch_function_deployment`) take files as
+`distilled.file({ data = bytes, filename = "a.zip", content_type = "application/zip" })`
+(`filename` and `content_type` are optional), or a string of bytes.
 
 ## Operations (178)
 

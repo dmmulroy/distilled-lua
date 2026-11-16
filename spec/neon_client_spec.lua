@@ -272,12 +272,16 @@ t.describe("neon client: bodies, secrets and raw outputs", function()
   -- (sensitive string) as multipart/form-data parts (task 08; was refused before)
   t.it("create_project_branch_function_deployment sends a multipart body", function()
     local multipart = require("distilled.multipart")
-    local c, host = client({ { status = 200, body = { deployment = { id = "dep-1" } } } })
+    local distilled = require("distilled")
+    local c, host = client(
+      { { status = 200, body = { deployment = { id = "dep-1" } } } },
+      { random = testing.random(7) }
+    )
     local res, err = c:create_project_branch_function_deployment({
       project_id = "p1",
       branch_id = "br-1",
       slug = "fn",
-      zip = multipart.file({ data = "PK\3\4\0\255", filename = "bundle.zip" }),
+      zip = distilled.file({ data = "PK\3\4\0\255", filename = "bundle.zip" }),
       runtime = "nodejs24",
       environment = secret('{"KEY":"VALUE"}'),
     })
@@ -288,7 +292,8 @@ t.describe("neon client: bodies, secrets and raw outputs", function()
     t.eq(req.url, BASE .. "/projects/p1/branches/br-1/functions/fn/deployments")
     local boundary =
       string.match(req.headers["content-type"], "^multipart/form%-data; boundary=(.+)$")
-    t.truthy(boundary)
+    -- task 09: the boundary comes from the client's host.random (deterministic here)
+    t.eq(boundary, multipart.boundary(testing.random(7)))
     t.eq(
       req.body,
       "--"
