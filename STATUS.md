@@ -329,7 +329,10 @@ the end-to-end client runs over HTTP and `examples/rex_action.lua`.
 
 ## 06 generator
 
-**In progress.** Interim decisions other tasks can rely on (the generated service data):
+**Done except the final proof run**, which waits for task 04's done file (the client
+parts already pass against task 04's interim API). See `verify/features/generator.md`.
+
+### Decisions others should know (the generated service data)
 
 - `op.span` and `service.telemetry` are Distilled's compressed form (`codegen/generator.ts`
   `telemetryLines` / `TELEMETRY`, read by core `telemetry.ts` `operationInfo`), keys in
@@ -337,19 +340,37 @@ the end-to-end client runs over HTTP and `examples/rex_action.lua`.
   transform } }, prefix = "Neon", service = "Neon", labels = "neon", label_names,
   attributes, templates = false|nil, propagate = "w3c" }`; `op.span` is the op's model
   name (`"GetProject"`) when everything else derives, else `{ op, name, method, kind,
-  template = false, attributes, input = { [member] = { rules } }, output }`. The runtime
-  derives: span name `<prefix>.<op>`, `rpc.method` `<service>/<op>`, `url.template` from
-  `op.uri` (before any `?`) unless `templates == false` or `span.template == false`, and
-  one attribute `<labels>.<snake_case(member)>` per label member (overridden by
-  `label_names[member]` and by `span.input[member]`; an empty rule list drops it).
-  With `--no-telemetry` neither field is emitted.
+  template = false, attributes, input = { [member] = { rules } }, output }`. A label
+  member without an attribute rule gets `input = { key = {} }` (drops the derived one),
+  as Distilled emits `key: []`. `--no-telemetry` emits neither. (Task 04's
+  `operation.lua` reads exactly this.)
 - `op.retry` keys are snake_case of `distilled.retry#policy` (`max_attempts`, `base_ms`,
   `throttling_base_ms`, `cap_ms`, `factor`, `long_poll`). Neon has none.
 - Generated error classes follow Distilled's `errorCategories` exactly: Neon's `NotFound`
-  (404) gets `BadRequestError`, not `NotFoundError` (the core built-in keeps
-  `NotFoundError`).
-- `CreateProjectBranchFunctionDeployment` is `content_type = "multipart"`, which
-  `request.build` refuses (SdkError). Proposed: multipart support in `request.lua`.
+  (404) gets `BadRequestError`, not `NotFoundError` (the core built-in keeps it). Error
+  shapes with no members get no `fields` (code and message are instance fields).
+- Member tables are plain data with false flags omitted and `bind` omitted for body.
+  Named shapes are registry entries keyed by local name; every reference is `S.ref`.
+  A rawResponse output is the member's node with `output_raw = true` (Blob: `S.blob`).
+- Lazy shapes were not needed: the full Neon service loads in about 2 ms / 600 KB
+  (lua, luajit) and 23 ms in Rex; a 3-operation `--ops` client in 0.3 ms / 1.2 ms.
+- Provider spec additions: `allow_unsupported = { "multipart" }` (without it a multipart
+  operation fails generation); `status_map` names tags, and the generated `init.lua`
+  copies `errors.STATUS_MAP` and sets the entries (rest.new takes classes and replaces
+  the whole map); `classify_error` / `protocol` are module names (functions cannot be
+  written into generated code).
+- The generator has its own ordered JSON decoder (`gen/json_ordered.lua`): Smithy member
+  order matters and `distilled.json` cannot carry it.
+
+### Problems in files I do not own (proposed changes)
+
+- `request.lua`: multipart bodies (`op.content_type = "multipart"`) are refused, so
+  Neon's `create_project_branch_function_deployment` returns SdkError. Proposed:
+  multipart/form-data encoding in `request.build` (Distilled: `protocol-http.ts`
+  `buildRequest` multipart branch). `dl gen-diff` counts it as "acknowledged
+  unsupported" and builds the other 177.
+- `dl doctor` could check that `clients/*/` headers name the current model hash (the
+  plan's staleness check); `dl gen-diff` does this today by regenerating.
 
 ## 07 conformance
 
