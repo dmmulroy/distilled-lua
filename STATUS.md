@@ -145,4 +145,42 @@ tracer, `Scope` and the harness all go through it; the noop tracer is its own mo
 
 ## 03 wire
 
-(not started)
+**Done.** schema, url, request, keys, redact, validate, regex, testing (+ fixtures), the
+regex hook in `errors.match`. See `tasks/03-wire.done.md`.
+
+### Decisions others should know
+
+- `request.build` args beyond the contract: `map_member_header(name, value)`,
+  `unknown_key_to_wire(key)`, `empty_json_body`, `query_style = "brackets"` (Distilled's
+  protocol options; the REST protocol passes them through).
+- `op.body_media_type` (Distilled's `bodyMediaType`): with it, or with a `blob` payload
+  schema, a string `payload` is sent raw; otherwise a payload is JSON.
+- Any schema node may carry `sensitive = true` (Smithy puts `@sensitive` on shapes; list
+  items and map values have no member). `schema.node_sensitive` reads it through refs.
+- `redact.plain(node, text, registry)` and `redact.parsed(node, value, registry)` (logs).
+- `validate.check` mismatch: `{ path, expected, actual, missing, message }`; list indices
+  in paths are 1-based. `validate.withhold(m)` for parse errors that withhold the body.
+- A missing label is `InvalidInput` (Distilled sends `{name}` literally). A header value
+  with CR/LF is `InvalidInput`.
+- `keys` on decode never drops keys of inactive union arms (Distilled's `UnionCases`
+  does; the node contract cannot tell a merged-case union from a Smithy union).
+- `testing.transport{ responses }` is a callable table (`tr(req)`), not a function; it
+  raises when it runs out. `testing.host{}` adds `sleeps`, `clock`, `advance(s)`,
+  `requests`. `testing.random(seed)` is Park-Miller, identical on all runtimes.
+- `regex.compile` errors are `SdkError` tables; `errors._regex_cache[source]` holds the
+  compiled matcher or `false`.
+
+### Problems found in files I do not own (proposed changes)
+
+- `secret.unwrap_deep(json.null)` returns a fresh table, not `json.null`, so a null in
+  the input would encode as `{}`. `request.build` works around it with its own copy.
+  Proposed fix in `secret.lua`: treat `json.null` (and any table whose metatable is
+  json's null metatable) as a leaf. (task 01 owner)
+- `spec/errors_spec.lua`: the test "a text matcher with `matches` does not match until
+  distilled.regex exists" asserted the placeholder; task 03 had to replace it (now
+  "tests the JavaScript regex (task 03)"). That is the only edit outside my files.
+- `verify/features/errors.md` gotcha about `matches` never matching is now stale, and
+  `verify/features/README.md` should list request-building, key-mapping, redaction and
+  validation (task 03).
+- `docs/interfaces.md`: add the request.build options, `op.body_media_type`, node-level
+  `sensitive`, the mismatch shape, `redact.parsed`, and the `redact.plain` registry arg.

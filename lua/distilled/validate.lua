@@ -25,6 +25,7 @@
 -- union nests a sub-check (one level per union in the data, bounded by MAX_UNION_DEPTH).
 local schema = require("distilled.schema")
 local json = require("distilled.json")
+local compat = require("distilled.compat")
 
 local validate = {}
 
@@ -60,7 +61,7 @@ local function path_text(path)
   for i, k in ipairs(path) do
     parts[i] = type(k) == "number" and tostring(k) or string.format("%q", tostring(k))
   end
-  return "[" .. table.concat(parts, ",") .. "]"
+  return "[" .. compat.concat(parts, ",") .. "]"
 end
 
 local function make_mismatch(path, expected, actual, missing)

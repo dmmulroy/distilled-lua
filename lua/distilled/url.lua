@@ -12,6 +12,8 @@
 --
 -- Strings are UTF-8 bytes; every byte outside the unreserved set is escaped, which is
 -- what JavaScript produces for the same text (it encodes the UTF-8 of each character).
+local compat = require("distilled.compat")
+
 local url = {}
 
 local byte, char, format = string.byte, string.char, string.format
@@ -90,7 +92,7 @@ function url.encode_greedy_label(s)
     parts[n] = url.encode_component(sub(s, start, at - 1))
     start = at + 1
   end
-  return table.concat(parts, "/")
+  return compat.concat(parts, "/")
 end
 
 local json_module
@@ -132,7 +134,7 @@ function url.text(v)
         -- String([null]) and String([undefined]) are ""
         parts[i] = (item == nil or item == J.null) and "" or url.text(item)
       end
-      return table.concat(parts, ",")
+      return compat.concat(parts, ",")
     end
     return "[object Object]"
   end
@@ -169,7 +171,6 @@ function Query:encode()
   for i = 1, self.n do
     parts[i] = url.encode_form(self.names[i]) .. "=" .. url.encode_form(self.values[i])
   end
-  local compat = require("distilled.compat")
   return compat.concat(parts, "&")
 end
 

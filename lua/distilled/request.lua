@@ -48,6 +48,9 @@ local request = {}
 
 local null = json.null
 local BODYLESS = { GET = true, HEAD = true }
+-- One shared node for operations without an input: plans are cached per node, and
+-- gopher-lua never collects weak tables, so no per-call nodes.
+local EMPTY_INPUT = schema.struct({ name = "Empty", members = {} })
 
 local function invalid(member, message)
   return errors.new("InvalidInput", { member = member, message = message })
@@ -250,7 +253,7 @@ function request.build(args)
   local registry = args.registry
 
   -- the plan (Distilled fails here when the Http trait is missing)
-  local node = schema.struct({ name = "Empty", members = {} })
+  local node = EMPTY_INPUT
   if op.input ~= nil then
     local resolved, err = schema.resolve(op.input, registry)
     if not resolved then

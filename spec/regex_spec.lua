@@ -45,8 +45,8 @@ local PATCH_PATTERNS = {
 }
 
 -- { pattern, text, what `new RegExp(pattern).test(text)` returns in Node }, recorded
--- with node 24 (the generator script is in tasks/03-wire.done.md). The "differential"
--- test below re-runs Node on this table when it can.
+-- with node 24. The "differential" test below re-runs Node on this table under lua and
+-- luajit, so a wrong recording fails there; Rex (no io.popen) checks the recording.
 local CASES = {
   { " already exists$", "Bucket b already exists", true },
   { " already exists$", "already exists", false },
