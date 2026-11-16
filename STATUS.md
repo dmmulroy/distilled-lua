@@ -71,7 +71,49 @@ One section per task. Edit only your own section.
 
 ## 02 trace
 
-(not started)
+**Done.** Tracer, noop tracer, OTLP/JSON, memory/file/console exporters, tree, golden
+normaliser, `expect` assertions, `dl trace` and `dl expect`. See `tasks/02-trace.done.md`
+and `verify/features/tracing.md`.
+
+### Read this before writing code
+
+- **A second gopher-lua upvalue bug: nested protected calls.** Once a `pcall` or `xpcall`
+  has *completed* inside another protected call, the outer one catching an error breaks
+  the upvalues of closures in running frames, exactly like the plain-pcall bug. So
+  `compat.pcall` (xpcall) is **not** safe when nested: `xpcall(function() xpcall(f, h);
+  error("y") end, h)` leaves a counter closure writing to a stale copy (measured in Rex,
+  `/tmp`-style repros in the done file). A coroutine that catches the error is not
+  affected, so `tracer:with` and `tracer:flush` protect with `coroutine.resume` (about
+  2.6 us per call in Rex; also yield-transparent). Proposal for `compat` (task 01 owns it):
+  build `compat.pcall` on a coroutine the same way (`trace._protect` is the reference),
+  and fix `Scope.with` with it; until then code nested inside `Scope.with` or
+  `compat.pcall` that catches is exposed.
+- A script for `dl trace`/`dl expect` reaches its tracer with
+  `require("verify.lib.trace_env")` (`env.tracer`, `env.host`, `env.spans()`,
+  `env.expect()`); `dl expect` calls a function the script returns with `expect(spans)`.
+- For specs: `verify/lib/trace_fake_host.lua` (fixed epoch, fake clock, seeded random)
+  and `distilled.trace.expect` over `trace.exporters.memory()`.
+
+### Decisions / proposed contract updates (`docs/interfaces.md`, Tracer)
+
+- Exporters are called as `exporter(spans, meta)` with `meta = { service_name }`, so the
+  file/otlp exporters can fill `resource.service.name`. Extra argument, compatible.
+- `memory()` is a callable table (`.spans`, `:clear()`), so exporters are "callable", not
+  always functions; `trace.new` accepts either.
+- `kind` defaults to `"internal"`; also accepts `"server"`. Status stays `"unset"` on
+  success (OTel guidance for libraries); only failures set `"error"`.
+- `span:fail(err)` sets `status.message = err.message` and `error.type = err.tag`
+  (`"_OTHER"` without a tag, as Distilled's `tagOf`). `tracer:with` does **not** set
+  `err.trace_id`; the operation layer (task 04) should do that.
+- Finishing a span ends any children still open under it (a raise skipped their finish).
+- Each root span starts a new trace unless `parent` is given; then every root continues it.
+- `traceparent()` returns nil when no span is open, even with an incoming `parent`.
+- Flush failures are `SdkError` "trace export failed: ...". Exported spans are in start
+  order. Extra exports: `trace.NOOP_SPAN`, `trace.parse_traceparent`, `trace.ns_diff_ms`,
+  `trace.attribute_value`, `trace.tag_of`.
+- `trace.noop` lives in `distilled.trace` (the plan says the module is never loaded when
+  off; task 04 may want to hold a copy elsewhere if that matters).
+- Not mine, for the orchestrator: `verify/features/README.md` should list `tracing.md`.
 
 ## 03 wire
 
