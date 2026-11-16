@@ -85,6 +85,21 @@ DL_CONFORM_VERBOSE=1 lua verify/conform/compare.lua "$PWD" neon   # also list in
 verify/dl test conform_           # differ/rules specs + replay, in all three runtimes
 ```
 
+`dl live` is the last mile, against the real API (opt-in, never in tests):
+
+```sh
+NEON_API_KEY=... verify/dl live neon list_projects limit=5    # GET only; span tree on stderr
+verify/dl live neon delete_project project_id=p1 --write      # anything else needs --write
+```
+
+Values parse as JSON when they can (`limit=5` is a number), else they are strings. Exit
+0 ok, 1 the call failed, 2 misuse (unknown op, a non-GET without `--write`), 3 skipped:
+no credentials, so the call failed with `ConfigError` before sending anything. With no
+key on this machine the live run is skipped; pointing `NEON_API_BASE_URL` at `dl serve`
+proves the wire path end to end (`verify/dl serve run sh -c 'NEON_API_KEY=x
+NEON_API_BASE_URL=$DL_SERVE_URL/live verify/dl live neon list_projects'` -> the server's
+404, exit 1).
+
 Output: one `MISMATCH <category> <case id> (case: verify/conform/cases/neon/<file> line N)`
 per mismatch with `field: distilled <value> | lua <value>` lines, then a summary per
 category; exit 1 (an error in Rex) on any mismatch.
