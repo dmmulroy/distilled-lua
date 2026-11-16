@@ -184,3 +184,19 @@ regex hook in `errors.match`. See `tasks/03-wire.done.md`.
   validation (task 03).
 - `docs/interfaces.md`: add the request.build options, `op.body_media_type`, node-level
   `sensitive`, the mismatch shape, `redact.parsed`, and the `redact.plain` registry arg.
+
+## 04 runtime
+
+(not started)
+
+## 05 host
+
+(not started)
+
+## 06 generator
+
+(not started)
+
+## 07 conformance
+
+(not started)

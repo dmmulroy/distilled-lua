@@ -30,6 +30,17 @@ Two things to know before you start:
 - With tracing off, hold `require("distilled.trace.noop")` and never require
   `distilled.trace`. Set `err.trace_id` yourself in the operation layer.
 
+Inherited fixes, which you now own (their original tasks are closed):
+
+- `lua/distilled/secret.lua`: `secret.unwrap_deep` turns `json.null` into `{}`. Fix it with
+  a failing spec first, then make `request.build` use it instead of its private copy.
+- `verify/features/README.md` and `verify/features/errors.md`: add the areas from task 03
+  (request-building, key-mapping, redaction, validation) and yours to the index; remove the
+  stale note that `matches` never matches.
+- Response header members on outputs (`schema.plan(output).by_bind.header`) and the
+  decode-side cases task 03 left for the protocol: 204 and empty bodies, raw and binary
+  outputs, parse errors, typed error matching through a whole call.
+
 ## Files you own
 
 ```text
