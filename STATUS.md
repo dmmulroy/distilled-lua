@@ -187,7 +187,81 @@ regex hook in `errors.match`. See `tasks/03-wire.done.md`.
 
 ## 04 runtime
 
-(not started)
+**In progress.** The APIs below are settled (interim; tasks 05 and 06 can build on them).
+Changes after this point will be listed here with a date-free "changed:" note.
+
+### Client.define (what the generator emits)
+
+```lua
+local Client = require("distilled.client")
+local rest = require("distilled.protocol.rest")
+return Client.define{
+  service = service,            -- docs/interfaces.md service descriptor
+  protocol = rest.new{
+    base_url = function(creds, route) return creds.base_url end,  -- or a string
+    headers = rest.bearer("api_key"),   -- fn(creds) -> { authorization = "Bearer <key>" }
+    unknown_tag = "UnknownNeonError", parse_tag = "NeonParseError",
+    -- optional: error_envelope, error_fields_at, status_map, classify_error,
+    -- transform_response, map_member_header, unknown_key_to_wire, empty_json_body,
+    -- query_style, user_agent
+  },
+  options = {                   -- provider options: the user passes them to .new{}
+    api_key = { secret = true, env = "NEON_API_KEY", required = true },
+    base_url = { default = "https://console.neon.tech/api/v2" },
+  },
+}
+```
+
+- `options[name]` fields: `secret` (value is a string, a secret, or `fn(host) -> value |
+  nil, err`; held as a secret; refreshable), `env` (read through `host.getenv` when the
+  user gives no value), `default`, `required`, `type` (`"string" | "number" | "boolean" |
+  "table"`, checked in `new`). Provider options cannot reuse a common option name
+  (below); `define` raises.
+- `creds` (what `base_url` / `headers` receive) is `{ [option] = value }` for every provider
+  option: secret options as secrets (unwrap with `secret.unwrap` where the header is built;
+  `rest.bearer(name)` and `rest.header(header_name, option_name)` do that).
+  A missing required option fails the call with `ConfigError` (`err.key = name`), it does
+  not raise in `new`.
+- Methods come from `service.ops` keys: `client:get_project(input)`, and for an op with
+  `pagination`: `client:list_projects_pages(input)` / `client:list_projects_items(input)`.
+  `define` raises when an op name collides with `with`, `close` or another op's `_pages` /
+  `_items` name.
+
+### Common options of `Class.new{}` / `client:with{}`
+
+`host`, and the host fields at top level (`transport`, `sleep`, `now`, `exec`, `random`,
+`getenv`, `epoch`; top level wins over `host`), `retry`, `deadline_s`, `tracing`, `tracer`,
+`trace_parent`, `validation` (`"lenient"` default, `"additional"`, `"strict"`), `budget`,
+`server_hint_cap_s`, `user_agent`. Unknown names raise, listing the valid ones.
+
+- `retry`: a preset (`retry.DEFAULT`, `THROTTLING`, `TRANSIENT`, `NONE`, or the strings
+  `"default" | "throttling" | "transient" | "none"`) or a table of policy fields merged
+  over the default (`{ max_retries = 5 }`); `retry = { deadline_s = 20 }` sets only the
+  deadline. `deadline_s` at top level is the same thing.
+- `tracing`: `"off"` (default) | `"operation"` | `"debug"` | `{ level, file, max_bytes,
+  exporter }`. A string level without an exporter writes the console tree to
+  `io.stderr`. `tracer = <tracer>` installs an existing tracer (tests, `dl trace`).
+- No transport is a `ConfigError` at call time (`err.key = "transport"`). Default `sleep`
+  is a busy wait on `os.clock` (no sleep in pure Lua): hosts should pass one.
+
+### Protocol seam (`protocol.call(ctx, op, input) -> value | nil, err, meta`)
+
+`ctx = { service, op_name, credentials = fn() -> creds | nil, err, host, tracer, span,
+validation, timeout, attempt }`. `span` is the operation span (or the no-op span);
+`timeout` is the remaining deadline in seconds (copied to `request.timeout`); `attempt` is
+the retry loop's table, where the protocol records `host` (the request's host),
+`status` and `hint_ms` (bounded hint). **Third return value `meta = { status, headers }`**
+whenever a response arrived (success or failure): this is how `link` pagination gets the
+`Link` header, with no global.
+
+### Errors the runtime adds
+
+- `<unknown_tag>` (no category, never retryable; `status, code, message, body, headers`)
+  and `<parse_tag>` (category `ParseError`; `body`, `cause`).
+- A raise inside a user callback (credential function, `classify_error`,
+  `error_envelope`, `transform_response`, retry `when`) becomes `SdkError` with the
+  message and `err.cause`.
+- With tracing on, a failed call's `err.trace_id` is set.
 
 ## 05 host
 
