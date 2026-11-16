@@ -265,7 +265,46 @@ whenever a response arrived (success or failure): this is how `link` pagination 
 
 ## 05 host
 
-(not started)
+**In progress.** Done: transports, `host/rex.lua`, `otlp_http`, `dl serve`, `dl test
+--http`, `dl rex`, `dl canary`, `dl jaeger`, specs, feature docs. Waiting for task 04:
+the end-to-end client runs over HTTP and `examples/rex_action.lua`.
+
+### APIs others can use now
+
+- `require("distilled.transport.popen_curl")([opts])` -> transport (stock Lua/LuaJIT).
+  `require("distilled.transport.exec_curl")(exec [, opts])` -> transport (`exec` has
+  `rex.exec`'s contract). Both modules are callable tables with `.new` too.
+- `require("distilled.host.rex")([opts])` -> `{ transport, exec, sleep, now = os.clock,
+  epoch = os.time, getenv, name = "rex" }`; no `random` (left to distilled.host's default).
+- `trace.exporters.otlp_http{ endpoint, transport, headers, timeout, service_name }`.
+- `TransportError` extras: `err.curl_code`, `err.timeout = true` (+ category
+  `TimeoutError`), `err.tls = true`. A request that breaks the transport contract (CR/LF
+  in a header, bad URL/method) is `InvalidInput` from the transport.
+- HTTP specs: gate on `require("verify.lib.serve").url()` (DL_SERVE_URL), and report a
+  `t.pending` when it is nil. `verify/dl test --http` runs the whole suite under a private
+  server. `serve.client(transport)` scripts it; `serve.popen_exec` is an exec shim.
+- Scripts that need a real host on the current runtime: `require("verify.lib.canary").host()`.
+
+### Decisions
+
+- popen_curl: request in mktemp (0600) files (config, body, stderr), removed by a scope
+  finalizer; `curl -q --config <path>` only. exec_curl: config on stdin; with a body, stdin
+  is config..body and `sh -c 'exec 3<&0; dd bs=1 count=N | curl -q --config -'` with
+  `data-binary = "@/dev/fd/3"`: no file on disk at all.
+- `verify/dl test` (shared) got a `--http` flag; plain `dl test` unsets DL_SERVE_URL.
+- Measured: `rex do` honours `LUA_PATH`; `os.getenv` in `rex do` sees the `rex do`
+  process's environment; rex.exec stdout/stdin are byte-exact (NUL, 0xFF); a 3 s request
+  inside a `rex do --action` action does not block `rex ls` (0.05-0.07 s).
+
+### Proposed (files I do not own)
+
+- `verify/features/README.md` (task 04 now): add rows transports.md, rex-host.md, otlp.md
+  (task 05).
+- `distilled.host` (task 04): stock Lua has no default transport or sleep. A
+  `distilled.host.popen` (popen_curl + `sleep` via the shell) would give scripts a one-line
+  host; `verify/lib/canary.lua` has one for verify scripts.
+- `lua/distilled/trace/exporters.lua` header comment still says otlp_http arrives later;
+  I added only the hook.
 
 ## 06 generator
 
