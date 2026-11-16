@@ -1,4 +1,4 @@
-models/
 *.tmp
 .DS_Store
 /out/
+/verify/tmp/
