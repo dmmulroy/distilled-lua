@@ -4,14 +4,14 @@
 --   env.tracer           -- the installed tracer (level from --level, default debug)
 --   env.host             -- a host on a virtual clock: host.sleep(s) advances time at once
 --   env.spans()          -- flush, then every span exported so far (memory exporter)
---   env.expect()         -- distilled.trace.expect over env.spans()
+--   env.expect()         -- distilled.testing.expect over env.spans()
 --
 -- verify/lib/trace_run.lua calls env.install{ level, file, service_name } before it runs
 -- the script; a script run directly (lua my_script.lua) gets a debug-level tracer with a
 -- memory exporter on first require.
 local trace = require("distilled.trace")
 local exporters = require("distilled.trace.exporters")
-local expect = require("distilled.trace.expect")
+local expect = require("distilled.testing.expect")
 
 local env = {}
 

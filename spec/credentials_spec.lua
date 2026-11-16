@@ -9,7 +9,7 @@ local rest = require("distilled.protocol.rest")
 local testing = require("distilled.testing")
 local fixtures = require("distilled.testing.fixtures")
 local trace = require("distilled.trace")
-local expect = require("distilled.trace.expect")
+local expect = require("distilled.testing.expect")
 
 local CANARY = "sk-CANARY-cred-4242"
 

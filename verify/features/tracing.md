@@ -55,12 +55,13 @@
 - **Golden traces**: `tree.golden` renames ids to `trace-N` / `span-N` / `remote-N` in tree
   order (also inside string values, such as a recorded traceparent), replaces each
   timestamp by its rank, and drops durations.
-- **Assertions** (`distilled.trace.expect`): below.
+- **Assertions** (`distilled.testing.expect`, formerly `distilled.trace.expect`; under
+  `testing/` so `distilled-lua vendor` does not ship it): below.
 
 ## The `expect` API
 
 ```lua
-local expect = require("distilled.trace.expect")
+local expect = require("distilled.testing.expect")
 local e = expect(memory_exporter)          -- or expect(list_of_spans): selects every span
 ```
 

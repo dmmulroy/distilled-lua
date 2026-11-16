@@ -647,7 +647,7 @@ elseif not have_client then
   end)
 else
   local trace = require("distilled.trace")
-  local expect = require("distilled.trace.expect")
+  local expect = require("distilled.testing.expect")
   local fixtures = require("distilled.testing.fixtures")
   local Fake = serve.fixture_class()
   -- operation span names as the operation layer derives them (operation.info)

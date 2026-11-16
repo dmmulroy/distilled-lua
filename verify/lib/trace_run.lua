@@ -134,7 +134,7 @@ end
 if args.mode == "expect" then
   local check = ran[2]
   if type(check) == "function" then
-    local expect = require("distilled.trace.expect")
+    local expect = require("distilled.testing.expect")
     local ok, raised = xpcall(function()
       return check(expect(spans), spans)
     end, function(e)

@@ -10,7 +10,7 @@ local testing = require("distilled.testing")
 local fixtures = require("distilled.testing.fixtures")
 local trace = require("distilled.trace")
 local noop = require("distilled.trace.noop")
-local expect = require("distilled.trace.expect")
+local expect = require("distilled.testing.expect")
 local otlp = require("distilled.trace.otlp")
 
 local function must(v, err)

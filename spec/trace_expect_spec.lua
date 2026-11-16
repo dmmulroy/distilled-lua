@@ -1,6 +1,6 @@
 local t = require("spec.harness")
 local trace = require("distilled.trace")
-local expect = require("distilled.trace.expect")
+local expect = require("distilled.testing.expect")
 local fake = require("verify.lib.trace_fake_host")
 local sim = require("verify.lib.trace_sim")
 

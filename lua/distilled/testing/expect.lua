@@ -1,6 +1,8 @@
--- Assertions over a list of finished spans, for specs and `dl expect` scripts.
+-- Assertions over a list of finished spans, for specs and `dl expect` scripts. Test code:
+-- it lives under testing/ (it was distilled.trace.expect until task 09), so
+-- `distilled-lua vendor` does not ship it.
 --
---   local expect = require("distilled.trace.expect")
+--   local expect = require("distilled.testing.expect")
 --   local e = expect(memory.spans)                    -- or expect(memory_exporter)
 --   e:span("Neon.GetProject"):attr("http.response.status_code", 200)
 --   e:span("Neon.GetProject"):children("distilled.attempt"):count(3)

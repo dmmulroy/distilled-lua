@@ -10,7 +10,7 @@ local secret = require("distilled.secret")
 local testing = require("distilled.testing")
 local fixtures = require("distilled.testing.fixtures")
 local trace = require("distilled.trace")
-local expect = require("distilled.trace.expect")
+local expect = require("distilled.testing.expect")
 
 local function must(v, err)
   if v == nil then
