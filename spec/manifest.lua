@@ -19,6 +19,7 @@ return {
   "trace_otlp_spec.lua",
   "trace_tracer_spec.lua",
   "trace_tree_spec.lua",
+  "transport_spec.lua",
   "url_spec.lua",
   "validate_spec.lua",
 }

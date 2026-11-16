@@ -102,8 +102,24 @@ cmd_test() {
   runtimes=$RUNTIMES
   filter=""
   fuzz=0
+  # --http (task 05): run everything under a private `dl serve`, so the HTTP specs (gated
+  # on DL_SERVE_URL) run too; plain `dl test` clears DL_SERVE_URL so they report skipped
+  for a in "$@"; do
+    if [ "$a" = "--http" ]; then
+      if [ -z "${DL_TEST_HTTP:-}" ]; then
+        DL_TEST_HTTP=1
+        export DL_TEST_HTTP
+        serve_with "$0" test "$@"
+        exit $?
+      fi
+    fi
+  done
+  [ -n "${DL_TEST_HTTP:-}" ] || unset DL_SERVE_URL DL_SERVE_PORT
   while [ $# -gt 0 ]; do
     case $1 in
+      --http)
+        shift
+        ;;
       --runtime)
         [ $# -ge 2 ] || die "--runtime needs lua, luajit or rex"
         runtimes=$2
@@ -283,6 +299,89 @@ cmd_trace_or_expect() {
 }
 
 # ----------------------------------------------------------------------------------
+# serve (task 05): verify/lib/serve.py, a scriptable fixture HTTP server on 127.0.0.1
+# ----------------------------------------------------------------------------------
+
+# serve_start DIR: starts serve.py with its pid and port files in DIR; prints the port
+serve_start() {
+  dir=$1
+  mkdir -p "$dir"
+  if [ -f "$dir/pid" ] && kill -0 "$(cat "$dir/pid")" 2>/dev/null && [ -f "$dir/port" ]; then
+    cat "$dir/port"
+    return 0
+  fi
+  rm -f "$dir/port" "$dir/pid"
+  command -v python3 >/dev/null 2>&1 || die "serve: python3 not found"
+  nohup python3 "$LIB/serve.py" --port-file "$dir/port" >"$dir/log" 2>&1 </dev/null &
+  printf '%s\n' "$!" >"$dir/pid"
+  i=0
+  while [ ! -s "$dir/port" ]; do
+    i=$((i + 1))
+    if [ "$i" -gt 100 ] || ! kill -0 "$(cat "$dir/pid")" 2>/dev/null; then
+      say "dl serve: server did not start; log:" >&2
+      cat "$dir/log" >&2
+      return 1
+    fi
+    sleep 0.05
+  done
+  cat "$dir/port"
+}
+
+# serve_stop DIR: stops the server whose pid file is in DIR (quietly when none runs)
+serve_stop() {
+  dir=$1
+  if [ -f "$dir/pid" ]; then
+    pid=$(cat "$dir/pid")
+    if kill "$pid" 2>/dev/null; then
+      i=0
+      while kill -0 "$pid" 2>/dev/null && [ "$i" -lt 50 ]; do
+        i=$((i + 1))
+        sleep 0.05
+      done
+      kill -9 "$pid" 2>/dev/null
+    fi
+  fi
+  rm -f "$dir/pid" "$dir/port"
+}
+
+# serve_with CMD...: starts a private server, runs CMD with DL_SERVE_PORT and DL_SERVE_URL
+# set, stops the server on every exit path, returns CMD's status
+serve_with() {
+  sdir=$(mktemp -d "${TMPDIR:-/tmp}/dl-serve.XXXXXX") || die "serve: mktemp failed"
+  trap 'serve_stop "$sdir"; rm -rf "$sdir"' EXIT
+  trap 'exit 130' INT TERM
+  port=$(serve_start "$sdir") || exit 1
+  DL_SERVE_PORT=$port
+  DL_SERVE_URL="http://127.0.0.1:$port"
+  export DL_SERVE_PORT DL_SERVE_URL
+  "$@"
+  code=$?
+  serve_stop "$sdir"
+  rm -rf "$sdir"
+  trap - EXIT
+  return $code
+}
+
+cmd_serve() {
+  sub=${1:-help}
+  [ $# -gt 0 ] && shift
+  case $sub in
+    start) serve_start "$TMP/serve" ;;
+    stop) serve_stop "$TMP/serve" && say "dl serve: stopped" ;;
+    port | url)
+      [ -s "$TMP/serve/port" ] || die "serve: not running (dl serve start)"
+      if [ "$sub" = url ]; then say "http://127.0.0.1:$(cat "$TMP/serve/port")"; else cat "$TMP/serve/port"; fi
+      ;;
+    run)
+      [ $# -gt 0 ] || die "usage: dl serve run <command> [args...]"
+      serve_with "$@"
+      exit $?
+      ;;
+    *) die "usage: dl serve start | stop | port | url | run <command> [args...]" ;;
+  esac
+}
+
+# ----------------------------------------------------------------------------------
 # help
 # ----------------------------------------------------------------------------------
 
@@ -294,6 +393,7 @@ verify/dl: distilled-lua verification driver
   dl test [filter]          run specs under lua, luajit and rex (gopher-lua)
       --runtime R           run one runtime: lua | luajit | rex
       --json-fuzz           seeded random JSON round trip vs Node (DL_FUZZ_SEED, DL_FUZZ_COUNT)
+      --http                start a private dl serve and run the HTTP specs too (DL_SERVE_URL)
   dl manifest               regenerate spec/manifest.lua (dl test does this too)
   dl fmt [--check]          format (or check) Lua with stylua
   dl json-bench [file]      time json.decode of a file (default models/neon.json)
@@ -329,7 +429,7 @@ case $cmd in
   expect) cmd_trace_or_expect expect "$@" ;;
   conform) stub conform "a later task (plan build step 7)" ;;
   gen-diff) stub gen-diff "task 06" ;;
-  serve) stub serve "task 05" ;;
+  serve) cmd_serve "$@" ;;
   rex) stub rex "task 05" ;;
   live) stub live "a later task (plan build step 8)" ;;
   canary) stub canary "task 05" ;;
