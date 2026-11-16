@@ -388,3 +388,49 @@ neon` ok (177/178 operations build; the multipart one is acknowledged, see below
 ## 07 conformance
 
 (not started)
+
+## 08 multipart
+
+**Done.** See `tasks/08-multipart.done.md` and `verify/features/request-building.md`
+("Multipart bodies"). `dl gen-diff neon`: 178/178 operations built in all three runtimes.
+
+### APIs others can use
+
+- `require("distilled.multipart")`: `file{ data, filename?, content_type? }` (the file
+  value; data may be a secret), `is_file(v)`, `encode(parts, { random }) -> { body,
+  content_type, boundary } | nil, err`, `boundary(random)`, `escape_name`,
+  `escape_filename`.
+- `request.build` takes two more optional args: `random` (fn -> [0, 1)) and `host`
+  (its `random` is used). Without either, the boundary comes from `distilled.host`'s
+  private generator.
+
+### Decisions
+
+- Bytes follow undici's FormData serializer (what Distilled sends in Node), checked against
+  Node 24: names normalize line breaks then escape `"` CR LF as `%22 %0D %0A`; filenames
+  escape without normalizing; **text values get CRLF line breaks**; file data is exact.
+- A string at a `blob` node (member, list item, map value of a payload record) is a file
+  part named after the member, like Distilled's Uint8Array. A payload record's entries are
+  sorted (no insertion order in Lua). A payload that is one file/blob is one file part
+  under its wire name (Distilled would spread a Uint8Array into per-index parts).
+- Distilled's `FormDataFile()` bind has no Smithy trait in the models: not implemented.
+- `provider.UNSUPPORTED` is now empty (mechanism kept, the spec exercises it with a
+  temporary entry); `provider.CLOSED_GAPS.multipart` makes a stale
+  `allow_unsupported = { "multipart" }` a generation error that says to remove it.
+- Generated `types.lua` declares `distilled.File`; Blob members (and lists of Blob) of a
+  multipart input are typed `distilled.File|string`.
+
+### Proposed changes in files I do not own
+
+- `lua/distilled/protocol/rest.lua` (task 04): pass the host to request.build so the
+  boundary comes from `ctx.host.random` (deterministic with the testing host). One line in
+  `protocol.encode`'s `request.build{...}`: `host = ctx.host,`. Until then a client call's
+  boundary is random but not the host's (the Neon client spec parses it from the header).
+- `lua/distilled/init.lua` (task 01): `distilled.file = require("distilled.multipart").file`
+  (or a LAZY entry `multipart = "distilled.multipart"`), so callers write
+  `distilled.file{...}` as the brief names it. Today: `require("distilled.multipart").file`.
+- `verify/features/generator.md` lines 75-77 (task 06) still say multipart needs
+  `allow_unsupported`; it no longer does.
+- `docs/interfaces.md`: request.build's `random`/`host` args; the multipart module.
+- Edited outside the brief's list: `spec/neon_client_spec.lua`, only its multipart case
+  (it asserted the old refusal; it now checks the whole multipart body of a Neon call).
