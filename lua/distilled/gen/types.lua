@@ -302,6 +302,9 @@ function types.render(plan)
     local output_t
     if op.out.raw then
       output_t = types.type_of(ctx, prefix, op.out.type_target, false)
+      if op.out.nullable then
+        output_t = output_t .. "|distilled.Null"
+      end
     else
       output_t = prefix .. "." .. naming.local_name(op.output)
     end
