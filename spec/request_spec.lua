@@ -701,7 +701,13 @@ t.describe("request: the fixture service", function()
   t.it("update_branch: two labels, a header, a renamed and a string-encoded member", function()
     local r = b(
       "update_branch",
-      { project_id = "p", branch_id = "b", request_id = "r1", display_name = "x", protected = false }
+      {
+        project_id = "p",
+        branch_id = "b",
+        request_id = "r1",
+        display_name = "x",
+        protected = false,
+      }
     )
     t.eq(r.url, fixtures.BASE_URL .. "/projects/p/branches/b")
     t.eq(r.headers["x-request-id"], "r1")

@@ -17,8 +17,9 @@
 -- - A struct with no members is opaque: its value is returned as is.
 -- - `string_encoded` members are sent as their string spelling on encode (element-wise
 --   for lists; json.null stays null). The top-level pass in request.build does the same.
--- - A table at a node of the wrong kind (an array at a struct node, an object at a list
---   node) passes through as is.
+-- - A table at a node of the wrong kind passes through as is: a json.array-marked table
+--   at a map or struct node, a table with non-index keys at a list node. An unmarked
+--   table at a map or struct node is an object (so `{ [1] = "a" }` there is {"1":"a"}).
 --
 -- When no member below a node is renamed or string-encoded (keys.verbatim), encode does
 -- not copy: it only marks the tables it is given, in place, and decode returns the value
@@ -166,7 +167,7 @@ local function walk(root_node, root_value, registry, direction, copy)
           end
         end
       elseif t == "map" then
-        if not schema.is_array_value(value) then
+        if not json.is_array(value) then
           if copy then
             result = json.object({})
             for k, v in pairs(value) do
@@ -181,7 +182,7 @@ local function walk(root_node, root_value, registry, direction, copy)
         end
       elseif t == "struct" then
         local members = node.members
-        if members and #members > 0 and not schema.is_array_value(value) then
+        if members and #members > 0 and not json.is_array(value) then
           if copy then
             result = json.object({})
             local consumed, targets = {}, {}
