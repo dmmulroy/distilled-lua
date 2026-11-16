@@ -16,48 +16,12 @@ local trace = {}
 local floor = math.floor
 local format = string.format
 
----------------------------------------------------------------------------------------
--- protected calls without pcall
----------------------------------------------------------------------------------------
-
--- protect(fn, ...) -> { n, true, ... } | { n, false, raised }
--- Runs fn in a coroutine instead of pcall/xpcall. In gopher-lua (Rex), once a protected
--- call has run inside another protected call, the outer one catching an error breaks
--- the upvalues of closures in running frames (measured: xpcall(function()
--- xpcall(f, h); error("y") end, h) leaves a counter closure writing to a stale copy).
--- compat.pcall (xpcall) is still affected in that nested case; a coroutine that catches
--- an error is not. So tracer:with can run inside a user's pcall safely. A yield from fn
--- is passed through to the caller's coroutine, so with() is also yield-transparent.
-local co_create, co_resume, co_status, co_yield =
-  coroutine.create, coroutine.resume, coroutine.status, coroutine.yield
-
-local function protect(fn, ...)
-  local co = co_create(fn)
-  local r = compat.pack(co_resume(co, ...))
-  while r[1] and co_status(co) == "suspended" do
-    r = compat.pack(co_resume(co, co_yield(compat.unpack(r, 2, r.n))))
-  end
-  return r
-end
-trace._protect = protect
-
----------------------------------------------------------------------------------------
--- the non-recording span (shared, allocates nothing)
----------------------------------------------------------------------------------------
-
-local NOOP_SPAN_METHODS = { recording = false }
-function NOOP_SPAN_METHODS.set() end
-function NOOP_SPAN_METHODS.event() end
-function NOOP_SPAN_METHODS.fail() end
-function NOOP_SPAN_METHODS.finish() end
-
--- One shared instance: trace.noop and debug spans under level "operation" return it.
--- An empty proxy, so a stray assignment (span.recording = true) cannot change it.
-local NOOP_SPAN = setmetatable({}, {
-  __index = NOOP_SPAN_METHODS,
-  __newindex = function() end,
-})
+-- the no-op tracer and the shared non-recording span live in distilled.trace.noop, which
+-- requires nothing, so a client with tracing off never loads this module
+local noop = require("distilled.trace.noop")
+local NOOP_SPAN = noop.NOOP_SPAN
 trace.NOOP_SPAN = NOOP_SPAN
+trace.noop = noop
 
 ---------------------------------------------------------------------------------------
 -- ids
@@ -463,7 +427,9 @@ function Tracer:with(name, opts, fn)
   if not span.recording then
     return fn(span)
   end
-  local r = protect(fn, span)
+  -- compat.pcall runs fn in a coroutine: safe from gopher-lua's protected-call bugs
+  -- inside a caller's pcall, and a yield in fn passes through to the caller
+  local r = compat.pack(compat.pcall(fn, span))
   if not r[1] then
     span:fail(r[2])
     span:finish()
@@ -510,10 +476,7 @@ function Tracer:flush()
   local meta = { service_name = self.service_name }
   local failures = {}
   for _, exporter in ipairs(self._exporters) do
-    local r = protect(function()
-      return exporter(spans, meta)
-    end)
-    local ok, res, err = r[1], r[2], r[3]
+    local ok, res, err = compat.pcall(exporter, spans, meta)
     if not ok then
       failures[#failures + 1] = "raised: " .. message_of(res)
     elseif res == nil or res == false then
@@ -529,29 +492,6 @@ function Tracer:flush()
   end
   return true
 end
-
----------------------------------------------------------------------------------------
--- the no-op tracer
----------------------------------------------------------------------------------------
-
-local noop = { level = "off" }
-function noop.start()
-  return NOOP_SPAN
-end
-function noop.with(_, _, _, fn)
-  return fn(NOOP_SPAN)
-end
-function noop.current()
-  return nil
-end
-function noop.traceparent()
-  return nil
-end
-function noop.flush()
-  return true
-end
--- an empty proxy over the methods, so trace.noop.level = "debug" cannot change it
-trace.noop = setmetatable({}, { __index = noop, __newindex = function() end })
 
 -- exporters are loaded on first use
 setmetatable(trace, {

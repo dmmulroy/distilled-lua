@@ -14,13 +14,12 @@ local state = {
   file = "?",
 }
 
--- pcall replacement: in gopher-lua a pcall that catches an error breaks closures'
--- upvalues in the frames still running (see lua/distilled/compat.lua). xpcall is safe.
-local function identity(raised)
-  return raised
-end
+-- pcall replacement: in gopher-lua a pcall that catches an error, and any protected
+-- call that catches after another one completed inside it, break closures' upvalues in
+-- the frames still running. compat.pcall runs fn in a coroutine, which is safe.
+local compat = require("distilled.compat")
 local function safe_pcall(fn)
-  return xpcall(fn, identity)
+  return compat.pcall(fn)
 end
 t.pcall = safe_pcall
 
@@ -363,10 +362,9 @@ local function traceback(raised)
   end
   local text = tostring(raised)
   if debug and debug.traceback then
-    local ok, tb = xpcall(function()
-      return debug.traceback(text, 3)
-    end, identity)
-    if ok and type(tb) == "string" then
+    -- called directly: inside a coroutine it would trace the wrong stack
+    local tb = debug.traceback(text, 2)
+    if type(tb) == "string" then
       text = tb
     end
   end
@@ -374,6 +372,9 @@ local function traceback(raised)
 end
 
 -- run one test; returns nil on success or a failure { message, where }
+-- The one xpcall left (for its traceback handler): it is the outermost protected call,
+-- and everything nested inside uses compat.pcall, so gopher-lua's nested-call bug
+-- cannot trigger.
 function t._run(test)
   local ok, raised = xpcall(test.fn, traceback)
   if ok then

@@ -14,8 +14,9 @@ One file per feature area. Each has the same four headings:
 | Errors and typed matching | [errors.md](errors.md) | task 01 |
 | Secrets | [secret.md](secret.md) | task 01 |
 | Scope | [scope.md](scope.md) | task 01 |
+| Tracing | [tracing.md](tracing.md) | task 02 |
 
-Other areas (tracing, request building, retry, pagination, transports, generator, Rex host)
+Other areas (request building, retry, pagination, transports, generator, Rex host)
 add their file here when their task lands.
 
 ## The proof bar
@@ -27,9 +28,15 @@ no network except the local fixture server, skipped things named.
 ## Runtime facts every area should know (gopher-lua, measured in Rex 0.1.0-preview.19)
 
 - A `pcall` that catches an error **breaks closures' upvalues** in every frame still
-  running: a closure made before the pcall keeps writing to a stale copy. Use
-  `compat.pcall` (built on `xpcall`, which is not affected). Keep counters that closures
-  update in tables if in doubt.
+  running: a closure made before the pcall keeps writing to a stale copy. So does any
+  protected call, `xpcall` included, that catches after another protected call has
+  completed inside it (`xpcall(function() xpcall(f, h); error("y") end, h)`). Use
+  `compat.pcall`, built on a coroutine, which has neither bug at any depth and passes
+  yields through. Keep counters that closures update in tables if in doubt.
+- Yielding across a Go function boundary (from a `table.sort` comparator or a
+  `string.gsub` callback, inside a coroutine) crashes gopher-lua with a nil pointer
+  dereference that takes down the whole `rex do` run. lua/luajit raise "attempt to yield
+  across a C-call boundary" instead.
 - `error(msg, level)` reports at `level - 1`. `compat.raise(msg, level)` corrects it.
 - `table.concat` fails with "registry overflow" past about 2,500 items. Use
   `compat.concat`.

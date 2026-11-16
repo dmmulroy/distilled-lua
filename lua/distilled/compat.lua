@@ -14,24 +14,51 @@ end
 local loadstring_fn = rawget(_G, "loadstring")
 
 -- compat.pcall(fn, ...) -> true, ... | false, raised
--- Use this instead of pcall. In gopher-lua (Rex), a pcall that catches an error closes
--- every open upvalue of the frames still running, so a closure created earlier keeps
--- writing to a stale copy of its variable (measured: `local n = 0; local function bump()
--- n = n + 1 end; pcall(error, "x"); bump()` leaves n == 0). xpcall does not have the
--- bug. 5.1's xpcall takes no arguments, so they travel in a closure.
-local function identity(raised)
-  return raised
+-- Use this instead of pcall or xpcall. It runs fn in a coroutine: coroutine.resume
+-- catches a raise like pcall does, without gopher-lua's protected-call bugs.
+--
+-- gopher-lua (Rex) has two measured bugs, both breaking the upvalues of closures in the
+-- frames still running (a closure made earlier keeps writing to a stale copy; measured:
+-- `local n = 0; local function bump() n = n + 1 end; <protected call>; bump()` leaves
+-- n == 0):
+--   1. a plain pcall that catches an error;
+--   2. any protected call (pcall or xpcall) that catches an error after another
+--      protected call has completed inside it: xpcall(function() xpcall(f, h);
+--      error("y") end, h). So xpcall alone is not safe once calls nest.
+-- A coroutine that catches an error triggers neither, at any nesting depth.
+--
+-- Yield-transparent: when fn yields, the yield is passed on to the coroutine that
+-- called compat.pcall and its resume values are handed back to fn, so code under
+-- compat.pcall behaves as if it were not wrapped. Called outside any coroutine, a yield
+-- has nowhere to go and compat.pcall returns false, "attempt to yield from outside a
+-- coroutine" (what pcall gives). Limit: a yield cannot be passed on across a C/Go call
+-- boundary between the caller's coroutine and compat.pcall (for example compat.pcall
+-- inside a table.sort comparator); there the runtime raises from the forwarding yield,
+-- as the same yield would without compat.pcall.
+local co_create, co_resume, co_status, co_yield, co_running =
+  coroutine.create, coroutine.resume, coroutine.status, coroutine.yield, coroutine.running
+
+-- 5.1/LuaJIT/gopher-lua: running() is nil on the main thread; 5.2+: (thread, true)
+local function in_coroutine()
+  local co, is_main = co_running()
+  return co ~= nil and not is_main
 end
 
+local YIELD_OUTSIDE = "attempt to yield from outside a coroutine"
+
 function compat.pcall(fn, ...)
-  local n = select("#", ...)
-  if n == 0 then
-    return xpcall(fn, identity)
+  -- a Lua closure: 5.1 coroutines need a Lua function, and fn may be a callable table
+  local co = co_create(function(...)
+    return fn(...)
+  end)
+  local r = compat.pack(co_resume(co, ...))
+  while r[1] and co_status(co) == "suspended" do
+    if not in_coroutine() then
+      return false, YIELD_OUTSIDE
+    end
+    r = compat.pack(co_resume(co, co_yield(compat.unpack(r, 2, r.n))))
   end
-  local args = { ... }
-  return xpcall(function()
-    return fn(compat.unpack(args, 1, n))
-  end, identity)
+  return compat.unpack(r, 1, r.n)
 end
 
 -- gopher-lua reports error(msg, level) at level - 1 (error(msg, 2) names the function
@@ -41,11 +68,14 @@ do
   local getinfo = debug and debug.getinfo
   if getinfo then
     -- error(_, 2) should name the caller; if the reported line falls inside thrower
-    -- itself, the runtime is off by one.
+    -- itself, the runtime is off by one. Probed in a coroutine, not xpcall: compat is
+    -- often first required inside a protected call (see compat.pcall).
     local function thrower()
       error("probe", 2)
     end
-    local ok, message = xpcall(thrower, identity)
+    local ok, message = co_resume(co_create(function()
+      thrower()
+    end))
     local info = getinfo(thrower, "S")
     local line = type(message) == "string" and tonumber(string.match(message, ":(%d+): probe$"))
     if not ok and info and line and line >= info.linedefined and line <= info.lastlinedefined then

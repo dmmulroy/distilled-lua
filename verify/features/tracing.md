@@ -9,14 +9,17 @@
 - **`tracer:with(name, opts, fn)`**: ends the span on a normal return (all results passed
   through), on `nil, err` (span failed, `error.type = err.tag`, `nil, err` returned
   unchanged; `err` is not modified) and on a raise (failed, ended, original value
-  re-raised with `error(v, 0)`). Runs `fn` in a coroutine, not `pcall` (see Gotchas), so a
-  yield inside `fn` passes through to the caller's coroutine.
+  re-raised with `error(v, 0)`). Runs `fn` under `compat.pcall` (a coroutine, see
+  Gotchas), so a yield inside `fn` passes through to the caller's coroutine.
 - **Levels**: `operation` records spans started without `debug = true`; `debug` records
   all. A debug span under `operation` is the shared non-recording `trace.NOOP_SPAN`; spans
   started inside it attach to the nearest recording ancestor, and `traceparent()` names
   that ancestor.
 - **`trace.noop`**: same methods, `level == "off"`, allocates nothing per call
   (`noop:with(name, opts, fn)` is `fn(trace.NOOP_SPAN)`). Both noop tables are write-proof.
+  It lives in `distilled.trace.noop`, which requires nothing: a client with tracing off
+  holds `require("distilled.trace.noop")` and never loads the tracer. `distilled.trace`
+  re-exports it as `trace.noop` (same object) and `trace.NOOP_SPAN`.
 - **Ids**: trace 32 / span 16 lowercase hex, from `host.random` in 16-bit chunks; never all
   zero. Each root span starts a new trace unless `parent` was given.
 - **Time**: `host.epoch()` is read once at creation, `host.now()` gives offsets; the
@@ -139,10 +142,10 @@ fake clock, seeded Park-Miller random) and `verify/lib/trace_sim.lua` the simula
 
 - **gopher-lua, nested protected calls**: once a `pcall`/`xpcall` has *completed* inside
   another protected call, the outer one catching an error breaks the upvalues of closures
-  in running frames (counter stays 0). `compat.pcall` (xpcall) is affected in that nested
-  case. A coroutine that catches an error is not, so `tracer:with` and `flush` protect
-  with `coroutine.resume` (about 2.6 µs per call in Rex). Consequence: a raise through
-  `with` loses the original traceback (the message keeps its position).
+  in running frames (counter stays 0). `compat.pcall` is now built on a coroutine, which
+  is not affected; `tracer:with` and `flush` use it (about 2.6 µs per call in Rex).
+  Consequence: a raise through `with` loses the original traceback (the message keeps
+  its position).
 - Timestamps: never compute `epoch * 1e9` in a float. Compare ns strings by length then
   text; `trace.ns_diff_ms` subtracts them exactly enough for display.
 - `os.clock` is CPU time in lua/luajit and wall time in Rex; the `dl trace` env adds a

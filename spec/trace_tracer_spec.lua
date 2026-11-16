@@ -636,3 +636,49 @@ t.describe("trace.noop", function()
     t.eq(trace.NOOP_SPAN.recording, false)
   end)
 end)
+
+t.describe("distilled.trace.noop", function()
+  t.it("is the same object as trace.noop, with trace.NOOP_SPAN", function()
+    local noop = require("distilled.trace.noop")
+    t.eq(trace.noop, noop)
+    t.eq(noop.NOOP_SPAN, trace.NOOP_SPAN)
+    t.eq(noop:start("x"), trace.NOOP_SPAN)
+  end)
+
+  t.it("loads nothing else: tracing off never loads the tracer", function()
+    -- unload every distilled.trace* module, load only the noop, then put them back
+    local saved = {}
+    for name, mod in pairs(package.loaded) do
+      if string.find(name, "^distilled%.trace") then
+        saved[name] = mod
+      end
+    end
+    for name in pairs(saved) do
+      package.loaded[name] = nil
+    end
+    local before = {}
+    for name in pairs(package.loaded) do
+      before[name] = true
+    end
+    local ok, fresh = t.pcall(function()
+      return require("distilled.trace.noop")
+    end)
+    local added = {}
+    for name in pairs(package.loaded) do
+      if not before[name] then
+        added[#added + 1] = name
+      end
+    end
+    for name, mod in pairs(saved) do
+      package.loaded[name] = mod
+    end
+    t.eq(ok, true)
+    t.same(added, { "distilled.trace.noop" })
+    t.eq(fresh.level, "off")
+    local a, b = fresh:with("x", nil, function(span)
+      return span.recording, "r"
+    end)
+    t.eq(a, false)
+    t.eq(b, "r")
+  end)
+end)

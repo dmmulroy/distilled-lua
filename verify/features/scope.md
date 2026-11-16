@@ -27,9 +27,10 @@ end)
 
 ## Gotchas
 
-- Lua 5.1 cannot yield across `pcall`/`xpcall`, so code inside `Scope.with` must not yield
-  (the core is synchronous, so it does not).
-- Scope uses `compat.pcall` (xpcall) because a plain `pcall` that catches an error in
-  gopher-lua breaks the upvalues of closures created earlier in running frames.
+- Scope uses `compat.pcall`, which runs the function in a coroutine: gopher-lua breaks
+  upvalues after a plain `pcall` catches, and after any nested protected call catches
+  (xpcall included). Since compat.pcall is yield-transparent, code inside `Scope.with`
+  and finalizers may yield to an enclosing coroutine; finalizers still run once, when
+  the body finally returns or raises.
 - A finalizer's error is reported from `close` but not raised; `Scope.with` drops
   finalizer errors in favour of fn's outcome.
