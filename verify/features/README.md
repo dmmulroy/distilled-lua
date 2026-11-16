@@ -8,24 +8,30 @@ One file per feature area. Each has the same four headings:
 - **Gotchas**: what has bitten us, especially runtime differences (lua 5.5, luajit,
   gopher-lua in Rex).
 
-| Area | File | Owner |
-| --- | --- | --- |
-| JSON codec | [json.md](json.md) | task 01 |
-| Errors and typed matching | [errors.md](errors.md) | task 01 |
-| Secrets | [secret.md](secret.md) | task 01 |
-| Scope | [scope.md](scope.md) | task 01 |
-| Tracing | [tracing.md](tracing.md) | task 02 |
-| Request building | [request-building.md](request-building.md) | task 03 |
-| Key mapping | [key-mapping.md](key-mapping.md) | task 03 |
-| Redaction | [redaction.md](redaction.md) | task 03 |
-| Response validation | [validation.md](validation.md) | task 03 |
-| Retry, budget, deadline | [retry.md](retry.md) | task 04 |
-| Pagination | [pagination.md](pagination.md) | task 04 |
-| Credentials | [credentials.md](credentials.md) | task 04 |
-| REST protocol | [rest-protocol.md](rest-protocol.md) | task 04 |
-| Client and operations | [client.md](client.md) | task 04 |
+Listed in sweep order: each area builds only on the ones above it, so a full sweep walks
+the table top to bottom and stops at the first area that fails.
 
-Other areas (transports, generator, Rex host) add their file here when their task lands.
+| # | Area | File | Owner |
+| --- | --- | --- | --- |
+| 1 | JSON codec | [json.md](json.md) | task 01 |
+| 2 | Errors and typed matching | [errors.md](errors.md) | task 01 |
+| 3 | Secrets | [secret.md](secret.md) | task 01 |
+| 4 | Scope | [scope.md](scope.md) | task 01 |
+| 5 | Tracing | [tracing.md](tracing.md) | task 02 |
+| 6 | Request building | [request-building.md](request-building.md) | task 03 |
+| 7 | Key mapping | [key-mapping.md](key-mapping.md) | task 03 |
+| 8 | Redaction | [redaction.md](redaction.md) | task 03 |
+| 9 | Response validation | [validation.md](validation.md) | task 03 |
+| 10 | Retry, budget, deadline | [retry.md](retry.md) | task 04 |
+| 11 | Pagination | [pagination.md](pagination.md) | task 04 |
+| 12 | Credentials | [credentials.md](credentials.md) | task 04 |
+| 13 | REST protocol | [rest-protocol.md](rest-protocol.md) | task 04 |
+| 14 | Client and operations | [client.md](client.md) | task 04 |
+| 15 | Transports (curl over popen / exec) | [transports.md](transports.md) | task 05 |
+| 16 | Rex host | [rex-host.md](rex-host.md) | task 05 |
+| 17 | OTLP over HTTP, Jaeger | [otlp.md](otlp.md) | task 05 |
+| 18 | Generator | [generator.md](generator.md) | task 06 |
+| 19 | Conformance against Distilled, `dl live` | [conformance.md](conformance.md) | task 07 |
 
 ## The proof bar
 
