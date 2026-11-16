@@ -77,10 +77,11 @@ Built-in classes (same tags, categories and retry marks as `core/src/errors.ts`)
 `response_info` for `errors.match`:
 `{ status, code, message, body, headers, fields_at }`. Matcher fields and specificity rules
 are Distilled's (`trait.ts` `ErrorMatcher`, `protocol-http.ts` `matchTypedError`).
-One difference: in the model a text matcher's `matches` is a JavaScript regular expression.
-Lua has no regex engine, so at runtime a text matcher is
-`"exact"` or `{ includes = "...", pattern = "<Lua pattern>" }`. The generator translates
-`matches` to `pattern` when an exact translation exists and fails generation otherwise.
+A text matcher is `"exact"` or `{ includes = "...", matches = "<regex source>" }`, exactly
+as the model carries it. `matches` is a JavaScript regular expression; `distilled.regex`
+(task 03) implements the subset the patches use, and the generator fails when a pattern
+does not compile. Until task 03 lands, `errors.match` treats a matcher with `matches` as
+not matching.
 
 ## `distilled.secret`
 
