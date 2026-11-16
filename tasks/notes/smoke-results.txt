@@ -1,0 +1,1206 @@
+FAIL anthropic/beta_environments distilled-lua: generation failed: com.anthropic.beta_environments#PollWorkResponse: a nullable rawResponse member is not supported 
+OK anthropic/beta_deployment_runs 0s
+FAIL anthropic/beta_memory_stores distilled-lua: generation failed: com.anthropic.beta_memory_stores#UpdateMemoryStoreRequestMetadataMap: nullable map values have no representation in the schema contract 
+OK acme/acme 0s
+FAIL anthropic/beta_deployments distilled-lua: generation failed: com.anthropic.beta_deployments#UpdateDeploymentRequestMetadataMap: nullable map values have no representation in the schema contract 
+OK anthropic/beta_files 1s
+FAIL anthropic/beta_agents distilled-lua: generation failed: com.anthropic.beta_agents#UpdateAgentRequestMetadataMap: nullable map values have no representation in the schema contract 
+OK anthropic/beta_dreams 1s
+OK anthropic/beta_messages 1s
+OK anthropic/beta_models 0s
+OK adyen/adyen 1s
+FAIL anthropic/beta_sessions distilled-lua: generation failed: com.anthropic.beta_sessions#UpdateSessionRequestMetadataMap: nullable map values have no representation in the schema contract 
+FAIL anthropic/beta_vaults distilled-lua: generation failed: com.anthropic.beta_vaults#UpdateCredentialRequestMetadataMap: nullable map values have no representation in the schema contract com.anthropic.beta_vaults#UpdateVaultRequestMetadataMap: nullable map values have no representation in the schema contract 
+OK anthropic/beta_skills 0s
+OK anthropic/beta_user_profiles 0s
+OK anthropic/files 0s
+OK anthropic/beta_tunnels 0s
+FAIL anthropic/beta_organizations distilled-lua: generation failed: com.anthropic.beta_organizations#UpdateTelemetryDestinationRequestHeadersMap: nullable map values have no representation in the schema contract com.anthropic.beta_organizations#UpdateWorkspaceRequestTagsMap: nullable map values have no representation in the schema c
+OK anthropic/models 0s
+OK anthropic/messages 0s
+OK anthropic/skills 0s
+FAIL anthropic/organizations distilled-lua: generation failed: com.anthropic.organizations#UpdateWorkspaceRequestTagsMap: nullable map values have no representation in the schema contract 
+OK anthropic/user_profiles 0s
+OK axiom/edge_ingest 0s
+OK archil/archil 0s
+OK axiom/edge_query 0s
+OK argocd/argocd 0s
+FAIL boxd/boxd distilled-lua: generation failed: com.boxd#StreamLogs: unsupported trait com.distilled.grpc#serverStreaming (streaming operations are not supported by distilled-lua) com.boxd#DownloadFileStream: unsupported trait com.distilled.grpc#serverStreaming (streaming operations are not supported by distilled
+OK celld/node 0s
+FAIL boat-dev/boat distilled-lua: generation failed: com.boat.api#ExecuteSandboxCommand: unsupported trait com.distilled.openapi#streamWhen (streaming operations are not supported by distilled-lua) com.boat.api#AttachCommand: unsupported trait com.distilled.grpc#serverStreaming (streaming operations are not supported 
+FAIL apache-superset/superset distilled-lua: generation failed: org.apache.superset.api#AnnotationLayerOverridesMap: nullable map values have no representation in the schema contract org.apache.superset.api#ChartDataQueryObjectPostProcessingList: nullable list items have no representation in the schema contract org.apache.supers
+OK axiom/v2 0s
+OK celld/runtime 0s
+OK clickhouse-cloud/api_keys 0s
+OK clickhouse-cloud/billing 0s
+FAIL auth0/auth0 distilled-lua: generation failed: com.auth0.api#Client: its type name auth0_auth0.Client is the client class com.auth0.api#ConnectionPropertiesOptionsConfigurationMap: nullable map values have no representation in the schema contract com.auth0.api#ConnectionsMetadata: nullable map values have no rep
+OK clickhouse-cloud/backup 0s
+FAIL clerk/clerk distilled-lua: generation failed: com.clerk.api#Client: its type name clerk_clerk.Client is the client class com.clerk.api#UpdateDirectoryRequestAttributeMappingMap: nullable map values have no representation in the schema contract com.clerk.api#UpdateSCIMDirectoryRequestAttributeMappingMap: nullabl
+OK chronosphere/chronosphere 0s
+OK clerk/platform 0s
+OK clickhouse-cloud/notifications 0s
+OK clickhouse-cloud/click_pipes 0s
+OK clickhouse-cloud/organization 0s
+OK clickhouse-cloud/prometheus 0s
+OK clickhouse-cloud/click_stack 0s
+OK clickhouse-cloud/query_api_endpoints 0s
+OK clickhouse-cloud/role_management 0s
+OK clickhouse-cloud/postgres 0s
+OK clickhouse-cloud/saved_queries 0s
+OK clickhouse-cloud/snapshot 0s
+OK clickhouse-cloud/udf 0s
+OK clickhouse-cloud/user_management 0s
+OK clickhouse-cloud/service 0s
+OK coinflow/authentication 0s
+OK coinflow/card_tokenization 0s
+OK coinflow/embed 0s
+FAIL coinflow/customers distilled-lua: generation failed: com.coinflow.customers#GetCustomer: distilled.errors#bodies target smithy.api#Double is not a shape com.coinflow.customers#GetCustomer: distilled.errors#bodies target smithy.api#Double is not a shape 
+OK coinflow/events 0s
+OK coinflow/marketplace 0s
+OK coinflow/checkout 0s
+OK coinflow/merchant_subscription 0s
+OK coinflow/onboarding 0s
+OK coinflow/merchant_accounts 0s
+OK coinflow/redeem 0s
+OK coinflow/rfi 0s
+OK coinbase/cdp 0s
+OK coinflow/sub_merchant 0s
+OK coinflow/utilities 1s
+OK coinflow/subscription 1s
+OK coinflow/refund 1s
+FAIL coinflow/withdraw distilled-lua: generation failed: com.coinflow.withdraw#CreateIbanAccount: distilled.errors#bodies target smithy.api#String is not a shape 
+OK convex/functions 1s
+OK convex/deployment 1s
+OK convex/management 1s
+OK coinflow/merchant 1s
+OK daytona/audit 0s
+OK daytona/api_keys 0s
+OK daytona/computer_use 0s
+OK daytona/config 0s
+OK daytona/docker_registry 0s
+OK daytona/file_system 0s
+FAIL datadog/v1 distilled-lua: generation failed: com.datadog.v1#MetricsQueryMetadataUnitList: nullable list items have no representation in the schema contract com.datadog.v1#MonitorOptionsInputSilencedMap: nullable map values have no representation in the schema contract com.datadog.v1#MonitorOptionsSilencedMap: 
+OK daytona/health 0s
+OK daytona/git 0s
+OK coolify/coolify 0s
+OK daytona/info 0s
+OK daytona/interpreter 0s
+OK daytona/jobs 0s
+OK daytona/lsp 0s
+OK daytona/object_storage 0s
+OK daytona/port 0s
+OK daytona/preview 0s
+OK daytona/organizations 0s
+OK daytona/process 0s
+OK daytona/regions 0s
+OK daytona/runners 0s
+OK daytona/sandbox 0s
+OK daytona/secret 0s
+OK daytona/server 0s
+OK daytona/snapshots 0s
+OK daytona/system 0s
+OK daytona/telemetry 0s
+OK daytona/usage 0s
+OK daytona/users 0s
+OK daytona/volumes 0s
+OK daytona/warm_pools 0s
+OK daytona/webhooks 0s
+OK customerio/customerio 0s
+OK dokploy/admin 0s
+OK digitalocean/functions 0s
+OK dokploy/ai 0s
+FAIL docker/docker distilled-lua: generation failed: com.docker.engine#ContainerBlkioStatsIoMergedRecursiveList: nullable list items have no representation in the schema contract com.docker.engine#ContainerBlkioStatsIoQueueRecursiveList: nullable list items have no representation in the schema contract com.docker.engi
+OK dokploy/application 0s
+FAIL discord/discord distilled-lua: generation failed: com.discord.api#BulkSetApplicationCommandsResponse: a nullable rawResponse member is not supported com.discord.api#BulkSetGuildApplicationCommandsResponse: a nullable rawResponse member is not supported com.discord.api#BulkUpdateLobbyMembersResponse: a nullable rawR
+OK dokploy/audit_log 0s
+OK dokploy/backup 0s
+OK dokploy/bitbucket 0s
+OK dokploy/certificates 0s
+OK dokploy/cluster 0s
+OK dokploy/custom_role 0s
+OK dokploy/compose 0s
+OK dokploy/deployment 0s
+OK dokploy/destination 0s
+OK dokploy/docker_disk_usage 0s
+FAIL digitalocean/digitalocean distilled-lua: generation failed: com.digitalocean.api#CancelInferenceBatch: smithy.api#http has unsupported key server com.digitalocean.api#CreateInferenceBatch: smithy.api#http has unsupported key server com.digitalocean.api#CreateInferenceBatchFile: smithy.api#http has unsupported key server com.
+OK dokploy/dns_provider 0s
+OK dokploy/docker_image 0s
+OK dokploy/docker_volume 0s
+OK dokploy/docker 0s
+OK dokploy/domain 1s
+OK dokploy/environment 1s
+OK dokploy/forward_auth 1s
+OK dokploy/gitea 1s
+OK dokploy/github 0s
+FAIL datadog/v2 distilled-lua: generation failed: com.datadog.v2#AiGatewayModelReasoningControlEffortLevelsList: nullable list items have no representation in the schema contract com.datadog.v2#DataScalarColumnValuesList: nullable list items have no representation in the schema contract com.datadog.v2#ProductAnalyt
+OK dokploy/git_provider 1s
+OK dokploy/gitlab 0s
+OK dokploy/libsql 0s
+OK dokploy/license_key 0s
+OK dokploy/mariadb 0s
+OK dokploy/mongo 0s
+OK dokploy/mounts 0s
+OK dokploy/mysql 0s
+OK dokploy/network 0s
+OK dokploy/notification 0s
+OK dokploy/organization 0s
+OK dokploy/overview 0s
+OK dokploy/patch 0s
+OK dokploy/port 0s
+OK dokploy/preview_deployment 0s
+OK dokploy/postgres 0s
+OK dokploy/project 0s
+OK dokploy/redirects 0s
+OK dokploy/redis 0s
+OK dokploy/registry 0s
+OK dokploy/rollback 0s
+OK dokploy/schedule 0s
+OK dokploy/scim 0s
+OK dokploy/security 0s
+OK dokploy/server_security 0s
+OK dokploy/server 0s
+OK dokploy/settings 0s
+OK dokploy/ssh_key 0s
+OK dokploy/sso 0s
+OK dokploy/stripe 0s
+OK dokploy/swarm 0s
+OK dokploy/telemetry_provider 0s
+OK dokploy/tag 0s
+OK dokploy/user 0s
+OK dokploy/vault_provider 0s
+OK dokploy/volume_backups 0s
+OK dokploy/whitelabeling 0s
+FAIL doppler/doppler distilled-lua: generation failed: com.doppler.api#UpdateSecretRequestSecretsMap: nullable map values have no representation in the schema contract 
+OK e2b/api_keys 0s
+OK e2b/auth 0s
+OK e2b/envd 0s
+OK e2b/events 0s
+OK e2b/filesystem 0s
+OK e2b/health 0s
+OK e2b/process 0s
+OK e2b/secrets 0s
+OK e2b/sandboxes 0s
+OK e2b/tags 0s
+OK e2b/snapshots 0s
+OK e2b/templates 0s
+OK e2b/unstable 0s
+OK e2b/volume_content 0s
+OK e2b/volumes 0s
+OK e2b/webhooks 0s
+OK entire/agents 0s
+OK entire/billing 0s
+OK entire/brainstore 0s
+OK entire/checkpoints 0s
+OK entire/checks 0s
+OK entire/clusters 0s
+OK entire/code 0s
+OK entire/environments 0s
+OK entire/experimental 0s
+OK entire/experts 1s
+OK entire/git_meta 1s
+OK entire/identity 1s
+FAIL entire/me distilled-lua: generation failed: com.entire.cell.me#MeProjectTrailAssigneeAccountIdsList: nullable list items have no representation in the schema contract 
+OK entire/insights 1s
+OK entire/meta 0s
+OK entire/mirrors 1s
+OK entire/native_mirrors 0s
+OK entire/orgs 0s
+OK entire/overview 0s
+FAIL entire/plugin_deliveries distilled-lua: generation failed: com.entire.cell.plugin_deliveries#PluginDeliveryAttemptViewResponseHeadersMap: nullable map values have no representation in the schema contract com.entire.cell.plugin_deliveries#PluginDeliveryRequestViewHeadersMap: nullable map values have no representation in the 
+OK entire/preferences 0s
+OK entire/plugins 0s
+FAIL entire/project_trails distilled-lua: generation failed: com.entire.cell.project_trails#ProjectTrailListItemResponseAssigneeAccountIdsList: nullable list items have no representation in the schema contract com.entire.cell.project_trails#TrailResponseAssigneeAccountIdsList: nullable list items have no representation in the
+OK entire/projects 0s
+OK entire/pull_requests 0s
+OK entire/refs 0s
+OK entire/repo_details 0s
+OK entire/repo_settings 0s
+OK entire/repos 0s
+FAIL entire/repositories distilled-lua: generation failed: com.entire.cell.repositories#ListBranchesContainingResponseBodyMap: nullable map values have no representation in the schema contract 
+FAIL entire/runner_issuer distilled-lua: generation failed: com.entire.cell.runner_issuer#CertificatePolicyIdentifiersList: nullable list items have no representation in the schema contract com.entire.cell.runner_issuer#CertificateURIsList: nullable list items have no representation in the schema contract com.entire.cell.run
+OK entire/runs 0s
+OK entire/search 0s
+OK entire/service_accounts 0s
+FAIL entire/trail_activity distilled-lua: generation failed: com.entire.cell.trail_activity#RepoWatchersBodyTrailsMap: nullable map values have no representation in the schema contract 
+OK entire/sessions 0s
+OK entire/semantic_search 0s
+OK entire/trail_attachments 0s
+OK entire/trail_approvals 0s
+OK entire/trail_discussions 0s
+OK entire/trail_gates 0s
+FAIL entire/trail_reviews distilled-lua: generation failed: com.entire.cell.trail_reviews#ReviewFilesResponseBodyFilesMap: nullable map values have no representation in the schema contract 
+OK entire/trails_internal 0s
+OK entire/trail_runs 0s
+FAIL exa/api distilled-lua: generation failed: operation names collide: ListWebsets (_items) and ListWebsetsItems are both list_websets_items 
+OK entire/trails 0s
+OK exa/team_management 0s
+OK fly-io/mpg 0s
+OK forgejo/activitypub 0s
+OK fly-io/sprites 0s
+OK fly-io/machines 0s
+OK forgejo/admin 0s
+OK forgejo/miscellaneous 0s
+OK forgejo/issue 0s
+OK forgejo/notification 0s
+OK forgejo/package 0s
+OK forgejo/organization 0s
+OK forgejo/settings 0s
+OK github/agent_merge 0s
+OK forgejo/user 0s
+OK github/activity 0s
+OK github/agent_tasks 0s
+OK forgejo/repository 0s
+OK github/agents 0s
+OK github/apps 0s
+OK github/billing 0s
+OK github/campaigns 0s
+OK github/agent_automations 0s
+OK github/actions 0s
+OK github/code_quality 0s
+FAIL github/code_scanning distilled-lua: generation failed: com.github.code_scanning#CodeScanningAlertInstanceClassificationsList: nullable list items have no representation in the schema contract com.github.code_scanning#CodeScanningAlertInstanceListClassificationsList: nullable list items have no representation in the sche
+OK github/checks 0s
+OK github/code_security 0s
+OK github/codes_of_conduct 1s
+OK github/credentials 0s
+FAIL github/dependency_graph distilled-lua: generation failed: com.github.dependency_graph#Metadata: nullable map values have no representation in the schema contract 
+OK github/codespaces 1s
+OK github/emojis 0s
+OK github/copilot 1s
+FAIL github/dependabot distilled-lua: generation failed: com.github.dependabot#DependabotRepositoryAccessDetailsAccessibleRepositoriesList: nullable list items have no representation in the schema contract 
+OK elasticsearch/elasticsearch 2s
+OK github/copilot_spaces 1s
+FAIL github/gists distilled-lua: generation failed: com.github.gists#GistSimpleFilesMap: nullable map values have no representation in the schema contract com.github.gists#UpdateRequestFilesMap: nullable map values have no representation in the schema contract 
+OK github/git 0s
+OK github/gitignore 0s
+OK github/hosted_compute 0s
+OK github/interactions 0s
+OK github/licenses 0s
+OK github/migrations 0s
+OK github/meta 0s
+OK github/markdown 0s
+OK github/oidc 0s
+FAIL github/orgs distilled-lua: generation failed: com.github.orgs#ListAttestationsBulkResponseAttestationsSubjectDigestsMap: nullable map values have no representation in the schema contract com.github.orgs#ListIssueFieldsResponseBodyList: nullable list items have no representation in the schema contract com.github
+OK github/issues 0s
+OK github/packages 0s
+OK github/private_registries 0s
+OK github/rate_limit 0s
+OK github/projects 0s
+OK github/reactions 0s
+OK github/pulls 0s
+OK github/search 0s
+FAIL github/users distilled-lua: generation failed: com.github.users#ListAttestationsBulkResponseAttestationsSubjectDigestsMap: nullable map values have no representation in the schema contract 
+OK github/secret_scanning 0s
+OK github/security_advisories 0s
+FAIL github/repos distilled-lua: generation failed: com.github.repos#AddAppAccessRestrictionsResponseBodyList: nullable list items have no representation in the schema contract com.github.repos#GetAppsWithAccessToProtectedBranchResponseBodyList: nullable list items have no representation in the schema contract com.gi
+OK github/teams 0s
+FAIL grafana/grafana distilled-lua: generation failed: com.grafana.api#ForbiddenError: its type name grafana_grafana.ForbiddenError is the error class Forbidden 
+OK hetzner/actions 0s
+OK hetzner/certificate_actions 0s
+OK hetzner/certificates 0s
+OK hetzner/firewall_actions 0s
+OK hetzner/firewalls 0s
+OK hetzner/floating_ip_actions 0s
+OK hetzner/floating_ips 0s
+OK hetzner/image_actions 0s
+OK hetzner/isos 0s
+OK hetzner/images 0s
+OK hetzner/load_balancer_types 0s
+OK hetzner/load_balancer_actions 0s
+OK hetzner/load_balancers 0s
+OK hetzner/locations 0s
+OK hetzner/network_actions 0s
+OK hetzner/networks 0s
+OK hetzner/placement_groups 0s
+OK hetzner/pricing 0s
+OK gusto/gusto 0s
+OK hetzner/primary_ip_actions 0s
+OK hetzner/primary_ips 0s
+FAIL github/webhooks distilled-lua: generation failed: /Users/dillon/Code/personal/distilled-home/distilled/packages/github/.generated-specs/webhooks.json: the model has no operations 
+OK hetzner/server_actions 0s
+FAIL growthbook/growthbook distilled-lua: generation failed: com.growthbook.api#AnalyticsExplorationResultRowsItemDimensionsList: nullable list items have no representation in the schema contract com.growthbook.api#AutoRunMetadataMap: nullable map values have no representation in the schema contract com.growthbook.api#CreateA
+OK hetzner/server_types 0s
+OK hetzner/ssh_keys 0s
+OK hetzner/volume_actions 0s
+OK hetzner/servers 0s
+OK hetzner/volumes 0s
+OK hetzner/zone_actions 1s
+OK hetzner/zone_rrset_actions 1s
+OK hetzner/zone_rrsets 1s
+OK hetzner/zones 1s
+OK huggingface/agents 0s
+OK huggingface/blogs 0s
+OK huggingface/auth 0s
+OK huggingface/buckets 0s
+OK huggingface/containers 0s
+OK huggingface/docs 0s
+OK huggingface/datasets 0s
+OK huggingface/inference_endpoints 0s
+OK huggingface/inference_providers 0s
+OK huggingface/kernels 0s
+OK huggingface/notifications 0s
+OK huggingface/jobs 0s
+OK huggingface/discussions 0s
+OK huggingface/collections 0s
+OK huggingface/oauth 0s
+OK huggingface/models 0s
+OK huggingface/orgs 0s
+OK huggingface/papers 0s
+OK hostinger/hostinger 1s
+OK huggingface/repo_search 0s
+OK huggingface/repos 0s
+OK huggingface/resource_groups 0s
+OK huggingface/service_accounts 0s
+OK huggingface/sql_console 0s
+OK huggingface/tokens 0s
+OK huggingface/scim 0s
+FAIL hydradb/hydradb distilled-lua: generation failed: com.hydradb.api#SearchTabularDataRecordsItemMap: nullable map values have no representation in the schema contract 
+OK huggingface/spaces 0s
+OK huggingface/users 0s
+OK huggingface/webhooks 0s
+OK iceberg/catalog 0s
+OK inngest/v1 0s
+OK kubernetes/apiextensions 0s
+OK inngest/inngest 0s
+OK kubernetes/apiregistration 0s
+OK kubernetes/authentication 0s
+OK kubernetes/authorization 0s
+FAIL intercom/intercom distilled-lua: generation failed: com.intercom.api#ActivityLogListActivityLogsList: nullable list items have no representation in the schema contract com.intercom.api#AdminListAdminsList: nullable list items have no representation in the schema contract com.intercom.api#CreateNewsItemRequestReaction
+OK kubernetes/admissionregistration 0s
+OK kubernetes/apps 0s
+OK kubernetes/autoscaling 0s
+OK kubernetes/coordination 0s
+OK kubernetes/discovery 0s
+OK kubernetes/certificates 0s
+OK kubernetes/batch 0s
+OK kubernetes/events 0s
+OK kubernetes/flowcontrol_apiserver 0s
+OK kubernetes/internal_apiserver 0s
+OK kubernetes/networking 0s
+OK kubernetes/node 0s
+OK kubernetes/policy 0s
+OK kubernetes/rbac_authorization 0s
+OK kubernetes/storagemigration 1s
+OK kubernetes/scheduling 1s
+OK kubernetes/core 1s
+OK kubernetes/storage 1s
+OK kubernetes/resource 1s
+OK mailchimp/transactional 1s
+FAIL modal/app distilled-lua: generation failed: com.modal.app#AppGetLogs: unsupported trait com.distilled.grpc#serverStreaming (streaming operations are not supported by distilled-lua) 
+OK modal/attempt 0s
+FAIL launchdarkly/launchdarkly distilled-lua: generation failed: com.launchdarkly.api#Client: its type name launchdarkly_launchdarkly.Client is the client class 
+OK mercury/mercury 0s
+OK meilisearch/meilisearch 1s
+OK modal/audit 0s
+OK modal/auth 0s
+OK modal/blob 0s
+OK modal/classes 0s
+OK modal/cli 0s
+OK modal/clients 0s
+FAIL modal/container distilled-lua: generation failed: com.modal.container#ContainerExecGetOutput: unsupported trait com.distilled.grpc#serverStreaming (streaming operations are not supported by distilled-lua) 
+OK modal/cluster 0s
+FAIL metabase/metabase distilled-lua: generation failed: com.metabase.api#CreateLlmProviderRequestConfigMap: nullable map values have no representation in the schema contract com.metabase.api#MbqlClauseBANGEQ: nullable list items have no representation in the schema contract com.metabase.api#MbqlClauseCoalesce: nullable l
+OK modal/curl 0s
+FAIL modal/dict distilled-lua: generation failed: com.modal.dict#DictContents: unsupported trait com.distilled.grpc#serverStreaming (streaming operations are not supported by distilled-lua) 
+OK modal/domain 0s
+OK modal/environment 0s
+FAIL modal/functions distilled-lua: generation failed: com.modal.functions#FunctionCallGetDataIn: unsupported trait com.distilled.grpc#serverStreaming (streaming operations are not supported by distilled-lua) com.modal.functions#FunctionCallGetDataOut: unsupported trait com.distilled.grpc#serverStreaming (streaming oper
+OK modal/endpoint 0s
+FAIL modal/image distilled-lua: generation failed: com.modal.image#ImageJoinStreaming: unsupported trait com.distilled.grpc#serverStreaming (streaming operations are not supported by distilled-lua) 
+OK modal/flash 0s
+OK modal/maps 0s
+OK modal/metrics 0s
+OK modal/mount 0s
+OK modal/object 0s
+OK modal/persistent 0s
+OK modal/proxy 0s
+FAIL modal/sandbox distilled-lua: generation failed: com.modal.sandbox#SandboxGetLogs: unsupported trait com.distilled.grpc#serverStreaming (streaming operations are not supported by distilled-lua) 
+OK modal/queue 0s
+OK modal/secret 0s
+OK modal/server 0s
+FAIL modal/shared distilled-lua: generation failed: com.modal.shared#SharedVolumeListFilesStream: unsupported trait com.distilled.grpc#serverStreaming (streaming operations are not supported by distilled-lua) 
+OK modal/service 0s
+FAIL modal/task_command_router distilled-lua: generation failed: com.modal.task.command.router#SandboxStdioReadV2: unsupported trait com.distilled.grpc#serverStreaming (streaming operations are not supported by distilled-lua) com.modal.task.command.router#TaskExecStdioRead: unsupported trait com.distilled.grpc#serverStreaming (st
+OK mailchimp/marketing 1s
+OK modal/task 0s
+OK modal/token 0s
+OK modal/template 0s
+OK modal/tokens 0s
+OK modal/tunnel 0s
+OK modal/user 0s
+FAIL modal/volume distilled-lua: generation failed: com.modal.volume#VolumeListFiles: unsupported trait com.distilled.grpc#serverStreaming (streaming operations are not supported by distilled-lua) com.modal.volume#VolumeListFiles2: unsupported trait com.distilled.grpc#serverStreaming (streaming operations are not sup
+FAIL modal/workspace distilled-lua: generation failed: com.modal.workspace#WorkspaceBillingReport: unsupported trait com.distilled.grpc#serverStreaming (streaming operations are not supported by distilled-lua) 
+OK modal/webhook 0s
+FAIL modrinth/modrinth distilled-lua: generation failed: com.modrinth.api#CreatableProjectGalleryItemsList: nullable list items have no representation in the schema contract com.modrinth.api#ProjectGalleryList: nullable list items have no representation in the schema contract 
+OK namespacelabs/artifacts 0s
+OK namespacelabs/audit 0s
+OK namespacelabs/bazel_cache 0s
+OK namespacelabs/bazel 0s
+OK namespacelabs/buildkite_jobs 0s
+OK namespacelabs/builder 0s
+OK namespacelabs/buildkite_queue 0s
+OK namespacelabs/compute_command 0s
+OK namespacelabs/compute_observability 0s
+OK namespacelabs/compute_storage 0s
+OK namespacelabs/compute_usage 0s
+OK namespacelabs/egress 1s
+OK namespacelabs/compute 1s
+OK namespacelabs/experimental_compute_reservation 1s
+OK namespacelabs/experimental_remote_results 1s
+OK namespacelabs/github_image 1s
+OK namespacelabs/github_jobs 0s
+OK namespacelabs/github_profile 0s
+OK namespacelabs/httpcache 0s
+FAIL mongodb-atlas/atlas distilled-lua: generation failed: com.mongodbatlas.api#AcceptGroupStreamVpcPeeringConnection: smithy.api#http has unsupported key accept com.mongodbatlas.api#AcknowledgeGroupAlert: smithy.api#http has unsupported key accept com.mongodbatlas.api#AddGroupApiKey: smithy.api#http has unsupported key acc
+OK namespacelabs/gradle_cache 0s
+OK namespacelabs/iam_tenant_membership 0s
+OK namespacelabs/iam_tenant 0s
+OK namespacelabs/iam_token 0s
+OK namespacelabs/image 0s
+OK namespacelabs/private_devbox 0s
+OK namespacelabs/private_user_sessions 0s
+OK namespacelabs/registry 0s
+OK namespacelabs/testing 0s
+OK namespacelabs/vault 0s
+OK notion/agent_skills 0s
+FAIL notion/async_tasks distilled-lua: generation failed: com.notion.async_tasks#GetAsyncTaskResponseBodyCase1ResultMap: nullable map values have no representation in the schema contract 
+OK notion/agents 0s
+OK notion/comments 0s
+FAIL notion/data_sources distilled-lua: generation failed: com.notion.data_sources#UpdateDataSourceRequestPropertiesMap: nullable map values have no representation in the schema contract 
+OK notion/custom_emojis 0s
+OK neon/neon 0s
+OK notion/blocks 0s
+OK notion/databases 0s
+OK notion/file_uploads 0s
+OK netbird/netbird 0s
+OK notion/meeting_notes 0s
+FAIL notion/sessions distilled-lua: generation failed: com.notion.sessions#GetSessionResponseModelsCase1IdsList: nullable list items have no representation in the schema contract com.notion.sessions#QuerySessionsResponseResultsItemModelsCase1IdsList: nullable list items have no representation in the schema contract 
+OK notion/search 0s
+OK notion/users 0s
+FAIL notion/views distilled-lua: generation failed: com.notion.views#UpdateViewRequestQuickFiltersMap: nullable map values have no representation in the schema contract 
+OK npm/access 0s
+OK npm/audit 0s
+OK notion/pages 0s
+OK npm/oidc 0s
+OK npm/org 0s
+OK npm/package_version_status 0s
+OK npm/publish 0s
+OK npm/stage 0s
+OK npm/search 0s
+OK npm/token 0s
+OK npm/trust 0s
+OK npm/team 0s
+FAIL onepassword/events distilled-lua: generation failed: com.onepassword.events#Client: its type name onepassword_events.Client is the client class 
+OK onepassword/connect 0s
+OK onepassword/oauth 0s
+OK onepassword/partnership 0s
+OK onepassword/users 0s
+OK ovh/dedicatednasha 0s
+OK ovh/dedicatedceph 0s
+OK ovh/baremetal 0s
+OK ovh/domain 0s
+OK opencode/opencode 1s
+OK ovh/emailmxplan 1s
+FAIL okta/okta distilled-lua: generation failed: com.okta.management#EventHookChannelConfigInputHeadersList: nullable list items have no representation in the schema contract com.okta.management#EventHookChannelConfigOutputHeadersList: nullable list items have no representation in the schema contract com.okta.mana
+OK ovh/emaildomain 1s
+OK ovh/emailpro 0s
+OK ovh/hostingprivatedatabase 0s
+OK ovh/iam 0s
+OK ovh/ip 0s
+FAIL opensearch/opensearch distilled-lua: generation failed: org.opensearch.api#CommonAggregationsCompositeAggregateKey: nullable map values have no representation in the schema contract org.opensearch.api#CommonAggregationsKeyedPercentiles: nullable map values have no representation in the schema contract org.opensearch.api#
+OK ovh/ldp 0s
+OK ovh/overthebox 0s
+OK ovh/iploadbalancing 0s
+OK ovh/ovhcloudconnect 0s
+OK ovh/packxdsl 0s
+OK ovh/support 0s
+OK ovh/sslgateway 0s
+OK ovh/storagenetapp 0s
+OK ovh/me 0s
+OK ovh/sms 0s
+OK ovh/cloud_v2 1s
+OK ovh/vmwareclouddirectorbackup 0s
+OK ovh/vmwareclouddirectororganization 0s
+OK ovh/vrackservices 0s
+OK ovh/vps 0s
+OK ovh/vrack 0s
+OK ovh/cloud 1s
+OK ovh/xdsl 0s
+OK paypal/catalogs_products_v1 0s
+OK paypal/billing_subscriptions_v1 0s
+OK ovh/webhosting 0s
+OK paypal/customer_partner_referrals_v2 0s
+OK paypal/customer_disputes_v1 0s
+OK ovh/telephony 0s
+OK paypal/notifications_webhooks_v1 0s
+OK paypal/invoicing_v2 0s
+OK paypal/payment_experience_web_experience_profiles_v1 0s
+OK paypal/payments_payouts_batch_v1 0s
+OK paypal/reporting_transactions_v1 0s
+OK paypal/payments_payment_v2 0s
+OK paypal/shipping_shipment_tracking_v1 0s
+OK paypal/vault_payment_tokens_v3 0s
+OK polymarket/bridge 0s
+FAIL polymarket/clob distilled-lua: generation failed: com.polymarket.clob#GetCurrentRebatedFeesResponse: a nullable rawResponse member is not supported 
+OK polymarket/combos-rfq 0s
+OK polymarket/data 0s
+OK paypal/checkout_orders_v2 0s
+OK polymarket/gamma 0s
+OK polymarket/relayer 1s
+FAIL polar/polar distilled-lua: generation failed: com.polar.api#CheckoutConfirmSharedPaymentTokenCustomFieldDataMap: nullable map values have no representation in the schema contract com.polar.api#CheckoutConfirmStripeCustomFieldDataMap: nullable map values have no representation in the schema contract com.polar.ap
+FAIL porkbun/porkbun distilled-lua: generation failed: com.porkbun.api#LinkInBioUpdateSocialsRequestSocialsMap: nullable map values have no representation in the schema contract 
+OK polymarket/perps 1s
+FAIL plaid/plaid distilled-lua: generation failed: com.plaid.api#BankPenaltiesIndicatorsCategoryDetailsList: nullable list items have no representation in the schema contract com.plaid.api#BankPenaltiesIndicatorsMonthlySummariesList: nullable list items have no representation in the schema contract com.plaid.api#Cli
+OK posthog/account_relationship_definitions 0s
+OK posthog/account_track_rules 0s
+OK posthog/account_views 0s
+FAIL posthog/accounts_table_query distilled-lua: generation failed: com.posthog.accounts_table_query#AccountsTableQueryResponseMetricsResultsList: nullable list items have no representation in the schema contract com.posthog.accounts_table_query#AccountsTableRowAccountFieldsMap: nullable map values have no representation in the sche
+OK posthog/accounts 0s
+OK posthog/activity_logs 0s
+OK posthog/actions 0s
+FAIL posthog/alerts distilled-lua: generation failed: com.posthog.alerts#AlertSimulateResponseScoresList: nullable list items have no representation in the schema contract com.posthog.alerts#BreakdownSimulationResultScoresList: nullable list items have no representation in the schema contract 
+OK posthog/advanced_activity_logs 0s
+OK posthog/annotations 0s
+OK posthog/announcements 0s
+OK planetscale/planetscale 1s
+OK posthog/ai_observability 0s
+OK posthog/apm 0s
+OK posthog/broadcast_audience_suggestions 0s
+OK posthog/billing 0s
+OK posthog/autoresearch 0s
+OK posthog/calendar_sync 0s
+OK posthog/business_knowledge 0s
+OK posthog/change_feed 0s
+OK posthog/code 0s
+OK posthog/batch_exports 0s
+OK posthog/canvases 0s
+OK posthog/cohorts 0s
+OK posthog/comments 0s
+OK posthog/context_layer 0s
+OK posthog/custom_property_definitions 0s
+OK posthog/conversations 0s
+OK posthog/custom_property_sources 0s
+OK posthog/customer_journeys 0s
+OK posthog/customer_analytics 0s
+OK posthog/customer_profile_configs 0s
+OK posthog/customer_tasks 0s
+OK posthog/dashboard_templates 0s
+OK posthog/data_color_themes 0s
+OK posthog/data_catalog 0s
+OK posthog/data_deletion_requests 0s
+OK posthog/data_modeling_jobs 0s
+OK posthog/data_modeling_usage 0s
+FAIL posthog/dashboards distilled-lua: generation failed: com.posthog.dashboards#AccountsQueryResponseMetricsResultsList: nullable list items have no representation in the schema contract com.posthog.dashboards#AccountsTableQueryResponseMetricsResultsList: nullable list items have no representation in the schema contract c
+OK posthog/data_quality_runs 0s
+OK posthog/data_quality_checks 0s
+OK posthog/data_warehouse 0s
+OK posthog/desktop_beta_terms 0s
+OK posthog/desktop_feedback 0s
+OK posthog/docs 0s
+OK posthog/elements 0s
+OK posthog/early_access_feature 0s
+OK posthog/endpoints 0s
+OK posthog/evaluation_directories 0s
+OK posthog/evaluation_runs 0s
+OK posthog/engineering_analytics 0s
+FAIL posthog/evaluations distilled-lua: generation failed: com.posthog.evaluations#EvaluationResultTrendValuesList: nullable list items have no representation in the schema contract com.posthog.evaluations#PassRateOverviewMedianTrendList: nullable list items have no representation in the schema contract 
+OK posthog/event_definitions 0s
+OK posthog/error_tracking 0s
+OK posthog/event_filter 0s
+OK posthog/event_schemas 0s
+OK posthog/events_retention 0s
+OK posthog/events 0s
+OK posthog/experiment_holdouts 1s
+OK posthog/experiment_saved_metrics 1s
+OK posthog/exports 1s
+OK posthog/external_data_destinations 1s
+FAIL posthog/experiments distilled-lua: generation failed: com.posthog.experiments#ExperimentHealthCheckResultValuesMap: nullable map values have no representation in the schema contract com.posthog.experiments#ExperimentHealthFindingEvidenceMap: nullable map values have no representation in the schema contract 
+OK posthog/feature_flag_request_usage 0s
+OK posthog/external_data_schemas 1s
+OK posthog/external_data_sources 0s
+OK posthog/feature_request_product_areas 0s
+OK posthog/feature_flags 0s
+OK posthog/feature_requests 0s
+OK posthog/field_notes 0s
+OK posthog/file_system_shortcut 0s
+OK posthog/flag_value 0s
+OK posthog/file_system 0s
+OK posthog/groups_types 0s
+OK posthog/groups 0s
+OK posthog/health_issues 0s
+OK posthog/heatmap_capture 0s
+OK posthog/heatmap_screenshot 0s
+OK posthog/heatmap_screenshots 0s
+OK posthog/heatmaps 0s
+OK posthog/hog_function_templates 0s
+OK posthog/hog_flows 0s
+OK posthog/ingestion_warnings_v2 0s
+OK posthog/hog_functions 0s
+OK posthog/insight_variables 0s
+OK posthog/js_snippet 0s
+OK posthog/integrations 0s
+OK posthog/llm_prompts 0s
+OK posthog/llm_analytics 0s
+FAIL posthog/insights distilled-lua: generation failed: com.posthog.insights#AccountsQueryResponseMetricsResultsList: nullable list items have no representation in the schema contract com.posthog.insights#AccountsTableQueryResponseMetricsResultsList: nullable list items have no representation in the schema contract com.p
+OK posthog/llm_skills 0s
+OK posthog/managed_viewsets 0s
+OK posthog/max_tools 0s
+FAIL posthog/mcp_analytics distilled-lua: generation failed: com.posthog.mcp_analytics#MCPIntentClusterJourneyPathStepsList: nullable list items have no representation in the schema contract 
+OK posthog/max 0s
+OK posthog/logs 0s
+OK posthog/marketing_analytics 0s
+OK posthog/mcp_gateway 0s
+OK posthog/mcp_registry 0s
+OK posthog/mcp_server_installations 0s
+OK posthog/mcp_servers 0s
+OK posthog/mcp_tools 0s
+OK posthog/messaging_categories 0s
+OK posthog/messaging_preferences 0s
+OK posthog/messaging_provider_imports 0s
+OK posthog/messaging_supabase_auth_emails 0s
+OK posthog/messaging_suppressions 0s
+OK posthog/messaging_templates 0s
+OK posthog/messaging 0s
+OK posthog/metrics 0s
+OK posthog/notebook_widgets 0s
+OK posthog/object_media_previews 0s
+OK posthog/paths_v2 0s
+OK posthog/notebooks 0s
+FAIL posthog/persons distilled-lua: generation failed: com.posthog.persons#PersonPropertiesAtTimeResponsePropertiesMap: nullable map values have no representation in the schema contract 
+OK posthog/platform_features 0s
+OK posthog/platform_alerts 0s
+FAIL posthog/organizations distilled-lua: generation failed: com.posthog.organizations#CreateOrganizationsProjectRequestAppUrlsList: nullable list items have no representation in the schema contract com.posthog.organizations#CreateOrganizationsProjectRequestRecordingDomainsList: nullable list items have no representation in t
+OK posthog/plugin_configs 0s
+OK posthog/posthog_connections 0s
+OK posthog/product_enablement 0s
+OK posthog/product_tours 0s
+OK posthog/project_secret_api_keys 0s
+OK posthog/property_access_controls 0s
+OK posthog/property_definitions 1s
+OK posthog/push_token_imports 1s
+OK posthog/pulse 1s
+FAIL posthog/replay distilled-lua: generation failed: com.posthog.replay#SessionRecordingPlaylistOutputRecordingsCountsValueMap: nullable map values have no representation in the schema contract 
+OK posthog/quota_limits 1s
+OK posthog/reminders 1s
+OK posthog/reverse_proxy 0s
+OK posthog/revoke_leaked_key 0s
+OK posthog/review_hog 0s
+OK posthog/sandbox_custom_images 0s
+OK posthog/sandbox_environments 0s
+OK posthog/saved_query_column_annotations 0s
+OK posthog/saved 0s
+FAIL posthog/query distilled-lua: generation failed: com.posthog.query#AccountsQueryResponseMetricsResultsList: nullable list items have no representation in the schema contract com.posthog.query#AccountsTableQueryResponseMetricsResultsList: nullable list items have no representation in the schema contract com.posthog
+OK posthog/scheduled_changes 0s
+OK posthog/schema_property_groups 0s
+OK posthog/sdk_health 0s
+OK posthog/session_recordings 0s
+OK posthog/sessions 0s
+OK posthog/slack_app_workspace_setup 0s
+OK posthog/stamphog 0s
+OK posthog/streamlit_apps 0s
+FAIL posthog/surveys distilled-lua: generation failed: com.posthog.surveys#CreateSurveyRequestIterationStartDatesList: nullable list items have no representation in the schema contract com.posthog.surveys#CreateSurveysSummaryHeadlineRequestIterationStartDatesList: nullable list items have no representation in the schema
+OK posthog/subscriptions 0s
+FAIL posthog/signals distilled-lua: generation failed: com.posthog.signals#ScoutTrialResultMemoryMap: nullable map values have no representation in the schema contract 
+OK posthog/task_activity 0s
+OK posthog/taggers 0s
+OK posthog/task_channels 0s
+OK posthog/task_mentions 0s
+OK posthog/task_runs 0s
+OK posthog/terminal_ai 0s
+OK posthog/today 0s
+OK posthog/turn_suggestions 0s
+OK posthog/transactional_email_log 0s
+OK posthog/tasks 0s
+OK posthog/uploaded_media 0s
+OK posthog/tracing 0s
+OK posthog/user_customer_analytics_config 0s
+OK posthog/user_facet_settings 0s
+OK posthog/user_home_settings 0s
+OK posthog/user 0s
+OK posthog/warehouse_alerts 0s
+OK posthog/warehouse_column_statistics 0s
+OK posthog/warehouse_column_annotations 0s
+OK posthog/visual_review 0s
+OK posthog/warehouse_expressions 0s
+OK posthog/users 0s
+OK posthog/vision 0s
+OK posthog/warehouse_migrations 0s
+OK posthog/warehouse_saved_queries 0s
+OK posthog/warehouse_saved_query_folders 0s
+OK posthog/warehouse_suggestions 0s
+OK posthog/warehouse_tables 0s
+OK posthog/warehouse_view_link 0s
+OK posthog/warehouse_view_links 0s
+OK posthog/web_analytics_achievements 0s
+OK posthog/web_analytics_bot_rules 0s
+OK posthog/web_analytics_content_autopilot_opportunities 0s
+OK posthog/web_analytics_content_autopilot_profiles 0s
+OK posthog/web_analytics_content_autopilot_proposals 0s
+OK posthog/web_analytics_content_autopilot_runs 0s
+OK posthog/web_analytics_path_cleaning_suggestions 0s
+OK posthog/web_experiments 0s
+OK posthog/web_vitals 0s
+OK posthog/web_analytics 0s
+OK posthog/workflow_data_suggestions 1s
+OK posthog/wizard 1s
+OK posthog/workflow_email_drafts 1s
+OK posthog/workflow_imports 1s
+OK posthog/workflow_people_imports 1s
+OK posthog/workflow_sending_rules 0s
+OK posthog/workflow_setup 0s
+OK posthog/workload_trust_policies 0s
+OK posthog/workload_trust_policy_requests 0s
+OK proxmox/nodes_aplinfo 0s
+OK proxmox/access 0s
+OK proxmox/nodes_apt 0s
+OK proxmox/nodes_capabilities 0s
+FAIL proxmox/cluster distilled-lua: generation failed: proxmox.cluster#DeleteClusterSdnPrefixListsByIdEntriesByUrlSeq: {url_seq} in /cluster/sdn/prefix-lists/{id}/entries/{url_seq} has no label member proxmox.cluster#GetClusterSdnPrefixListsByIdEntriesByUrlSeq: {url_seq} in /cluster/sdn/prefix-lists/{id}/entries/{url_se
+OK proxmox/nodes_certificates 0s
+OK proxmox/nodes_ceph 0s
+OK proxmox/nodes_config 0s
+OK proxmox/nodes_dns 0s
+OK prisma/management 0s
+OK proxmox/nodes_disks 0s
+OK proxmox/nodes_execute 0s
+OK proxmox/nodes_firewall 0s
+OK proxmox/nodes_hardware 0s
+OK proxmox/nodes_hosts 0s
+OK proxmox/nodes_journal 0s
+OK proxmox/nodes_migrateall 0s
+OK proxmox/nodes_netstat 0s
+OK proxmox/nodes_query_oci_repo_tags 0s
+OK proxmox/nodes_lxc 0s
+OK proxmox/nodes_network 0s
+OK proxmox/nodes_query_url_metadata 0s
+OK proxmox/nodes_replication 0s
+OK proxmox/nodes_report 0s
+OK proxmox/nodes_rrd 0s
+OK proxmox/nodes_rrddata 0s
+OK proxmox/nodes_qemu 0s
+OK proxmox/nodes_sdn 0s
+OK proxmox/nodes_scan 0s
+OK proxmox/nodes_services 0s
+OK proxmox/nodes_spiceshell 0s
+OK proxmox/nodes_startall 0s
+OK proxmox/nodes_status 0s
+OK proxmox/nodes_stopall 0s
+OK proxmox/nodes_storage 0s
+OK proxmox/nodes_subscription 0s
+OK proxmox/nodes_syslog 0s
+OK proxmox/nodes_suspendall 0s
+OK proxmox/nodes_termproxy 0s
+OK proxmox/nodes_tasks 0s
+OK proxmox/nodes_time 0s
+OK proxmox/nodes_vncshell 0s
+OK proxmox/nodes_version 0s
+OK proxmox/nodes_vncwebsocket 0s
+OK proxmox/nodes_vzdump 0s
+OK proxmox/nodes 0s
+OK proxmox/nodes_wakeonlan 0s
+OK infisical/infisical 7s
+OK proxmox/storage 0s
+OK proxmox/pools 0s
+OK proxmox/version 0s
+OK questrade/questrade 0s
+FAIL redis-cloud/redisCloud distilled-lua: generation failed: com.rediscloud.api#Module: its type name redis_cloud_rediscloud.Module is the module 
+FAIL resend/webhook_events distilled-lua: generation failed: /Users/dillon/Code/personal/distilled-home/distilled/packages/resend/.generated-specs/webhook_events.json: the model has no operations 
+FAIL resend/resend distilled-lua: generation failed: com.resend.api#ListApiKeys: cursor pagination needs outputToken in smithy.api#paginated. Patch the operation's trait. com.resend.api#ListAutomationRuns: cursor pagination needs outputToken in smithy.api#paginated. Patch the operation's trait. com.resend.api#ListAuto
+OK rivet/auth 0s
+OK rivet/actors 1s
+OK rivet/datacenters 1s
+OK rivet/metadata 1s
+FAIL remote/remote distilled-lua: generation failed: com.remote.api#BenefitTierProvidersList: nullable list items have no representation in the schema contract 
+OK rivet/namespaces 1s
+FAIL revenuecat/revenuecat distilled-lua: generation failed: com.revenuecat.api#ChartDataValuesItemCase0List: nullable list items have no representation in the schema contract 
+OK rivet/pools 0s
+OK s2/access_tokens 0s
+OK s2/basins 0s
+OK render/render 1s
+OK s2/locations 0s
+OK s2/metrics 0s
+FAIL scaleway/account_contract_v3 distilled-lua: generation failed: com.scaleway.account_contract_v3#CheckContractSignature: smithy.api#http has unsupported key baseUrl com.scaleway.account_contract_v3#CreateContractSignature: smithy.api#http has unsupported key baseUrl com.scaleway.account_contract_v3#DownloadContractSignature: smi
+OK s2/records 0s
+FAIL scaleway/account_iso_code_v3 distilled-lua: generation failed: com.scaleway.account_iso_code_v3#ListCountries: smithy.api#http has unsupported key baseUrl com.scaleway.account_iso_code_v3#ListCountrySubdivisions: smithy.api#http has unsupported key baseUrl 
+FAIL scaleway/account_organization_v3 distilled-lua: generation failed: com.scaleway.account_organization_v3#ChangeSupportPlan: smithy.api#http has unsupported key baseUrl com.scaleway.account_organization_v3#CloseOrganization: smithy.api#http has unsupported key baseUrl com.scaleway.account_organization_v3#GetActiveSupportPlan: smithy.
+OK s2/streams 0s
+FAIL scaleway/account_unauthenticated_v3 distilled-lua: generation failed: com.scaleway.account_unauthenticated_v3#ComputePasswordStrength: smithy.api#http has unsupported key baseUrl 
+FAIL scaleway/account_unauthenticated_user_v3 distilled-lua: generation failed: com.scaleway.account_unauthenticated_user_v3#CreateAccount: smithy.api#http has unsupported key baseUrl com.scaleway.account_unauthenticated_user_v3#CreateLoginSession: smithy.api#http has unsupported key baseUrl com.scaleway.account_unauthenticated_user_v3#FinishWe
+FAIL scaleway/account_project_v3 distilled-lua: generation failed: com.scaleway.account_project_v3#CreateProject: smithy.api#http has unsupported key baseUrl com.scaleway.account_project_v3#DeleteProject: smithy.api#http has unsupported key baseUrl com.scaleway.account_project_v3#DeleteProjectWithResources: smithy.api#http has unsu
+FAIL scaleway/account_user_v3 distilled-lua: generation failed: com.scaleway.account_user_v3#ChangeUserEmail: smithy.api#http has unsupported key baseUrl com.scaleway.account_user_v3#ChangeUserPassword: smithy.api#http has unsupported key baseUrl com.scaleway.account_user_v3#ConfirmPhoneValidation: smithy.api#http has unsupporte
+FAIL scaleway/annotations_v1 distilled-lua: generation failed: com.scaleway.annotations_v1#CreateBinding: smithy.api#http has unsupported key baseUrl com.scaleway.annotations_v1#CreateKey: smithy.api#http has unsupported key baseUrl com.scaleway.annotations_v1#CreateValue: smithy.api#http has unsupported key baseUrl com.scalewa
+FAIL scaleway/apple_silicon_v1alpha1 distilled-lua: generation failed: com.scaleway.apple_silicon_v1alpha1#BatchCreateServers: smithy.api#http has unsupported key baseUrl com.scaleway.apple_silicon_v1alpha1#CreateRunner: smithy.api#http has unsupported key baseUrl com.scaleway.apple_silicon_v1alpha1#CreateServer: smithy.api#http has un
+FAIL scaleway/apple_silicon_private_network_v1alpha1 distilled-lua: generation failed: com.scaleway.apple_silicon_private_network_v1alpha1#AddServerPrivateNetwork: smithy.api#http has unsupported key baseUrl com.scaleway.apple_silicon_private_network_v1alpha1#DeleteServerPrivateNetwork: smithy.api#http has unsupported key baseUrl com.scaleway.apple_si
+FAIL scaleway/autoscaling_v1alpha2 distilled-lua: generation failed: com.scaleway.autoscaling_v1alpha2#CreateGroup: smithy.api#http has unsupported key baseUrl com.scaleway.autoscaling_v1alpha2#DeleteGroup: smithy.api#http has unsupported key baseUrl com.scaleway.autoscaling_v1alpha2#GetGroup: smithy.api#http has unsupported key base
+FAIL scaleway/audit_trail_v1alpha1 distilled-lua: generation failed: com.scaleway.audit_trail_v1alpha1#CreateCustomAlertRule: smithy.api#http has unsupported key baseUrl com.scaleway.audit_trail_v1alpha1#CreateExportJob: smithy.api#http has unsupported key baseUrl com.scaleway.audit_trail_v1alpha1#DeleteCustomAlertRule: smithy.api#ht
+FAIL scaleway/baremetal_private_network_v3 distilled-lua: generation failed: com.scaleway.baremetal_private_network_v3#AddServerPrivateNetwork: smithy.api#http has unsupported key baseUrl com.scaleway.baremetal_private_network_v3#DeleteServerPrivateNetwork: smithy.api#http has unsupported key baseUrl com.scaleway.baremetal_private_network_v3
+FAIL scaleway/billing_v2 distilled-lua: generation failed: com.scaleway.billing_v2#CreateBudget: smithy.api#http has unsupported key baseUrl com.scaleway.billing_v2#CreateBudgetAlert: smithy.api#http has unsupported key baseUrl com.scaleway.billing_v2#CreateBudgetAlertNotification: smithy.api#http has unsupported key baseUr
+FAIL scaleway/baremetal_v1 distilled-lua: generation failed: com.scaleway.baremetal_v1#AddOptionServer: smithy.api#http has unsupported key baseUrl com.scaleway.baremetal_v1#BatchCreateServers: smithy.api#http has unsupported key baseUrl com.scaleway.baremetal_v1#CreateServer: smithy.api#http has unsupported key baseUrl com.s
+FAIL scaleway/billing_electronic_billing_v2 distilled-lua: generation failed: com.scaleway.billing_electronic_billing_v2#CreateElectronicAddress: smithy.api#http has unsupported key baseUrl com.scaleway.billing_electronic_billing_v2#DeleteElectronicAddress: smithy.api#http has unsupported key baseUrl com.scaleway.billing_electronic_billing_v2
+FAIL scaleway/baremetal_private_network_v1 distilled-lua: generation failed: com.scaleway.baremetal_private_network_v1#AddServerPrivateNetwork: smithy.api#http has unsupported key baseUrl com.scaleway.baremetal_private_network_v1#DeleteServerPrivateNetwork: smithy.api#http has unsupported key baseUrl com.scaleway.baremetal_private_network_v1
+FAIL scaleway/block_v1 distilled-lua: generation failed: com.scaleway.block_v1#CreateSnapshot: smithy.api#http has unsupported key baseUrl com.scaleway.block_v1#CreateVolume: smithy.api#http has unsupported key baseUrl com.scaleway.block_v1#DeleteSnapshot: smithy.api#http has unsupported key baseUrl com.scaleway.block_v1#
+FAIL scaleway/billing_fin_ops_v2beta1 distilled-lua: generation failed: com.scaleway.billing_fin_ops_v2beta1#ListCharges: smithy.api#http has unsupported key baseUrl 
+FAIL scaleway/billing_v2beta1 distilled-lua: generation failed: com.scaleway.billing_v2beta1#DownloadInvoice: smithy.api#http has unsupported key baseUrl com.scaleway.billing_v2beta1#DownloadInvoiceRaw: smithy.api#http has unsupported key baseUrl com.scaleway.billing_v2beta1#ExportInvoices: smithy.api#http has unsupported key ba
+FAIL scaleway/block_v1alpha1 distilled-lua: generation failed: com.scaleway.block_v1alpha1#CreateSnapshot: smithy.api#http has unsupported key baseUrl com.scaleway.block_v1alpha1#CreateVolume: smithy.api#http has unsupported key baseUrl com.scaleway.block_v1alpha1#DeleteSnapshot: smithy.api#http has unsupported key baseUrl com.
+FAIL scaleway/containers_v1 distilled-lua: generation failed: com.scaleway.containers_v1#CreateContainer: smithy.api#http has unsupported key baseUrl com.scaleway.containers_v1#CreateDomain: smithy.api#http has unsupported key baseUrl com.scaleway.containers_v1#CreateNamespace: smithy.api#http has unsupported key baseUrl com.s
+FAIL scaleway/datawarehouse_v1beta1 distilled-lua: generation failed: com.scaleway.datawarehouse_v1beta1#CreateDatabase: smithy.api#http has unsupported key baseUrl com.scaleway.datawarehouse_v1beta1#CreateDeployment: smithy.api#http has unsupported key baseUrl com.scaleway.datawarehouse_v1beta1#CreateEndpoint: smithy.api#http has uns
+FAIL scaleway/datalab_v1beta1 distilled-lua: generation failed: com.scaleway.datalab_v1beta1#CreateDatalab: smithy.api#http has unsupported key baseUrl com.scaleway.datalab_v1beta1#DeleteDatalab: smithy.api#http has unsupported key baseUrl com.scaleway.datalab_v1beta1#GetDatalab: smithy.api#http has unsupported key baseUrl com.s
+FAIL scaleway/dataviz_v1alpha1 distilled-lua: generation failed: com.scaleway.dataviz_v1alpha1#CreateCertificate: smithy.api#http has unsupported key baseUrl com.scaleway.dataviz_v1alpha1#CreateDeployment: smithy.api#http has unsupported key baseUrl com.scaleway.dataviz_v1alpha1#CreateEndpoint: smithy.api#http has unsupported key
+FAIL scaleway/dedibox_billing_v1 distilled-lua: generation failed: com.scaleway.dedibox_billing_v1#CanOrder: smithy.api#http has unsupported key baseUrl com.scaleway.dedibox_billing_v1#DownloadInvoice: smithy.api#http has unsupported key baseUrl com.scaleway.dedibox_billing_v1#DownloadInvoiceRaw: smithy.api#http has unsupported key
+FAIL scaleway/cockpit_global_v1 distilled-lua: generation failed: com.scaleway.cockpit_global_v1#GetGrafana: smithy.api#http has unsupported key baseUrl com.scaleway.cockpit_global_v1#GetGrafanaProductDashboard: smithy.api#http has unsupported key baseUrl com.scaleway.cockpit_global_v1#ListGrafanaProductDashboards: smithy.api#http
+FAIL scaleway/cockpit_regional_v1 distilled-lua: generation failed: com.scaleway.cockpit_regional_v1#CreateContactPoint: smithy.api#http has unsupported key baseUrl com.scaleway.cockpit_regional_v1#CreateDataSource: smithy.api#http has unsupported key baseUrl com.scaleway.cockpit_regional_v1#CreateExporter: smithy.api#http has unsup
+FAIL scaleway/dedibox_rpn_san_v1 distilled-lua: generation failed: com.scaleway.dedibox_rpn_san_v1#AddIp: smithy.api#http has unsupported key baseUrl com.scaleway.dedibox_rpn_san_v1#CreateRpnSan: smithy.api#http has unsupported key baseUrl com.scaleway.dedibox_rpn_san_v1#DeleteRpnSan: smithy.api#http has unsupported key baseUrl com
+FAIL scaleway/dedibox_rpn_v2_v1 distilled-lua: generation failed: com.scaleway.dedibox_rpn_v2_v1#AddRpnV2Members: smithy.api#http has unsupported key baseUrl com.scaleway.dedibox_rpn_v2_v1#CreateRpnV2Group: smithy.api#http has unsupported key baseUrl com.scaleway.dedibox_rpn_v2_v1#DeleteRpnV2Group: smithy.api#http has unsupported 
+FAIL scaleway/dedibox_rpn_v1 distilled-lua: generation failed: com.scaleway.dedibox_rpn_v1#GetRpnStatus: smithy.api#http has unsupported key baseUrl com.scaleway.dedibox_rpn_v1#ListRpnServerCapabilities: smithy.api#http has unsupported key baseUrl 
+FAIL scaleway/dedibox_rpn_v1_v1 distilled-lua: generation failed: com.scaleway.dedibox_rpn_v1_v1#AcceptRpnInvite: smithy.api#http has unsupported key baseUrl com.scaleway.dedibox_rpn_v1_v1#AddRpnGroupMembers: smithy.api#http has unsupported key baseUrl com.scaleway.dedibox_rpn_v1_v1#CreateRpnGroup: smithy.api#http has unsupported 
+FAIL scaleway/domain_suggestion_v2beta1 distilled-lua: generation failed: com.scaleway.domain_suggestion_v2beta1#ListSuggestions: smithy.api#http has unsupported key baseUrl 
+FAIL scaleway/dedibox_ipv6_block_v1 distilled-lua: generation failed: com.scaleway.dedibox_ipv6_block_v1#CreateIPv6Block: smithy.api#http has unsupported key baseUrl com.scaleway.dedibox_ipv6_block_v1#CreateIPv6BlockSubnet: smithy.api#http has unsupported key baseUrl com.scaleway.dedibox_ipv6_block_v1#DeleteIPv6Block: smithy.api#http 
+FAIL scaleway/domain_registrar_v2beta1 distilled-lua: generation failed: com.scaleway.domain_registrar_v2beta1#BuyDomains: smithy.api#http has unsupported key baseUrl com.scaleway.domain_registrar_v2beta1#CheckContactsCompatibility: smithy.api#http has unsupported key baseUrl com.scaleway.domain_registrar_v2beta1#CreateDomainHost: smithy
+FAIL scaleway/domain_v2beta1 distilled-lua: generation failed: com.scaleway.domain_v2beta1#ClearDNSZoneRecords: smithy.api#http has unsupported key baseUrl com.scaleway.domain_v2beta1#CloneDNSZone: smithy.api#http has unsupported key baseUrl com.scaleway.domain_v2beta1#CreateDNSZone: smithy.api#http has unsupported key baseUrl 
+FAIL scaleway/dedibox_v1 distilled-lua: generation failed: com.scaleway.dedibox_v1#AttachFailoverIPToMacAddress: smithy.api#http has unsupported key baseUrl com.scaleway.dedibox_v1#AttachFailoverIPs: smithy.api#http has unsupported key baseUrl com.scaleway.dedibox_v1#CancelServerInstall: smithy.api#http has unsupported key 
+FAIL scaleway/environmental_footprint_user_v1alpha1 distilled-lua: generation failed: com.scaleway.environmental_footprint_user_v1alpha1#DownloadImpactReport: smithy.api#http has unsupported key baseUrl com.scaleway.environmental_footprint_user_v1alpha1#DownloadImpactReportRaw: smithy.api#http has unsupported key baseUrl com.scaleway.environmental_fo
+FAIL scaleway/functions_v1beta1 distilled-lua: generation failed: com.scaleway.functions_v1beta1#CreateCron: smithy.api#http has unsupported key baseUrl com.scaleway.functions_v1beta1#CreateDomain: smithy.api#http has unsupported key baseUrl com.scaleway.functions_v1beta1#CreateFunction: smithy.api#http has unsupported key baseUrl
+FAIL scaleway/edge_services_v1beta1 distilled-lua: generation failed: com.scaleway.edge_services_v1beta1#AddRouteRules: smithy.api#http has unsupported key baseUrl com.scaleway.edge_services_v1beta1#CreateBackendStage: smithy.api#http has unsupported key baseUrl com.scaleway.edge_services_v1beta1#CreateCacheStage: smithy.api#http has 
+FAIL scaleway/generative_apis_openai_v1 distilled-lua: generation failed: com.scaleway.generative_apis_openai_v1#CancelBatch: smithy.api#http has unsupported key baseUrl com.scaleway.generative_apis_openai_v1#CreateAudioTranscription: smithy.api#http has unsupported key baseUrl com.scaleway.generative_apis_openai_v1#CreateBatch: smithy.ap
+FAIL scaleway/generative_apis_v1 distilled-lua: generation failed: com.scaleway.generative_apis_v1#ListConsumptionLimits: smithy.api#http has unsupported key baseUrl com.scaleway.generative_apis_v1#SetConsumptionLimits: smithy.api#http has unsupported key baseUrl 
+FAIL scaleway/flexible_ip_v1alpha1 distilled-lua: generation failed: com.scaleway.flexible_ip_v1alpha1#AttachFlexibleIP: smithy.api#http has unsupported key baseUrl com.scaleway.flexible_ip_v1alpha1#CreateFlexibleIP: smithy.api#http has unsupported key baseUrl com.scaleway.flexible_ip_v1alpha1#DeleteFlexibleIP: smithy.api#http has un
+FAIL scaleway/inference_v1 distilled-lua: generation failed: com.scaleway.inference_v1#CreateDeployment: smithy.api#http has unsupported key baseUrl com.scaleway.inference_v1#CreateEndpoint: smithy.api#http has unsupported key baseUrl com.scaleway.inference_v1#CreateModel: smithy.api#http has unsupported key baseUrl com.scale
+FAIL scaleway/iam_unauthenticated_v1alpha1 distilled-lua: generation failed: com.scaleway.iam_unauthenticated_v1alpha1#CheckLoginMFAOTP: smithy.api#http has unsupported key baseUrl com.scaleway.iam_unauthenticated_v1alpha1#CommitLogin: smithy.api#http has unsupported key baseUrl com.scaleway.iam_unauthenticated_v1alpha1#CreateMagicCodeLogin:
+FAIL scaleway/iam_v1alpha1 distilled-lua: generation failed: com.scaleway.iam_v1alpha1#AddGroupMember: smithy.api#http has unsupported key baseUrl com.scaleway.iam_v1alpha1#AddGroupMembers: smithy.api#http has unsupported key baseUrl com.scaleway.iam_v1alpha1#AddSamlCertificate: smithy.api#http has unsupported key baseUrl com
+FAIL scaleway/file_v1alpha1 distilled-lua: generation failed: com.scaleway.file_v1alpha1#CreateFileSystem: smithy.api#http has unsupported key baseUrl com.scaleway.file_v1alpha1#CreateSnapshot: smithy.api#http has unsupported key baseUrl com.scaleway.file_v1alpha1#DeleteFileSystem: smithy.api#http has unsupported key baseUrl c
+FAIL scaleway/interlink_v1beta1 distilled-lua: generation failed: com.scaleway.interlink_v1beta1#AttachRoutingPolicy: smithy.api#http has unsupported key baseUrl com.scaleway.interlink_v1beta1#AttachVpc: smithy.api#http has unsupported key baseUrl com.scaleway.interlink_v1beta1#CreateLink: smithy.api#http has unsupported key baseU
+FAIL scaleway/instance_v1 distilled-lua: generation failed: com.scaleway.instance_v1#AttachServerFileSystem: smithy.api#http has unsupported key baseUrl com.scaleway.instance_v1#AttachServerVolume: smithy.api#http has unsupported key baseUrl com.scaleway.instance_v1#CheckBlockMigrationOrganizationQuotas: smithy.api#http has 
+FAIL scaleway/instance_v2alpha1 distilled-lua: generation failed: com.scaleway.instance_v2alpha1#AddSecurityGroupRules: smithy.api#http has unsupported key baseUrl com.scaleway.instance_v2alpha1#AttachServerFileSystem: smithy.api#http has unsupported key baseUrl com.scaleway.instance_v2alpha1#AttachServerIP: smithy.api#http has un
+FAIL scaleway/iot_v1 distilled-lua: generation failed: com.scaleway.iot_v1#CreateDevice: smithy.api#http has unsupported key baseUrl com.scaleway.iot_v1#CreateHub: smithy.api#http has unsupported key baseUrl com.scaleway.iot_v1#CreateNetwork: smithy.api#http has unsupported key baseUrl com.scaleway.iot_v1#CreateRoute: s
+FAIL scaleway/instance_volume_v2alpha1 distilled-lua: generation failed: com.scaleway.instance_volume_v2alpha1#CreateSnapshot: smithy.api#http has unsupported key baseUrl com.scaleway.instance_volume_v2alpha1#CreateVolume: smithy.api#http has unsupported key baseUrl com.scaleway.instance_volume_v2alpha1#DeleteSnapshot: smithy.api#http ha
+FAIL scaleway/k8s_v1 distilled-lua: generation failed: com.scaleway.k8s_v1#AddClusterACLRules: smithy.api#http has unsupported key baseUrl com.scaleway.k8s_v1#CreateCluster: smithy.api#http has unsupported key baseUrl com.scaleway.k8s_v1#CreatePool: smithy.api#http has unsupported key baseUrl com.scaleway.k8s_v1#DeleteA
+FAIL scaleway/key_manager_v1alpha1 distilled-lua: generation failed: com.scaleway.key_manager_v1alpha1#CreateKey: smithy.api#http has unsupported key baseUrl com.scaleway.key_manager_v1alpha1#Decrypt: smithy.api#http has unsupported key baseUrl com.scaleway.key_manager_v1alpha1#DeleteKey: smithy.api#http has unsupported key baseUrl c
+FAIL scaleway/kafka_v1alpha1 distilled-lua: generation failed: com.scaleway.kafka_v1alpha1#CreateCluster: smithy.api#http has unsupported key baseUrl com.scaleway.kafka_v1alpha1#CreateEndpoint: smithy.api#http has unsupported key baseUrl com.scaleway.kafka_v1alpha1#DeleteCluster: smithy.api#http has unsupported key baseUrl com.
+FAIL scaleway/ipam_v1 distilled-lua: generation failed: com.scaleway.ipam_v1#AttachIP: smithy.api#http has unsupported key baseUrl com.scaleway.ipam_v1#BookIP: smithy.api#http has unsupported key baseUrl com.scaleway.ipam_v1#DetachIP: smithy.api#http has unsupported key baseUrl com.scaleway.ipam_v1#GetIP: smithy.api#http
+FAIL scaleway/mailbox_v1alpha1 distilled-lua: generation failed: com.scaleway.mailbox_v1alpha1#BatchCreateMailboxes: smithy.api#http has unsupported key baseUrl com.scaleway.mailbox_v1alpha1#CreateAlias: smithy.api#http has unsupported key baseUrl com.scaleway.mailbox_v1alpha1#CreateDomain: smithy.api#http has unsupported key bas
+FAIL scaleway/mnq_console_v1beta1 distilled-lua: generation failed: com.scaleway.mnq_console_v1beta1#GetProtocols: smithy.api#http has unsupported key baseUrl 
+FAIL scaleway/marketplace_v2 distilled-lua: generation failed: com.scaleway.marketplace_v2#GetCategory: smithy.api#http has unsupported key baseUrl com.scaleway.marketplace_v2#GetImage: smithy.api#http has unsupported key baseUrl com.scaleway.marketplace_v2#GetLocalImage: smithy.api#http has unsupported key baseUrl com.scaleway
+FAIL scaleway/lb_zoned_v1 distilled-lua: generation failed: com.scaleway.lb_zoned_v1#AddBackendServers: smithy.api#http has unsupported key baseUrl com.scaleway.lb_zoned_v1#AttachPrivateNetwork: smithy.api#http has unsupported key baseUrl com.scaleway.lb_zoned_v1#CreateAcl: smithy.api#http has unsupported key baseUrl com.sca
+FAIL scaleway/mnq_sns_v1beta1 distilled-lua: generation failed: com.scaleway.mnq_sns_v1beta1#ActivateSns: smithy.api#http has unsupported key baseUrl com.scaleway.mnq_sns_v1beta1#CreateSnsCredentials: smithy.api#http has unsupported key baseUrl com.scaleway.mnq_sns_v1beta1#DeactivateSns: smithy.api#http has unsupported key baseU
+FAIL scaleway/messageq_v1alpha1 distilled-lua: generation failed: com.scaleway.messageq_v1alpha1#CreateDeployment: smithy.api#http has unsupported key baseUrl com.scaleway.messageq_v1alpha1#CreateEndpoint: smithy.api#http has unsupported key baseUrl com.scaleway.messageq_v1alpha1#CreateUser: smithy.api#http has unsupported key bas
+FAIL scaleway/marketplace_console_v2 distilled-lua: generation failed: com.scaleway.marketplace_console_v2#ListFullImages: smithy.api#http has unsupported key baseUrl 
+FAIL scaleway/mnq_sqs_v1beta1 distilled-lua: generation failed: com.scaleway.mnq_sqs_v1beta1#ActivateSqs: smithy.api#http has unsupported key baseUrl com.scaleway.mnq_sqs_v1beta1#CreateSqsCredentials: smithy.api#http has unsupported key baseUrl com.scaleway.mnq_sqs_v1beta1#DeactivateSqs: smithy.api#http has unsupported key baseU
+FAIL scaleway/mnq_nats_v1beta1 distilled-lua: generation failed: com.scaleway.mnq_nats_v1beta1#CreateNatsAccount: smithy.api#http has unsupported key baseUrl com.scaleway.mnq_nats_v1beta1#CreateNatsCredentials: smithy.api#http has unsupported key baseUrl com.scaleway.mnq_nats_v1beta1#DeleteNatsAccount: smithy.api#http has unsuppo
+FAIL scaleway/mongodb_v1 distilled-lua: generation failed: com.scaleway.mongodb_v1#ApplyMaintenance: smithy.api#http has unsupported key baseUrl com.scaleway.mongodb_v1#CreateEndpoint: smithy.api#http has unsupported key baseUrl com.scaleway.mongodb_v1#CreateInstance: smithy.api#http has unsupported key baseUrl com.scaleway
+FAIL scaleway/partner_v1 distilled-lua: generation failed: com.scaleway.partner_v1#CreateOrganization: smithy.api#http has unsupported key baseUrl com.scaleway.partner_v1#GetOrganization: smithy.api#http has unsupported key baseUrl com.scaleway.partner_v1#ListOrganizations: smithy.api#http has unsupported key baseUrl com.sc
+FAIL scaleway/qaas_v1alpha1 distilled-lua: generation failed: com.scaleway.qaas_v1alpha1#CancelJob: smithy.api#http has unsupported key baseUrl com.scaleway.qaas_v1alpha1#CancelProcess: smithy.api#http has unsupported key baseUrl com.scaleway.qaas_v1alpha1#CreateJob: smithy.api#http has unsupported key baseUrl com.scaleway.qaa
+FAIL scaleway/mongodb_v1alpha1 distilled-lua: generation failed: com.scaleway.mongodb_v1alpha1#CreateEndpoint: smithy.api#http has unsupported key baseUrl com.scaleway.mongodb_v1alpha1#CreateInstance: smithy.api#http has unsupported key baseUrl com.scaleway.mongodb_v1alpha1#CreateSnapshot: smithy.api#http has unsupported key base
+FAIL scaleway/product_catalog_public_catalog_v2alpha1 distilled-lua: generation failed: com.scaleway.product_catalog_public_catalog_v2alpha1#ListPublicCatalogProducts: smithy.api#http has unsupported key baseUrl 
+FAIL scaleway/rdb_v1 distilled-lua: generation failed: com.scaleway.rdb_v1#AddInstanceACLRules: smithy.api#http has unsupported key baseUrl com.scaleway.rdb_v1#AddInstanceSettings: smithy.api#http has unsupported key baseUrl com.scaleway.rdb_v1#ApplyInstanceMaintenance: smithy.api#http has unsupported key baseUrl com.sc
+FAIL scaleway/reseller_v1 distilled-lua: generation failed: com.scaleway.reseller_v1#ListConsumptions: smithy.api#http has unsupported key baseUrl 
+FAIL scaleway/redis_v1 distilled-lua: generation failed: com.scaleway.redis_v1#AddAclRules: smithy.api#http has unsupported key baseUrl com.scaleway.redis_v1#AddClusterSettings: smithy.api#http has unsupported key baseUrl com.scaleway.redis_v1#AddEndpoints: smithy.api#http has unsupported key baseUrl com.scaleway.redis_v1
+FAIL scaleway/s2s_vpn_v1alpha1 distilled-lua: generation failed: com.scaleway.s2s_vpn_v1alpha1#ChangeConnectionPsk: smithy.api#http has unsupported key baseUrl com.scaleway.s2s_vpn_v1alpha1#CreateConnection: smithy.api#http has unsupported key baseUrl com.scaleway.s2s_vpn_v1alpha1#CreateCustomerGateway: smithy.api#http has unsupp
+FAIL scaleway/search_v1alpha1 distilled-lua: generation failed: com.scaleway.search_v1alpha1#SearchResources: smithy.api#http has unsupported key baseUrl 
+FAIL scaleway/rdb_encryption_v1 distilled-lua: generation failed: com.scaleway.rdb_encryption_v1#GetEncryptionKey: smithy.api#http has unsupported key baseUrl 
+FAIL scaleway/registry_v1 distilled-lua: generation failed: com.scaleway.registry_v1#CreateNamespace: smithy.api#http has unsupported key baseUrl com.scaleway.registry_v1#DeleteImage: smithy.api#http has unsupported key baseUrl com.scaleway.registry_v1#DeleteNamespace: smithy.api#http has unsupported key baseUrl com.scaleway
+FAIL scaleway/secret_manager_v1beta1 distilled-lua: generation failed: com.scaleway.secret_manager_v1beta1#AccessSecretVersion: smithy.api#http has unsupported key baseUrl com.scaleway.secret_manager_v1beta1#AccessSecretVersionByPath: smithy.api#http has unsupported key baseUrl com.scaleway.secret_manager_v1beta1#AddSecretOwner: smithy
+FAIL scaleway/serverless_jobs_v1alpha2 distilled-lua: generation failed: com.scaleway.serverless_jobs_v1alpha2#CreateJobDefinition: smithy.api#http has unsupported key baseUrl com.scaleway.serverless_jobs_v1alpha2#CreateSecrets: smithy.api#http has unsupported key baseUrl com.scaleway.serverless_jobs_v1alpha2#CreateTrigger: smithy.api#ht
+FAIL scaleway/serverless_jobs_v1alpha1 distilled-lua: generation failed: com.scaleway.serverless_jobs_v1alpha1#CreateJobDefinition: smithy.api#http has unsupported key baseUrl com.scaleway.serverless_jobs_v1alpha1#CreateJobDefinitionSecrets: smithy.api#http has unsupported key baseUrl com.scaleway.serverless_jobs_v1alpha1#DeleteJobDefini
+FAIL scaleway/transactional_email_v1alpha1 distilled-lua: generation failed: com.scaleway.transactional_email_v1alpha1#BulkCreateBlocklists: smithy.api#http has unsupported key baseUrl com.scaleway.transactional_email_v1alpha1#CancelEmail: smithy.api#http has unsupported key baseUrl com.scaleway.transactional_email_v1alpha1#CheckDomain: smit
+FAIL scaleway/serverless_sqldb_v1alpha1 distilled-lua: generation failed: com.scaleway.serverless_sqldb_v1alpha1#CreateDatabase: smithy.api#http has unsupported key baseUrl com.scaleway.serverless_sqldb_v1alpha1#DeleteDatabase: smithy.api#http has unsupported key baseUrl com.scaleway.serverless_sqldb_v1alpha1#ExportDatabaseBackup: smithy.
+FAIL scaleway/searchdb_v1alpha1 distilled-lua: generation failed: com.scaleway.searchdb_v1alpha1#CreateDeployment: smithy.api#http has unsupported key baseUrl com.scaleway.searchdb_v1alpha1#CreateEndpoint: smithy.api#http has unsupported key baseUrl com.scaleway.searchdb_v1alpha1#CreateUser: smithy.api#http has unsupported key bas
+FAIL scaleway/vpc_routes_with_nexthop_v2 distilled-lua: generation failed: com.scaleway.vpc_routes_with_nexthop_v2#ListRoutesWithNexthop: smithy.api#http has unsupported key baseUrl 
+FAIL scaleway/vpc_private_network_with_nics_v2 distilled-lua: generation failed: com.scaleway.vpc_private_network_with_nics_v2#GetPrivateNetworkWithNics: smithy.api#http has unsupported key baseUrl com.scaleway.vpc_private_network_with_nics_v2#ListPrivateNetworksWithNics: smithy.api#http has unsupported key baseUrl 
+FAIL scaleway/vpc_v2 distilled-lua: generation failed: com.scaleway.vpc_v2#AddPrivateNetworkObjectStoragePrivateAccess: smithy.api#http has unsupported key baseUrl com.scaleway.vpc_v2#CreateIngressRule: smithy.api#http has unsupported key baseUrl com.scaleway.vpc_v2#CreatePrivateNetwork: smithy.api#http has unsupported 
+FAIL scaleway/webhosting_backup_v1 distilled-lua: generation failed: com.scaleway.webhosting_backup_v1#GetBackup: smithy.api#http has unsupported key baseUrl com.scaleway.webhosting_backup_v1#GetProgress: smithy.api#http has unsupported key baseUrl com.scaleway.webhosting_backup_v1#ListBackupItems: smithy.api#http has unsupported key
+FAIL scaleway/vpc_gw_v2 distilled-lua: generation failed: com.scaleway.vpc_gw_v2#AddBastionAllowedIPs: smithy.api#http has unsupported key baseUrl com.scaleway.vpc_gw_v2#CreateGateway: smithy.api#http has unsupported key baseUrl com.scaleway.vpc_gw_v2#CreateGatewayNetwork: smithy.api#http has unsupported key baseUrl com.sc
+FAIL scaleway/webhosting_database_v1 distilled-lua: generation failed: com.scaleway.webhosting_database_v1#AssignDatabaseUser: smithy.api#http has unsupported key baseUrl com.scaleway.webhosting_database_v1#ChangeDatabaseUserPassword: smithy.api#http has unsupported key baseUrl com.scaleway.webhosting_database_v1#CreateDatabase: smithy
+FAIL scaleway/webhosting_dedibox_v1 distilled-lua: generation failed: com.scaleway.webhosting_dedibox_v1#MigrateDediboxHosting: smithy.api#http has unsupported key baseUrl 
+FAIL scaleway/webhosting_control_panel_v1 distilled-lua: generation failed: com.scaleway.webhosting_control_panel_v1#ListControlPanels: smithy.api#http has unsupported key baseUrl 
+FAIL scaleway/webhosting_dns_v1 distilled-lua: generation failed: com.scaleway.webhosting_dns_v1#GetDomain: smithy.api#http has unsupported key baseUrl com.scaleway.webhosting_dns_v1#GetDomainDnsRecords: smithy.api#http has unsupported key baseUrl com.scaleway.webhosting_dns_v1#SearchDomains: smithy.api#http has unsupported key ba
+FAIL scaleway/webhosting_free_domain_v1 distilled-lua: generation failed: com.scaleway.webhosting_free_domain_v1#CheckFreeDomainAvailability: smithy.api#http has unsupported key baseUrl com.scaleway.webhosting_free_domain_v1#ListFreeRootDomains: smithy.api#http has unsupported key baseUrl 
+FAIL scaleway/webhosting_hosting_v1 distilled-lua: generation failed: com.scaleway.webhosting_hosting_v1#AddCustomDomain: smithy.api#http has unsupported key baseUrl com.scaleway.webhosting_hosting_v1#CreateHosting: smithy.api#http has unsupported key baseUrl com.scaleway.webhosting_hosting_v1#CreateSession: smithy.api#http has unsupp
+FAIL scaleway/webhosting_mail_account_v1 distilled-lua: generation failed: com.scaleway.webhosting_mail_account_v1#ChangeMailAccountPassword: smithy.api#http has unsupported key baseUrl com.scaleway.webhosting_mail_account_v1#CreateMailAccount: smithy.api#http has unsupported key baseUrl com.scaleway.webhosting_mail_account_v1#ListMailAcco
+FAIL scaleway/webhosting_ftp_account_v1 distilled-lua: generation failed: com.scaleway.webhosting_ftp_account_v1#ChangeFtpAccountPassword: smithy.api#http has unsupported key baseUrl com.scaleway.webhosting_ftp_account_v1#CreateFtpAccount: smithy.api#http has unsupported key baseUrl com.scaleway.webhosting_ftp_account_v1#ListFtpAccounts: 
+FAIL scaleway/webhosting_offer_v1 distilled-lua: generation failed: com.scaleway.webhosting_offer_v1#ListOffers: smithy.api#http has unsupported key baseUrl 
+FAIL scaleway/webhosting_website_v1 distilled-lua: generation failed: com.scaleway.webhosting_website_v1#CreateWebsite: smithy.api#http has unsupported key baseUrl com.scaleway.webhosting_website_v1#DeleteWebsite: smithy.api#http has unsupported key baseUrl com.scaleway.webhosting_website_v1#ListWebsites: smithy.api#http has unsupport
+OK slack/agents 0s
+OK slack/api 0s
+OK slack/apps 0s
+OK slack/admin 0s
+OK slack/assistant 0s
+OK slack/auth 0s
+OK slack/blocks 0s
+OK slack/bookmarks 0s
+OK slack/bots 0s
+OK slack/calls 0s
+OK slack/canvases 0s
+OK slack/chat 0s
+OK slack/dialog 0s
+OK slack/conversations 0s
+OK slack/dnd 0s
+OK slack/emoji 0s
+OK slack/entity 0s
+OK slack/files 0s
+OK slack/functions 0s
+OK slack/lists 0s
+OK slack/migration 0s
+OK slack/openid 0s
+OK slack/oauth 0s
+OK slack/pins 0s
+OK slack/reactions 0s
+OK slack/reminders 0s
+OK slack/rtm 0s
+OK slack/search 0s
+OK slack/slackbot 1s
+OK slack/stars 1s
+FAIL sentry/sentry distilled-lua: generation failed: com.sentry.api#GetOrganizationSessionsResponseGroupsItemSeriesValueList: nullable list items have no representation in the schema contract com.sentry.api#GetOrganizationSessionsResponseGroupsItemTotalsMap: nullable map values have no representation in the schema con
+OK slack/team 1s
+OK slack/usergroups 0s
+OK slack/tooling 0s
+OK slack/users 0s
+OK slack/views 0s
+OK slack/workflows 0s
+FAIL stackit/alb_waf distilled-lua: generation failed: com.stackit.alb_waf#CreateCustomRuleGroup: smithy.api#http has unsupported key baseUrl com.stackit.alb_waf#CreateManagedRuleSet: smithy.api#http has unsupported key baseUrl com.stackit.alb_waf#CreateWAF: smithy.api#http has unsupported key baseUrl com.stackit.alb_wa
+OK spacetimedb/spacetimedb 0s
+OK squarespace/squarespace 0s
+FAIL stackit/alb distilled-lua: generation failed: com.stackit.alb#CreateCredentials: smithy.api#http has unsupported key baseUrl com.stackit.alb#CreateLoadBalancer: smithy.api#http has unsupported key baseUrl com.stackit.alb#DeleteCredentials: smithy.api#http has unsupported key baseUrl com.stackit.alb#DeleteLoadBa
+FAIL stackit/authorization distilled-lua: generation failed: com.stackit.authorization#AddMembers: smithy.api#http has unsupported key baseUrl com.stackit.authorization#AddRole: smithy.api#http has unsupported key baseUrl com.stackit.authorization#DeleteRole: smithy.api#http has unsupported key baseUrl com.stackit.authorizati
+FAIL stackit/cdn distilled-lua: generation failed: com.stackit.cdn#CreateDistribution: smithy.api#http has unsupported key baseUrl com.stackit.cdn#DeleteCustomDomain: smithy.api#http has unsupported key baseUrl com.stackit.cdn#DeleteDistribution: smithy.api#http has unsupported key baseUrl com.stackit.cdn#FindCacheP
+FAIL stackit/automation distilled-lua: generation failed: com.stackit.automation#CreateVolumeAutomation: smithy.api#http has unsupported key baseUrl com.stackit.automation#CreateVolumeExecution: smithy.api#http has unsupported key baseUrl com.stackit.automation#DeleteVolumeAutomation: smithy.api#http has unsupported key ba
+FAIL stackit/certificates distilled-lua: generation failed: com.stackit.certificates#CreateCertificate: smithy.api#http has unsupported key baseUrl com.stackit.certificates#DeleteCertificate: smithy.api#http has unsupported key baseUrl com.stackit.certificates#GetCertificate: smithy.api#http has unsupported key baseUrl com.s
+FAIL stackit/cost distilled-lua: generation failed: com.stackit.cost#GetCostsForProject: smithy.api#http has unsupported key baseUrl com.stackit.cost#ListCostsForCustomer: smithy.api#http has unsupported key baseUrl com.stackit.cost#ListCostsForReseller: smithy.api#http has unsupported key baseUrl 
+FAIL stackit/dns distilled-lua: generation failed: com.stackit.dns#CloneZone: smithy.api#http has unsupported key baseUrl com.stackit.dns#CreateMoveCode: smithy.api#http has unsupported key baseUrl com.stackit.dns#CreateRecordSet: smithy.api#http has unsupported key baseUrl com.stackit.dns#CreateZone: smithy.api#htt
+FAIL stackit/dremio distilled-lua: generation failed: com.stackit.dremio#CreateDremioInstance: smithy.api#http has unsupported key baseUrl com.stackit.dremio#CreateDremioUser: smithy.api#http has unsupported key baseUrl com.stackit.dremio#DeleteDremioInstance: smithy.api#http has unsupported key baseUrl com.stackit.dre
+FAIL stackit/git distilled-lua: generation failed: com.stackit.git#CreateAuthentication: smithy.api#http has unsupported key baseUrl com.stackit.git#CreateInstance: smithy.api#http has unsupported key baseUrl com.stackit.git#CreateRunner: smithy.api#http has unsupported key baseUrl com.stackit.git#CreateUser: smithy
+FAIL stackit/edge distilled-lua: generation failed: com.stackit.edge#CreateInstance: smithy.api#http has unsupported key baseUrl com.stackit.edge#DeleteInstance: smithy.api#http has unsupported key baseUrl com.stackit.edge#DeleteInstanceByName: smithy.api#http has unsupported key baseUrl com.stackit.edge#GetInstance:
+FAIL stackit/identity distilled-lua: generation failed: com.stackit.identity#CreateGroup: smithy.api#http has unsupported key baseUrl com.stackit.identity#DeleteGroup: smithy.api#http has unsupported key baseUrl com.stackit.identity#GetGroup: smithy.api#http has unsupported key baseUrl com.stackit.identity#GetUser: smith
+FAIL stackit/iaas distilled-lua: generation failed: com.stackit.iaas#AddNetworkToServer: smithy.api#http has unsupported key baseUrl com.stackit.iaas#AddNicToServer: smithy.api#http has unsupported key baseUrl com.stackit.iaas#AddPublicIpToServer: smithy.api#http has unsupported key baseUrl com.stackit.iaas#AddRoutes
+FAIL stackit/intake distilled-lua: generation failed: com.stackit.intake#CreateIntake: smithy.api#http has unsupported key baseUrl com.stackit.intake#CreateIntakeRunner: smithy.api#http has unsupported key baseUrl com.stackit.intake#CreateIntakeUser: smithy.api#http has unsupported key baseUrl com.stackit.intake#Delete
+FAIL stackit/functions distilled-lua: generation failed: com.stackit.functions#CreateFunction: smithy.api#http has unsupported key baseUrl com.stackit.functions#CreatePullCredential: smithy.api#http has unsupported key baseUrl com.stackit.functions#CreateRevision: smithy.api#http has unsupported key baseUrl com.stackit.fu
+FAIL stackit/load_balancer distilled-lua: generation failed: com.stackit.load_balancer#CreateCredentials: smithy.api#http has unsupported key baseUrl com.stackit.load_balancer#CreateLoadBalancer: smithy.api#http has unsupported key baseUrl com.stackit.load_balancer#DeleteCredentials: smithy.api#http has unsupported key baseUr
+FAIL stackit/kms distilled-lua: generation failed: com.stackit.kms#CreateKey: smithy.api#http has unsupported key baseUrl com.stackit.kms#CreateKeyRing: smithy.api#http has unsupported key baseUrl com.stackit.kms#CreateWrappingKey: smithy.api#http has unsupported key baseUrl com.stackit.kms#Decrypt: smithy.api#http 
+FAIL stackit/lb_ip_lists distilled-lua: generation failed: com.stackit.lb_ip_lists#DeleteIPList: smithy.api#http has unsupported key baseUrl com.stackit.lb_ip_lists#GetIPList: smithy.api#http has unsupported key baseUrl com.stackit.lb_ip_lists#GetQuota: smithy.api#http has unsupported key baseUrl com.stackit.lb_ip_lists#Lis
+FAIL stackit/logme distilled-lua: generation failed: com.stackit.logme#CreateBackup: smithy.api#http has unsupported key baseUrl com.stackit.logme#CreateCredentials: smithy.api#http has unsupported key baseUrl com.stackit.logme#CreateInstance: smithy.api#http has unsupported key baseUrl com.stackit.logme#DeleteCredent
+FAIL stackit/logs distilled-lua: generation failed: com.stackit.logs#CreateAccessPolicy: smithy.api#http has unsupported key baseUrl com.stackit.logs#CreateAccessToken: smithy.api#http has unsupported key baseUrl com.stackit.logs#CreateLogsInstance: smithy.api#http has unsupported key baseUrl com.stackit.logs#DeleteA
+FAIL stackit/object_storage distilled-lua: generation failed: com.stackit.object_storage#CreateAccessKey: smithy.api#http has unsupported key baseUrl com.stackit.object_storage#CreateBucket: smithy.api#http has unsupported key baseUrl com.stackit.object_storage#CreateComplianceLock: smithy.api#http has unsupported key baseUrl 
+FAIL stackit/model_experiments distilled-lua: generation failed: com.stackit.model_experiments#CreateInstance: smithy.api#http has unsupported key baseUrl com.stackit.model_experiments#CreateInstanceToken: smithy.api#http has unsupported key baseUrl com.stackit.model_experiments#DeleteInstance: smithy.api#http has unsupported key
+FAIL stackit/model_serving distilled-lua: generation failed: com.stackit.model_serving#CreateToken: smithy.api#http has unsupported key baseUrl com.stackit.model_serving#DeleteToken: smithy.api#http has unsupported key baseUrl com.stackit.model_serving#GetChatModel: smithy.api#http has unsupported key baseUrl com.stackit.mode
+FAIL stackit/mailout distilled-lua: generation failed: com.stackit.mailout#AddRecipientToSuppressionList: smithy.api#http has unsupported key baseUrl com.stackit.mailout#CreateAuthorizedSender: smithy.api#http has unsupported key baseUrl com.stackit.mailout#CreateSendingDomain: smithy.api#http has unsupported key baseUr
+FAIL stackit/mongodb_flex distilled-lua: generation failed: com.stackit.mongodb_flex#CloneInstance: smithy.api#http has unsupported key baseUrl com.stackit.mongodb_flex#CreateInstance: smithy.api#http has unsupported key baseUrl com.stackit.mongodb_flex#CreateUser: smithy.api#http has unsupported key baseUrl com.stackit.mong
+FAIL stackit/observability distilled-lua: generation failed: com.stackit.observability#CreateAlertConfigReceiver: smithy.api#http has unsupported key baseUrl com.stackit.observability#CreateAlertConfigRoute: smithy.api#http has unsupported key baseUrl com.stackit.observability#CreateAlertRecord: smithy.api#http has unsupporte
+FAIL stackit/mariadb distilled-lua: generation failed: com.stackit.mariadb#CreateBackup: smithy.api#http has unsupported key baseUrl com.stackit.mariadb#CreateCredentials: smithy.api#http has unsupported key baseUrl com.stackit.mariadb#CreateInstance: smithy.api#http has unsupported key baseUrl com.stackit.mariadb#Delet
+FAIL stackit/postgres_flex distilled-lua: generation failed: com.stackit.postgres_flex#CloneInstance: smithy.api#http has unsupported key baseUrl com.stackit.postgres_flex#CreateDatabase: smithy.api#http has unsupported key baseUrl com.stackit.postgres_flex#CreateInstance: smithy.api#http has unsupported key baseUrl com.stack
+FAIL stackit/pim distilled-lua: generation failed: com.stackit.pim#GetCategory: smithy.api#http has unsupported key baseUrl com.stackit.pim#GetProduct: smithy.api#http has unsupported key baseUrl com.stackit.pim#GetProductMarketingData: smithy.api#http has unsupported key baseUrl com.stackit.pim#GetSKU: smithy.api#h
+FAIL stackit/pubsub distilled-lua: generation failed: com.stackit.pubsub#CreateSubscription: smithy.api#http has unsupported key baseUrl com.stackit.pubsub#CreateTopic: smithy.api#http has unsupported key baseUrl com.stackit.pubsub#DeleteSubscription: smithy.api#http has unsupported key baseUrl com.stackit.pubsub#Delet
+FAIL stackit/rabbitmq distilled-lua: generation failed: com.stackit.rabbitmq#CreateBackup: smithy.api#http has unsupported key baseUrl com.stackit.rabbitmq#CreateCredentials: smithy.api#http has unsupported key baseUrl com.stackit.rabbitmq#CreateInstance: smithy.api#http has unsupported key baseUrl com.stackit.rabbitmq#D
+FAIL stackit/resource_manager distilled-lua: generation failed: com.stackit.resource_manager#CreateFolder: smithy.api#http has unsupported key baseUrl com.stackit.resource_manager#CreateProject: smithy.api#http has unsupported key baseUrl com.stackit.resource_manager#DeleteFolder: smithy.api#http has unsupported key baseUrl com.
+FAIL stackit/registry distilled-lua: generation failed: com.stackit.registry#CreateArtifactory: smithy.api#http has unsupported key baseUrl com.stackit.registry#DeleteArtifactory: smithy.api#http has unsupported key baseUrl com.stackit.registry#GetArtifactory: smithy.api#http has unsupported key baseUrl com.stackit.regis
+FAIL stackit/sca distilled-lua: generation failed: com.stackit.sca#CreateApplication: smithy.api#http has unsupported key baseUrl com.stackit.sca#CreateEnvironment: smithy.api#http has unsupported key baseUrl com.stackit.sca#DeleteApplication: smithy.api#http has unsupported key baseUrl com.stackit.sca#GetApplicatio
+FAIL stackit/scf distilled-lua: generation failed: com.stackit.scf#ApplyOrganizationQuota: smithy.api#http has unsupported key baseUrl com.stackit.scf#CreateOrgManager: smithy.api#http has unsupported key baseUrl com.stackit.scf#CreateOrgRole: smithy.api#http has unsupported key baseUrl com.stackit.scf#CreateOrganiz
+FAIL stackit/secrets_manager distilled-lua: generation failed: com.stackit.secrets_manager#CreateACL: smithy.api#http has unsupported key baseUrl com.stackit.secrets_manager#CreateApprole: smithy.api#http has unsupported key baseUrl com.stackit.secrets_manager#CreateApproleSecretId: smithy.api#http has unsupported key baseUrl c
+FAIL stackit/opensearch distilled-lua: generation failed: com.stackit.opensearch#CreateBackup: smithy.api#http has unsupported key baseUrl com.stackit.opensearch#CreateCredentials: smithy.api#http has unsupported key baseUrl com.stackit.opensearch#CreateInstance: smithy.api#http has unsupported key baseUrl com.stackit.open
+FAIL stackit/run_command distilled-lua: generation failed: com.stackit.run_command#CreateCommand: smithy.api#http has unsupported key baseUrl com.stackit.run_command#GetCommand: smithy.api#http has unsupported key baseUrl com.stackit.run_command#GetCommandTemplate: smithy.api#http has unsupported key baseUrl com.stackit.run
+FAIL stackit/server_backup distilled-lua: generation failed: com.stackit.server_backup#CreateBackup: smithy.api#http has unsupported key baseUrl com.stackit.server_backup#CreateBackupSchedule: smithy.api#http has unsupported key baseUrl com.stackit.server_backup#DeleteBackup: smithy.api#http has unsupported key baseUrl com.st
+FAIL stackit/service_account distilled-lua: generation failed: com.stackit.service_account#CreateFederatedIdentityProvider: smithy.api#http has unsupported key baseUrl com.stackit.service_account#CreateServiceAccount: smithy.api#http has unsupported key baseUrl com.stackit.service_account#CreateServiceAccountKey: smithy.api#htt
+FAIL stackit/sfs distilled-lua: generation failed: com.stackit.sfs#CreateResourcePool: smithy.api#http has unsupported key baseUrl com.stackit.sfs#CreateResourcePoolSnapshot: smithy.api#http has unsupported key baseUrl com.stackit.sfs#CreateShare: smithy.api#http has unsupported key baseUrl com.stackit.sfs#CreateSha
+FAIL stackit/server_update distilled-lua: generation failed: com.stackit.server_update#CreateUpdate: smithy.api#http has unsupported key baseUrl com.stackit.server_update#CreateUpdateSchedule: smithy.api#http has unsupported key baseUrl com.stackit.server_update#DeleteUpdateSchedule: smithy.api#http has unsupported key baseUr
+FAIL stackit/stackit_marketplace distilled-lua: generation failed: com.stackit.stackit_marketplace#ApproveSubscription: smithy.api#http has unsupported key baseUrl com.stackit.stackit_marketplace#CancelConsumersSubscription: smithy.api#http has unsupported key baseUrl com.stackit.stackit_marketplace#ConsumersSubscriptionsListByOrga
+FAIL stackit/telemetry_link distilled-lua: generation failed: com.stackit.telemetry_link#CreateFolderBackflushJob: smithy.api#http has unsupported key baseUrl com.stackit.telemetry_link#CreateOrUpdateFolderTelemetryLink: smithy.api#http has unsupported key baseUrl com.stackit.telemetry_link#CreateOrUpdateOrganizationTelemetryL
+FAIL stackit/sqlserverflex distilled-lua: generation failed: com.stackit.sqlserverflex#CreateDatabase: smithy.api#http has unsupported key baseUrl com.stackit.sqlserverflex#CreateInstance: smithy.api#http has unsupported key baseUrl com.stackit.sqlserverflex#CreateUser: smithy.api#http has unsupported key baseUrl com.stackit.
+FAIL stackit/ske distilled-lua: generation failed: com.stackit.ske#CompleteCredentialsRotation: smithy.api#http has unsupported key baseUrl com.stackit.ske#CreateKubeconfig: smithy.api#http has unsupported key baseUrl com.stackit.ske#CreateOrUpdateCluster: smithy.api#http has unsupported key baseUrl com.stackit.ske#
+FAIL stackit/service_enablement distilled-lua: generation failed: com.stackit.service_enablement#DisableServiceRegional: smithy.api#http has unsupported key baseUrl com.stackit.service_enablement#EnableServiceRegional: smithy.api#http has unsupported key baseUrl com.stackit.service_enablement#GetServiceStatusRegional: smithy.api#h
+FAIL stackit/telemetry_router distilled-lua: generation failed: com.stackit.telemetry_router#CreateAccessToken: smithy.api#http has unsupported key baseUrl com.stackit.telemetry_router#CreateDestination: smithy.api#http has unsupported key baseUrl com.stackit.telemetry_router#CreateTelemetryRouter: smithy.api#http has unsupporte
+FAIL stackit/workflows distilled-lua: generation failed: com.stackit.workflows#CreateDagBundle: smithy.api#http has unsupported key baseUrl com.stackit.workflows#CreateInstance: smithy.api#http has unsupported key baseUrl com.stackit.workflows#DeleteDagBundle: smithy.api#http has unsupported key baseUrl com.stackit.workfl
+FAIL stackit/ufw distilled-lua: generation failed: com.stackit.ufw#CreateRule: smithy.api#http has unsupported key baseUrl com.stackit.ufw#DeleteRule: smithy.api#http has unsupported key baseUrl com.stackit.ufw#GetRule: smithy.api#http has unsupported key baseUrl com.stackit.ufw#ListFolderContainers: smithy.api#http
+FAIL stackit/vpn distilled-lua: generation failed: com.stackit.vpn#CreateGateway: smithy.api#http has unsupported key baseUrl com.stackit.vpn#CreateGatewayBGPFilter: smithy.api#http has unsupported key baseUrl com.stackit.vpn#CreateGatewayBGPFilterRule: smithy.api#http has unsupported key baseUrl com.stackit.vpn#Cre
+OK starburst-galaxy/cluster 0s
+OK starburst-galaxy/column_mask 0s
+FAIL stackit/valkey distilled-lua: generation failed: com.stackit.valkey#CreateBackup: smithy.api#http has unsupported key baseUrl com.stackit.valkey#CreateCredentials: smithy.api#http has unsupported key baseUrl com.stackit.valkey#CreateInstance: smithy.api#http has unsupported key baseUrl com.stackit.valkey#DeleteCre
+OK starburst-galaxy/catalog 0s
+OK starburst-galaxy/data_domain 0s
+OK starburst-galaxy/data_product_usage_example 1s
+FAIL starburst-galaxy/data_product distilled-lua: generation failed: com.starburst.galaxy.data_product#NotFoundError: its type name starburst_galaxy_data_product.NotFoundError is the error class NotFound 
+OK starburst-galaxy/cross_account_iam_role 1s
+OK starburst-galaxy/data_quality_metrics 1s
+FAIL starburst-galaxy/data_quality distilled-lua: generation failed: com.starburst.galaxy.data_quality#NotFoundError: its type name starburst_galaxy_data_quality.NotFoundError is the error class NotFound 
+OK starburst-galaxy/data_quality_schedule 1s
+FAIL starburst-galaxy/file_ingest_source distilled-lua: generation failed: com.starburst.galaxy.file_ingest_source#NotFoundError: its type name starburst_galaxy_file_ingest_source.NotFoundError is the error class NotFound 
+FAIL starburst-galaxy/kafka_ingest_source distilled-lua: generation failed: com.starburst.galaxy.kafka_ingest_source#NotFoundError: its type name starburst_galaxy_kafka_ingest_source.NotFoundError is the error class NotFound 
+OK starburst-galaxy/discovery 0s
+OK starburst-galaxy/group 0s
+FAIL starburst-galaxy/live_table distilled-lua: generation failed: com.starburst.galaxy.live_table#NotFoundError: its type name starburst_galaxy_live_table.NotFoundError is the error class NotFound 
+OK starburst-galaxy/privatelink 0s
+OK starburst-galaxy/policy 0s
+FAIL starburst-galaxy/role distilled-lua: generation failed: com.starburst.galaxy.role#NotFoundError: its type name starburst_galaxy_role.NotFoundError is the error class NotFound 
+FAIL starburst-galaxy/schema_discovery distilled-lua: generation failed: com.starburst.galaxy.schema_discovery#NotFoundError: its type name starburst_galaxy_schema_discovery.NotFoundError is the error class NotFound 
+OK starburst-galaxy/privilege 0s
+OK starburst-galaxy/row_filter 0s
+FAIL starburst-galaxy/service_account distilled-lua: generation failed: com.starburst.galaxy.service_account#NotFoundError: its type name starburst_galaxy_service_account.NotFoundError is the error class NotFound 
+OK starburst-galaxy/sql_jobs 0s
+OK starburst-galaxy/user 0s
+FAIL starburst-galaxy/tag distilled-lua: generation failed: com.starburst.galaxy.tag#NotFoundError: its type name starburst_galaxy_tag.NotFoundError is the error class NotFound 
+OK steel/api_keys 0s
+OK steel/auth 0s
+OK steel/browser_tools 0s
+OK steel/credentials 0s
+OK steel/extensions 0s
+FAIL steel/profiles distilled-lua: generation failed: dev.steel.profiles#ProfileFingerprintFingerprintAudioCodecsMap: nullable map values have no representation in the schema contract dev.steel.profiles#ProfileFingerprintFingerprintFontsList: nullable list items have no representation in the schema contract dev.steel.p
+OK steel/captchas 0s
+OK steel/files 0s
+OK steel/projects 0s
+FAIL steel/sessions distilled-lua: generation failed: dev.steel.sessions#UpdateSessionMetadataRequestMetadataMap: nullable map values have no representation in the schema contract 
+OK surrealdb/surrealdb 0s
+OK technitium/allowed 0s
+FAIL tailscale/tailscale distilled-lua: generation failed: com.tailscale.api#BatchUpdateCustomDevicePostureAttributesResponse: a nullable rawResponse member is not supported 
+OK technitium/blocked 0s
+OK technitium/admin 0s
+OK technitium/apps 0s
+OK technitium/cache 0s
+OK technitium/dashboard 0s
+OK technitium/dhcp 0s
+OK technitium/dnsClient 0s
+OK technitium/logs 0s
+OK supabase/supabase 0s
+OK technitium/settings 0s
+OK technitium/status 0s
+OK technitium/user 0s
+OK technitium/zones 0s
+OK turbopuffer/turbopuffer 0s
+OK trigger-dev/trigger-dev 0s
+OK turso/turso 0s
+OK vanta/build_integrations 0s
+OK temporal/temporal 0s
+OK typesense/typesense 0s
+OK vanta/auditor_api 0s
+OK unkey/unkey 0s
+OK vanta/webhooks 0s
+FAIL vanta/manage_vanta distilled-lua: generation failed: com.vanta.manage_vanta#JSONSchema7EnumList: nullable list items have no representation in the schema contract com.vanta.manage_vanta#RecordStringAnswerPartValue: nullable map values have no representation in the schema contract 
+FAIL vercel/ai_gateway distilled-lua: generation failed: com.vercel.ai_gateway#DeleteAiGatewayByokCredentialResponse: a nullable rawResponse member is not supported com.vercel.ai_gateway#DeleteAiGatewayRuleResponse: a nullable rawResponse member is not supported com.vercel.ai_gateway#DeleteAiGatewayVirtualModelConfigBySlu
+OK vercel/access_groups 0s
+FAIL vercel/artifacts distilled-lua: generation failed: com.vercel.artifacts#ArtifactQueryResponseBodyMap: nullable map values have no representation in the schema contract 
+OK vercel/aliases 0s
+OK vercel/authentication 0s
+FAIL vercel/billing distilled-lua: generation failed: com.vercel.billing#BuyCreditsResponseBodyCase1PurchaseIntentConfigurationCase4OptionsMetadataMap: nullable map values have no representation in the schema contract 
+OK vercel/bulk_redirects 0s
+OK vercel/certs 0s
+FAIL vercel/daemons distilled-lua: generation failed: com.vercel.daemons#PutProjectDaemonInstancesRequestBodyMap: nullable map values have no representation in the schema contract 
+OK vercel/checks_v2 1s
+OK vercel/dns 1s
+OK vercel/connect 1s
+OK vercel/domains 0s
+OK vercel/edge_cache 0s
+FAIL vercel/deployments distilled-lua: generation failed: com.vercel.deployments#GetDeploymentEventsResponse: a nullable rawResponse member is not supported 
+OK vercel/domains_registrar 0s
+FAIL vercel/global_config distilled-lua: generation failed: com.vercel.global_config#GetEdgeConfigSchemaResponse: a nullable rawResponse member is not supported com.vercel.global_config#PatchEdgeConfigSchemaResponse: a nullable rawResponse member is not supported 
+OK vercel/environment 0s
+OK vercel/drains 0s
+OK vercel/kms 0s
+OK vercel/logs 0s
+FAIL vercel/marketplace distilled-lua: generation failed: com.vercel.marketplace#GetInstallationResourceExperimentationGlobalConfigResponseItemsMap: nullable map values have no representation in the schema contract com.vercel.marketplace#GetIntegrationResourceResponseCustomClaimsClaimRulesItemClaimsMap: nullable map values
+OK vercel/feature_flags 0s
+OK vercel/log_drains 0s
+FAIL vercel/networking distilled-lua: generation failed: com.vercel.networking#DeletePrivateLinkEndpointResponse: a nullable rawResponse member is not supported 
+OK vercel/observability 0s
+OK vercel/integrations 0s
+FAIL vercel/microfrontends distilled-lua: generation failed: com.vercel.microfrontends#GetMicrofrontendsInGroupResponseProjectsItemTargetsMap: nullable map values have no representation in the schema contract 
+OK vercel/organizations 0s
+OK vercel/project_members 0s
+OK vercel/rolling_release 0s
+OK vercel/project_routes 0s
+OK vercel/storage 0s
+FAIL vercel/vcr distilled-lua: generation failed: com.vercel.vcr#ClearRepositoryPermissionsResponse: a nullable rawResponse member is not supported com.vercel.vcr#CreateByTeamSlugByProjectSlugByRepositoryNameBlobsUploadsResponse: a nullable rawResponse member is not supported com.vercel.vcr#DeleteBlobsUploadRespons
+OK vercel/teams 0s
+OK vercel/sandboxes 0s
+OK vercel/web_analytics 0s
+OK vercel/vercel_ci 0s
+FAIL stripe/stripe luajit: ...lled-home/distilled-lua/bin/../lua/distilled/gen/ops.lua:101: attempt to index local 'def' (a nil value) stack traceback: 	...lled-home/distilled-lua/bin/../lua/distilled/gen/ops.lua:101: in function 'output' 	...led-home/distilled-lua/bin/../lua/distilled/gen/init.lua:263: in function 'p
+OK vercel/webhooks 0s
+OK whop/access_tokens 0s
+OK whop/account_links 0s
+OK vercel/security 0s
+FAIL whop/accounts distilled-lua: generation failed: com.whop.accounts#UpdateAccountFeesRequestChildMarkupsDepositsMap: nullable map values have no representation in the schema contract com.whop.accounts#UpdateAccountFeesRequestChildMarkupsPayoutsMap: nullable map values have no representation in the schema contract c
+OK whop/ad_campaigns 0s
+OK whop/ad_conversion_value_rules 0s
+FAIL vercel/projects distilled-lua: generation failed: com.vercel.projects#GetProjectsResponse: a nullable rawResponse member is not supported 
+OK whop/ad_groups 0s
+OK whop/ads 0s
+OK whop/affiliates 0s
+OK whop/ai_chats 0s
+OK vercel/user 0s
+OK whop/api_keys 0s
+OK whop/api_logs 0s
+OK whop/app_builds 0s
+OK whop/apps 0s
+OK whop/audiences 0s
+OK whop/bounties 0s
+OK whop/authorized_users 0s
+OK whop/bounty_submissions 0s
+OK whop/cards 0s
+OK whop/cashback_rules 0s
+OK whop/chat_channels 0s
+OK whop/checkout_configurations 0s
+OK whop/company_token_transactions 0s
+OK whop/confirmation_tokens 0s
+OK whop/course_chapters 0s
+OK whop/course_lesson_interactions 0s
+OK whop/course_lessons 0s
+OK whop/course_students 0s
+OK whop/courses 0s
+OK whop/deposits 1s
+OK whop/dispute_alerts 1s
+OK whop/dm_channels 1s
+OK whop/disputes 1s
+OK whop/dm_members 1s
+OK whop/domains 0s
+OK whop/economic_intelligence 0s
+OK whop/events 0s
+OK whop/experiences 0s
+OK whop/experiments 0s
+OK whop/exports 0s
+OK whop/fee_markups 0s
+OK whop/files 0s
+OK whop/forum_posts 0s
+OK whop/forums 0s
+OK whop/identity_profiles 0s
+OK whop/invoices 0s
+OK whop/leads 0s
+OK whop/ledger_accounts 0s
+OK whop/media 0s
+OK whop/ledgers 0s
+OK whop/members 0s
+OK whop/memberships 0s
+OK whop/messages 0s
+OK whop/notifications 0s
+OK whop/partner_referral_requests 0s
+OK whop/partners 0s
+OK whop/payment_method_domains 0s
+OK whop/payment_methods 0s
+OK whop/payment_rules 0s
+OK whop/payout_accounts 0s
+OK whop/payout_methods 0s
+OK whop/payments 0s
+OK whop/people 0s
+OK whop/payouts 0s
+OK whop/permissions 0s
+OK whop/plans 0s
+OK whop/products 0s
+OK whop/promo_codes 0s
+OK whop/reactions 0s
+OK whop/refunds 0s
+OK whop/resolution_center_cases 0s
+OK whop/reviews 0s
+OK whop/shipments 0s
+OK whop/setup_intents 0s
+OK whop/social_accounts 0s
+OK whop/stats 0s
+OK whop/support_channels 0s
+OK whop/team_members 0s
+OK whop/swaps 0s
+OK whop/topups 0s
+OK whop/transfers 0s
+OK whop/trades 0s
+OK whop/users 0s
+OK whop/verifications 0s
+OK whop/waitlist_entries 0s
+OK whop/webhooks 0s
+FAIL expo-eas/expo-eas distilled-lua: generation failed: /Users/dillon/Code/personal/distilled-home/distilled/packages/expo-eas/.generated-graphql/expo-eas.json: not a Smithy JSON model (no shapes object) 
+OK zerossl/zerossl 0s
+OK xata/xata 0s
+FAIL workos/workos distilled-lua: generation failed: com.workos.api#ListDirectoryUsersController: distilled.errors#bodies target smithy.api#String is not a shape com.workos.api#ListDirectoryUsersController: distilled.errors#bodies target smithy.api#String is not a shape com.workos.api#ListDirectoryUsersController: dis
+FAIL railway/railway distilled-lua: generation failed: /Users/dillon/Code/personal/distilled-home/distilled/packages/railway/.generated-graphql/railway.json: not a Smithy JSON model (no shapes object) 
+FAIL linear/linear distilled-lua: generation failed: /Users/dillon/Code/personal/distilled-home/distilled/packages/linear/.generated-graphql/linear.json: not a Smithy JSON model (no shapes object) 
+FAIL zendesk/zendesk distilled-lua: generation failed: com.zendesk.api#CreateTicketOrVoicemailTicket: distilled.errors#bodies target smithy.api#String is not a shape com.zendesk.api#CreateTicketOrVoicemailTicket: distilled.errors#bodies target smithy.api#String is not a shape com.zendesk.api#CreateTicketOrVoicemailTicke
