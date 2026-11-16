@@ -75,8 +75,19 @@ t.describe("gen.provider: validation", function()
 
   t.it("checks allow_unsupported against the known gaps", function()
     bad({ allow_unsupported = { "streaming" } }, "unknown gap streaming")
-    local spec = provider.validate(fx.provider({ allow_unsupported = { "multipart" } }))
-    t.truthy(spec.allow_unsupported.multipart)
+    -- the mechanism, with a gap a spec adds for the test (provider.UNSUPPORTED is empty
+    -- since task 08 closed the multipart gap)
+    provider.UNSUPPORTED.spec_gap = "a gap that exists only in this spec"
+    local ok, spec = t.pcall(function()
+      return provider.validate(fx.provider({ allow_unsupported = { "spec_gap" } }))
+    end)
+    provider.UNSUPPORTED.spec_gap = nil
+    t.truthy(ok, tostring(spec))
+    t.truthy(spec.allow_unsupported.spec_gap)
+  end)
+
+  t.it("a closed gap (multipart) in allow_unsupported is a stale spec", function()
+    bad({ allow_unsupported = { "multipart" } }, "multipart is supported")
   end)
 
   t.it("reports a provider file that does not load", function()

@@ -268,16 +268,41 @@ t.describe("neon client: bodies, secrets and raw outputs", function()
     )
   end)
 
-  t.it("the multipart operation is refused with a clear SdkError", function()
-    local c, host = client({})
-    local _, err = c:create_project_branch_function_deployment({
+  -- neon.ts CreateProjectBranchFunctionDeploymentRequest: zip (Blob) and environment
+  -- (sensitive string) as multipart/form-data parts (task 08; was refused before)
+  t.it("create_project_branch_function_deployment sends a multipart body", function()
+    local multipart = require("distilled.multipart")
+    local c, host = client({ { status = 200, body = { deployment = { id = "dep-1" } } } })
+    local res, err = c:create_project_branch_function_deployment({
       project_id = "p1",
       branch_id = "br-1",
       slug = "fn",
+      zip = multipart.file({ data = "PK\3\4\0\255", filename = "bundle.zip" }),
+      runtime = "nodejs24",
+      environment = secret('{"KEY":"VALUE"}'),
     })
-    t.eq(err.tag, "SdkError")
-    t.match(err.message, "multipart", true)
-    t.eq(#host.requests, 0)
+    t.eq(err, nil)
+    t.eq(res.deployment.id, "dep-1")
+    local req = host.requests[1]
+    t.eq(req.method, "POST")
+    t.eq(req.url, BASE .. "/projects/p1/branches/br-1/functions/fn/deployments")
+    local boundary =
+      string.match(req.headers["content-type"], "^multipart/form%-data; boundary=(.+)$")
+    t.truthy(boundary)
+    t.eq(
+      req.body,
+      "--"
+        .. boundary
+        .. '\r\nContent-Disposition: form-data; name="zip"; filename="bundle.zip"\r\n'
+        .. "Content-Type: application/octet-stream\r\n\r\nPK\3\4\0\255\r\n--"
+        .. boundary
+        .. '\r\nContent-Disposition: form-data; name="runtime"\r\n\r\nnodejs24\r\n--'
+        .. boundary
+        .. '\r\nContent-Disposition: form-data; name="environment"\r\n\r\n{"KEY":"VALUE"}\r\n--'
+        .. boundary
+        .. "--\r\n"
+    )
+    t.no_match(req.body, KEY, true)
   end)
 end)
 

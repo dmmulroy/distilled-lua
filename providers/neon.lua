@@ -18,7 +18,4 @@ return {
   parse_tag = "NeonParseError",
   naming = { members = "wire" },
   pagination = { items_fallback = "items" },
-  -- CreateProjectBranchFunctionDeployment uploads a ZIP as multipart/form-data, which
-  -- request.build does not encode yet: the method exists and returns SdkError.
-  allow_unsupported = { "multipart" },
 }

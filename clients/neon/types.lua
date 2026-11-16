@@ -22,6 +22,12 @@
 
 ---@class distilled.Secret
 
+---A file part of a multipart body: `require("distilled.multipart").file{ data, filename?, content_type? }`.
+---@class distilled.File
+---@field data string|distilled.Secret The bytes
+---@field filename? string Defaults to the member's wire name
+---@field content_type? string Defaults to application/octet-stream
+
 ---JSON null (`distilled.null`): a value that is present and null, unlike nil.
 ---@class distilled.Null
 
@@ -747,7 +753,7 @@
 ---@field project_id string The Neon project ID
 ---@field branch_id string The Neon branch ID
 ---@field slug string The function slug
----@field zip? string Optional ZIP archive of the function source code. Omit to reuse the latest version's bundle (a config-only change). Required for the first deployment of a function. Place `index.mjs` or `index.js` at the archive root, without a containing directory. If both exist, `index.mjs` is loaded. Export a request handler function or an object with a `fetch` method. Use `export default` for ESM or `module.exports` for CommonJS; prefer `index.mjs` for ESM. Upload JavaScript ready to run on Node.js 24. Compile TypeScript before uploading. Bundle dependencies into the entry module, or include the required modules and assets in the archive with their relative paths preserved (including `node_modules` for external packages). Node.js built-in modules do not need to be bundled. The API does not transpile, bundle, or install dependencies. The ZIP is limited to 32 MiB compressed and 128 MiB extracted, with at most 32,768 entries and 64 MiB per file. Bundle large dependency trees to keep the archive small. ZIPs larger than 32 MiB are rejected with HTTP 413 before creating a deployment. The extracted-size, entry-count, and per-file limits are enforced during the asynchronous build; an accepted upload that exceeds them fails the build. For example, a self-contained ESM bundle needs only `index.mjs` at the ZIP root. The Neon CLI bundles source into this layout by default; `neon function deploy --no-bundle` packages a prebuilt directory or an entry file named `index.mjs` or `index.js`.
+---@field zip? distilled.File|string Optional ZIP archive of the function source code. Omit to reuse the latest version's bundle (a config-only change). Required for the first deployment of a function. Place `index.mjs` or `index.js` at the archive root, without a containing directory. If both exist, `index.mjs` is loaded. Export a request handler function or an object with a `fetch` method. Use `export default` for ESM or `module.exports` for CommonJS; prefer `index.mjs` for ESM. Upload JavaScript ready to run on Node.js 24. Compile TypeScript before uploading. Bundle dependencies into the entry module, or include the required modules and assets in the archive with their relative paths preserved (including `node_modules` for external packages). Node.js built-in modules do not need to be bundled. The API does not transpile, bundle, or install dependencies. The ZIP is limited to 32 MiB compressed and 128 MiB extracted, with at most 32,768 entries and 64 MiB per file. Bundle large dependency trees to keep the archive small. ZIPs larger than 32 MiB are rejected with HTTP 413 before creating a deployment. The extracted-size, entry-count, and per-file limits are enforced during the asynchronous build; an accepted upload that exceeds them fails the build. For example, a self-contained ESM bundle needs only `index.mjs` at the ZIP root. The Neon CLI bundles source into this layout by default; `neon function deploy --no-bundle` packages a prebuilt directory or an entry file named `index.mjs` or `index.js`.
 ---@field runtime? neon.CreateProjectBranchFunctionDeploymentRequestRuntime|string
 ---@field environment? string|distilled.Secret Optional JSON object (a string-to-string map) of environment variables for the deployment, e.g. {"KEY":"VALUE"}. Carried as a JSON-encoded string because multipart form data does not support typed object parts. Values are write-only: they are encrypted at rest, and responses carry only the variable names (the `environment` array), never the values.
 

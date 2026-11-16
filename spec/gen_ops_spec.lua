@@ -257,7 +257,9 @@ t.describe("gen.ops: http trait and selection", function()
     t.match(err, "unknown operation get_thingz; nearest: get_thing", true)
   end)
 
-  t.it("multipart operations fail unless the provider acknowledges them", function()
+  -- task 08: request.build encodes multipart, so no acknowledgement is needed, and a
+  -- Blob member of a multipart input is typed as a file part
+  t.it("multipart operations generate without allow_unsupported; blobs are files", function()
     local opts = {
       replace = {
         {
@@ -266,15 +268,14 @@ t.describe("gen.ops: http trait and selection", function()
         },
       },
     }
-    local _, err = fx.generate(opts)
-    t.match(
-      err,
-      "ex.api#PutBlob: multipart request bodies are not supported by request.build",
-      true
-    )
-    opts.provider = fx.provider({ allow_unsupported = { "multipart" } })
-    local svc = service(opts)
+    local svc, files = service(opts)
     t.eq(svc.ops.put_blob.content_type, "multipart")
+    t.match(files["types.lua"], "---@class distilled.File\n", true)
+    t.match(files["types.lua"], "---@field body distilled.File|string", true)
+    -- a non-multipart blob member stays a string
+    local _, plain = service()
+    t.match(plain["types.lua"], "---@field body string", true)
+    t.no_match(plain["types.lua"], "---@field body distilled.File", true)
   end)
 
   t.it("refuses an unsupported http key and method", function()

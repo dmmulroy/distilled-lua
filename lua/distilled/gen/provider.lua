@@ -30,8 +30,9 @@
 --       operations = { GetThing = "fetch_thing" },   -- per-operation method names
 --     },
 --     pagination = { items_fallback = "items" },     -- items path when the trait has none
---     allow_unsupported = { "multipart" },   -- emit operations the runtime refuses at
+--     allow_unsupported = { "<gap>" },       -- emit operations the runtime refuses at
 --                                            -- call time (SdkError) instead of failing
+--                                            -- (provider.UNSUPPORTED; empty today)
 --   }
 local compat = require("distilled.compat")
 local naming = require("distilled.gen.naming")
@@ -96,9 +97,14 @@ local TOP = {
   allow_unsupported = true,
 }
 
--- Runtime gaps a provider may acknowledge (see allow_unsupported above).
-provider.UNSUPPORTED = {
-  multipart = "request.build refuses multipart bodies (SdkError at call time)",
+-- Runtime gaps a provider may acknowledge (see allow_unsupported above). None today:
+-- multipart bodies were the only one, and request.build encodes them since task 08. The
+-- mechanism stays for the next gap; a spec may add an entry to exercise it.
+provider.UNSUPPORTED = {}
+
+-- Gaps that were closed: listing one is a stale provider spec, reported as such.
+provider.CLOSED_GAPS = {
+  multipart = "request.build encodes multipart bodies now; remove it from allow_unsupported",
 }
 
 --- provider.validate(spec) -> normalized spec | nil, message
@@ -305,7 +311,14 @@ function provider.validate(spec)
       p[#p + 1] = "provider spec: allow_unsupported must be a list"
     else
       for i, v in ipairs(spec.allow_unsupported) do
-        if not provider.UNSUPPORTED[v] then
+        if provider.CLOSED_GAPS[v] and not provider.UNSUPPORTED[v] then
+          p[#p + 1] = "provider spec allow_unsupported["
+            .. i
+            .. "]: "
+            .. tostring(v)
+            .. " is supported: "
+            .. provider.CLOSED_GAPS[v]
+        elseif not provider.UNSUPPORTED[v] then
           p[#p + 1] = "provider spec allow_unsupported[" .. i .. "]: unknown gap " .. tostring(v)
         else
           out.allow_unsupported[v] = true

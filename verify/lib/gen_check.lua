@@ -7,8 +7,9 @@
 -- Checks: the service and (when distilled.client exists) the client module load; every
 -- `ref` anywhere in the registry and the op descriptors resolves; every op's errors are
 -- declared; every op builds a request from a minimal synthesized input through
--- request.build. Failures are reported by operation name. Operations the provider spec
--- acknowledged as unsupported (multipart) must fail with exactly that SdkError.
+-- request.build. Failures are reported by operation name. Multipart operations (task 08)
+-- must build too, with a multipart/form-data content type and a closed body. The
+-- "acknowledged unsupported" count stays in the summary for future gaps; it is 0 today.
 local rex_api = rawget(_G, "rex")
 local args = {}
 if rex_api then
@@ -147,16 +148,8 @@ if service then
         registry = registry,
         base_url = "https://gen-check.test/v1",
       })
-      if op.content_type == "multipart" then
-        if req then
-          ops_built = ops_built + 1
-        elseif err and err.tag == "SdkError" and string.find(err.message, "multipart", 1, true) then
-          ops_skipped = ops_skipped + 1
-          notes[#notes + 1] = "op " .. name .. ": multipart refused by request.build (acknowledged)"
-        else
-          fail("op " .. name .. ": " .. tostring(err))
-        end
-      elseif not req then
+      local ct = req and req.headers["content-type"] or ""
+      if not req then
         fail("op " .. name .. ": request.build failed: " .. tostring(err))
       elseif req.method ~= op.method then
         fail("op " .. name .. ": method " .. tostring(req.method) .. " ~= " .. op.method)
@@ -164,6 +157,16 @@ if service then
         fail("op " .. name .. ": url " .. tostring(req.url))
       elseif string.find(req.url, "{", 1, true) then
         fail("op " .. name .. ": unfilled placeholder in " .. req.url)
+      elseif
+        op.content_type == "multipart"
+        and (
+          string.sub(ct, 1, 30) ~= "multipart/form-data; boundary="
+          or type(req.body) ~= "string"
+          or string.sub(req.body, -4) ~= "--\r\n"
+        )
+      then
+        -- multipart (task 08): built like any other op, and the body is a closed form
+        fail("op " .. name .. ": multipart body not built (content-type " .. ct .. ")")
       else
         ops_built = ops_built + 1
       end

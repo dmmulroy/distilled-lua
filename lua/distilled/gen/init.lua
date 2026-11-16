@@ -272,11 +272,6 @@ function gen.plan(args)
     else
       op.retry = retry
     end
-    if op.http.content_type == "multipart" and not spec.allow_unsupported.multipart then
-      problems[#problems + 1] = op.id
-        .. ": multipart request bodies are not supported by request.build; list"
-        .. ' "multipart" in the provider spec allow_unsupported to emit it anyway'
-    end
     if op.def.traits and op.def.traits["com.distilled.openapi#streamWhen"] ~= nil then
       problems[#problems + 1] = op.id .. ": streaming operations are not supported"
     end

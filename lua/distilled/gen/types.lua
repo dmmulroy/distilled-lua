@@ -45,6 +45,12 @@ local RUNTIME_TYPES = [[
 
 ---@class distilled.Secret
 
+---A file part of a multipart body: `require("distilled.multipart").file{ data, filename?, content_type? }`.
+---@class distilled.File
+---@field data string|distilled.Secret The bytes
+---@field filename? string Defaults to the member's wire name
+---@field content_type? string Defaults to application/octet-stream
+
 ---JSON null (`distilled.null`): a value that is present and null, unlike nil.
 ---@class distilled.Null
 
@@ -98,8 +104,27 @@ function types.type_of(ctx, prefix, target, request_side)
   return t
 end
 
-local function member_type(ctx, prefix, info, request_side)
-  local t = types.type_of(ctx, prefix, info.target, request_side)
+-- A Blob member of a multipart input is a file part: a distilled.File, or a string of
+-- bytes (sent as a file named after the member, like Distilled's Uint8Array). A list of
+-- Blobs is one part per element.
+local function file_type(ctx, target)
+  if ctx.model:scalar(target) == "blob" then
+    return "distilled.File|string"
+  end
+  local def = ctx.model.shapes[target]
+  if
+    def
+    and (def.type == "list" or def.type == "set")
+    and ctx.model:scalar(def.member.target) == "blob"
+  then
+    return "(distilled.File|string)[]"
+  end
+  return nil
+end
+
+local function member_type(ctx, prefix, info, request_side, multipart_input)
+  local t = multipart_input and file_type(ctx, info.target)
+    or types.type_of(ctx, prefix, info.target, request_side)
   if info.sensitive then
     t = request_side and (t .. "|distilled.Secret") or "distilled.Secret"
   end
@@ -133,6 +158,12 @@ function types.render(plan)
   b:blank()
 
   local req = ctx.request_reachable
+  local multipart_inputs = {}
+  for _, op in ipairs(plan.ops) do
+    if op.http.content_type == "multipart" and op.input then
+      multipart_inputs[op.input] = true
+    end
+  end
   for _, n in ipairs(plan.nodes) do
     local id = n.id
     local def = ctx.model.shapes[id]
@@ -148,7 +179,7 @@ function types.render(plan)
           .. field_key(info.name)
           .. (info.required and "" or "?")
           .. " "
-          .. member_type(ctx, prefix, info, request_side)
+          .. member_type(ctx, prefix, info, request_side, multipart_inputs[id])
         if desc then
           line = line .. " " .. desc
         end
