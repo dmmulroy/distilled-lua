@@ -53,6 +53,15 @@ return function(opts)
   if transport ~= nil and type(transport) ~= "function" and type(transport) ~= "table" then
     compat.raise("otlp_http: transport must be a function", 2)
   end
+  if type(transport) == "table" and rawget(transport, "transport_module") then
+    compat.raise(
+      "otlp_http: transport is the "
+        .. tostring(rawget(transport, "transport_module"))
+        .. " module, a transport constructor, not a transport; "
+        .. require("distilled.host").TRANSPORT_HINT,
+      2
+    )
+  end
   local url = traces_url(opts.endpoint)
   local shown = safe_endpoint(url)
   local timeout = opts.timeout or 5

@@ -139,6 +139,10 @@ t.describe("otlp_http (offline)", function()
     t.raises(function()
       otlp_http({ endpoint = "http://c", transport = "curl" })
     end, "transport")
+    -- task 09: a transport module (a constructor) is refused, with what to pass instead
+    t.raises(function()
+      otlp_http({ endpoint = "http://c", transport = require("distilled.transport.exec_curl") })
+    end, "transport is the distilled.transport.exec_curl module")
   end)
 end)
 
