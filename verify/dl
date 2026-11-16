@@ -704,12 +704,71 @@ verify/dl: distilled-lua verification driver
   dl gen-diff <provider>    regenerate clients/<provider>/ (lua and luajit), diff it,
                             stylua --check it, then load it under lua, luajit and rex,
                             resolve every ref and build a request for every operation
+  dl conform <provider>     differential test against Distilled: write the cases, dump
+                            Distilled's requests/outcomes with Node, diff the Lua side (lua)
+      --replay              no Node: diff the saved verify/conform/ref dumps under lua,
+                            luajit and rex      --runtime R   --only members,requests,...
   dl help                   this screen
 
   not implemented yet (exit 2):
-  dl conform <provider>     later task
   dl live <provider> <op>   later task
 EOF
+}
+
+# ----------------------------------------------------------------------------------
+# conform (task 07): differential test against Distilled (verify/conform/)
+# ----------------------------------------------------------------------------------
+
+NODE_TS="node --conditions=bun --experimental-transform-types --no-warnings"
+
+cmd_conform() {
+  provider=""
+  replay=0
+  runtimes=""
+  only=""
+  while [ $# -gt 0 ]; do
+    case $1 in
+      --replay) replay=1 ;;
+      --runtime)
+        shift
+        runtimes="$runtimes ${1:-}"
+        ;;
+      --only)
+        shift
+        only=${1:-}
+        ;;
+      -*) die "conform: unknown flag $1" ;;
+      *) provider=$1 ;;
+    esac
+    shift
+  done
+  [ -n "$provider" ] || die "usage: dl conform <provider> [--replay] [--runtime R] [--only cats]"
+  [ -f "$ROOT/clients/$provider/init.lua" ] || die "conform: no generated client clients/$provider"
+  CONF="$ROOT/verify/conform"
+  if [ "$replay" -eq 0 ]; then
+    lua "$CONF/cases.lua" "$ROOT" "$provider" || exit 1
+    for step in requests responses flows; do
+      if [ -f "$CONF/node/$step.mjs" ]; then
+        (cd "$CONF/node" && $NODE_TS "$step.mjs" "$provider") || {
+          say "conform: the Node side ($step.mjs) failed"
+          exit 1
+        }
+      fi
+    done
+    [ -n "$runtimes" ] || runtimes="lua"
+  else
+    [ -d "$CONF/ref/$provider" ] || die "conform: no saved reference in verify/conform/ref/$provider"
+    [ -n "$runtimes" ] || runtimes=$RUNTIMES
+  fi
+  status=0
+  for rt in $runtimes; do
+    case $rt in
+      lua | luajit) "$rt" "$CONF/compare.lua" "$ROOT" "$provider" "$only" || status=1 ;;
+      rex) rex do "$CONF/compare.lua" "root=$ROOT" "provider=$provider" "only=$only" || status=1 ;;
+      *) die "unknown runtime $rt (lua, luajit or rex)" ;;
+    esac
+  done
+  return $status
 }
 
 # ----------------------------------------------------------------------------------
@@ -725,7 +784,7 @@ case $cmd in
   help | -h | --help) cmd_help ;;
   trace) cmd_trace_or_expect trace "$@" ;;
   expect) cmd_trace_or_expect expect "$@" ;;
-  conform) stub conform "a later task (plan build step 7)" ;;
+  conform) cmd_conform "$@" ;;
   gen-diff) cmd_gen_diff "$@" ;;
   serve) cmd_serve "$@" ;;
   rex) cmd_rex "$@" ;;
