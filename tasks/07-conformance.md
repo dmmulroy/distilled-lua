@@ -25,6 +25,22 @@ You may fix bugs you find in any module, since every other task is finished. Kee
 small, with a failing test first, and list every one in your done file with the conformance
 case that exposed it.
 
+Leftovers from earlier tasks, which you now own:
+
+- `lua/distilled/host/popen.lua`: a one-line host for stock Lua (`popen_curl`, a shell
+  `sleep`, `os.time`), so the plain-Lua example in the docs works without ceremony; with specs.
+- `verify/features/README.md`: index `transports.md`, `rex-host.md`, `otlp.md`,
+  `generator.md` and yours; fix the stale header comment in
+  `lua/distilled/trace/exporters.lua` about otlp_http.
+- `distilled-lua vendor`: check that a vendored tree (runtime plus `clients/neon`) works
+  from a clean directory under each runtime, using only `package.path`, and that it does
+  not ship `gen/`, `testing/` or anything from `verify/`.
+
+Task 08 (multipart request bodies) is running in this directory while you work. It owns
+the multipart branch of `request.lua`, `lua/distilled/multipart.lua` and regenerates
+`clients/neon/`. Leave those to it; treat the multipart operation as out of your
+conformance set until `tasks/08-multipart.done.md` appears, then include it.
+
 ## Requirements
 
 1. **`dl conform neon`** is a differential test with Distilled as the oracle. Distilled is
