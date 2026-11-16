@@ -207,6 +207,61 @@ t.describe("gen: output files", function()
   end)
 end)
 
+-- task 09: PlanetScale's model has shape names near 100 characters; the generated Lua
+-- failed `stylua --check` (a long S.ref call and `shapes.<Name> = {` past the width).
+-- The same layout on the fixture model with one long enum name.
+t.describe("gen: long shape names", function()
+  local long = "Kind" .. string.rep("Long", 23)
+  local files = fx.generate({
+    replace = {
+      { '"target": "ex.api#Kind"', '"target": "ex.api#' .. long .. '"' },
+      { '"ex.api#Kind": {', '"ex.api#' .. long .. '": {' },
+    },
+  })
+
+  t.it("hangs the assignment and breaks the reference as stylua does", function()
+    local src = files["service.lua"]
+    t.match(
+      src,
+      "\nshapes." .. long .. ' =\n  { t = "enum", base = "string", values = { "a", "b" } }\n',
+      true
+    )
+    t.match(src, '      schema = S.ref(\n        "' .. long .. '"\n      ),\n', true)
+    local svc = fx.load(src, "ex.service")
+    t.eq(svc.shapes[long].t, "enum")
+  end)
+
+  local stylua_found = false
+  if not rex_api then
+    local probe = io.popen("command -v stylua")
+    stylua_found = probe ~= nil and probe:read("*a") ~= ""
+    if probe then
+      probe:close()
+    end
+  end
+  if not stylua_found then
+    t.pending("passes stylua --check (stylua runs through io.popen: lua and luajit only)")
+    return
+  end
+  t.it("passes stylua --check", function()
+    local path = os.tmpname()
+    local f = assert(io.open(path, "wb"))
+    f:write(files["service.lua"])
+    f:close()
+    local p = io.popen(
+      "stylua --check --config-path '"
+        .. t.root
+        .. "/stylua.toml' '"
+        .. path
+        .. '\' 2>&1; echo "exit:$?"'
+    )
+    local out = p:read("*a")
+    p:close()
+    os.remove(path)
+    t.match(out, "exit:0", true)
+  end)
+end)
+
 t.describe("gen: the CLI", function()
   if rex_api then
     t.pending("bin/distilled-lua runs under lua and luajit only (Rex has no io.popen)")
