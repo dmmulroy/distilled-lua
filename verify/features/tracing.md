@@ -106,7 +106,8 @@ end)
 tracer:flush()
 ```
 
-Until tasks 04-05, clients do not create spans; tracing is used directly as above.
+Clients create these spans themselves with the `tracing` option (`docs/tracing.md`);
+the tracer can also be used directly as above.
 
 ## Driving it with `dl`
 

@@ -33,6 +33,27 @@ the table top to bottom and stops at the first area that fails.
 | 18 | Generator | [generator.md](generator.md) | task 06 |
 | 19 | Conformance against Distilled, `dl live` | [conformance.md](conformance.md) | task 07 |
 
+## Full sweep
+
+Walk the table top to bottom: run each file's "Driving it with `dl`" commands, check the
+output it says proves the area, and record pass / fail / skipped (with the reason) per
+area. The shortest complete sweep is:
+
+```sh
+verify/dl doctor
+verify/dl test                 # areas 1-18 (all specs, three runtimes)
+verify/dl test --http          # areas 15-17 against the fixture server
+verify/dl expect examples/fake_service.lua --runtime rex     # area 5, 10, 11 by trace
+verify/dl canary verify/lib/canary_e2e.lua                   # secrets end to end
+verify/dl rex --serve examples/rex_action.lua --action distilled_demo   # area 16
+verify/dl gen-diff neon        # area 18
+verify/dl conform neon         # area 19 (and --replay for luajit and rex)
+verify/dl jaeger check         # area 17, skipped (exit 3) without Docker
+verify/dl live neon list_projects   # area 19, skipped (exit 3) without NEON_API_KEY
+```
+
+The project-level skill is `verify/SKILL.md`.
+
 ## The proof bar
 
 See `AGENTS.md` "Verification". In short: `verify/dl doctor` clean, `verify/dl test` green
