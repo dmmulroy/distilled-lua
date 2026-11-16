@@ -604,6 +604,69 @@ cmd_jaeger() {
 }
 
 # ----------------------------------------------------------------------------------
+# gen-diff (task 06): regenerate, diff against clients/<provider>/, check in every runtime
+# ----------------------------------------------------------------------------------
+
+cmd_gen_diff() {
+  provider=${1:-}
+  [ -n "$provider" ] || die "usage: dl gen-diff <provider>"
+  model="$ROOT/models/$provider.json"
+  spec="$ROOT/providers/$provider.lua"
+  committed="$ROOT/clients/$provider"
+  [ -f "$model" ] || die "no model: $model"
+  [ -f "$spec" ] || die "no provider spec: $spec"
+  out="$TMP/gen-diff"
+  rm -rf "$out"
+  mkdir -p "$out/lua" "$out/luajit"
+  status=0
+  for rt in lua luajit; do
+    if ! "$rt" "$ROOT/bin/distilled-lua" generate --model "$model" --provider "$spec" \
+      --out "$out/$rt/$provider" --quiet; then
+      say "FAIL generate ($rt)"
+      exit 1
+    fi
+  done
+  if diff -r "$out/lua/$provider" "$out/luajit/$provider" >/dev/null; then
+    say "ok   generate: lua and luajit write identical files"
+  else
+    say "FAIL generate: lua and luajit output differ"
+    status=1
+  fi
+  if [ -d "$committed" ]; then
+    if diff -ru "$committed" "$out/lua/$provider" >"$out/diff.txt"; then
+      say "ok   diff: clients/$provider matches a fresh generation"
+    else
+      say "FAIL diff: clients/$provider differs from a fresh generation ($(wc -l <"$out/diff.txt" | tr -d ' ') diff lines, $out/diff.txt):"
+      head -n 40 "$out/diff.txt"
+      status=1
+    fi
+    check_dir="$ROOT/clients"
+  else
+    say "FAIL diff: clients/$provider is not committed (fresh output in $out/lua/$provider)"
+    status=1
+    check_dir="$out/lua"
+  fi
+  if stylua --check --config-path "$ROOT/stylua.toml" "$out/lua/$provider" >/dev/null 2>&1; then
+    say "ok   stylua --check: generated Lua is formatted"
+  else
+    say "FAIL stylua --check on the generated Lua:"
+    stylua --check --config-path "$ROOT/stylua.toml" "$out/lua/$provider" 2>&1 | head -n 20
+    status=1
+  fi
+  for rt in $RUNTIMES; do
+    case $rt in
+      lua | luajit) res=$("$rt" "$LIB/gen_check.lua" "$ROOT" "$check_dir" "$provider" 2>&1) ;;
+      rex) res=$(rex do "$LIB/gen_check.lua" "root=$ROOT" "dir=$check_dir" "provider=$provider" 2>&1) ;;
+    esac
+    code=$?
+    printf '%s\n' "$res" | grep -v '^"'
+    [ "$code" -eq 0 ] || status=1
+  done
+  if [ "$status" -eq 0 ]; then say "gen-diff $provider: ok"; else say "gen-diff $provider: FAIL"; fi
+  exit $status
+}
+
+# ----------------------------------------------------------------------------------
 # help
 # ----------------------------------------------------------------------------------
 
@@ -638,10 +701,13 @@ verify/dl: distilled-lua verification driver
   dl jaeger start|stop|url|check   Jaeger all-in-one in Docker (OTLP HTTP 4318, UI 16686);
                             check exports one trace and finds it in the query API.
                             Exit 3 (skipped) when Docker is not running.
+  dl gen-diff <provider>    regenerate clients/<provider>/ (lua and luajit), diff it,
+                            stylua --check it, then load it under lua, luajit and rex,
+                            resolve every ref and build a request for every operation
   dl help                   this screen
 
   not implemented yet (exit 2):
-  dl gen-diff <provider>    task 06         dl conform <provider>   later task
+  dl conform <provider>     later task
   dl live <provider> <op>   later task
 EOF
 }
@@ -660,7 +726,7 @@ case $cmd in
   trace) cmd_trace_or_expect trace "$@" ;;
   expect) cmd_trace_or_expect expect "$@" ;;
   conform) stub conform "a later task (plan build step 7)" ;;
-  gen-diff) stub gen-diff "task 06" ;;
+  gen-diff) cmd_gen_diff "$@" ;;
   serve) cmd_serve "$@" ;;
   rex) cmd_rex "$@" ;;
   live) stub live "a later task (plan build step 8)" ;;

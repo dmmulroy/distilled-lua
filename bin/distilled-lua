@@ -1,0 +1,198 @@
+#!/usr/bin/env lua
+-- distilled-lua: generate Lua API clients from Distilled's patched Smithy models.
+--
+--   distilled-lua generate --model <file> --provider <file> --out <dir>
+--                          [--ops a,b,c] [--no-telemetry] [--quiet]
+--   distilled-lua vendor --out <dir>
+--
+-- Runs under lua (5.1 to 5.5) and luajit. Not meant for Rex: it writes files and makes
+-- directories (with `mkdir -p`; this CLI is the only place the generator runs a process).
+
+local function script_dir()
+  local source = (arg and arg[0]) or debug.getinfo(1, "S").source
+  source = string.gsub(source, "^@", "")
+  return string.match(source, "^(.*)/[^/]*$") or "."
+end
+
+local ROOT = script_dir() .. "/.."
+package.path = ROOT .. "/lua/?.lua;" .. ROOT .. "/lua/?/init.lua;" .. package.path
+
+local USAGE = [[
+usage:
+  distilled-lua generate --model <file> --provider <file> --out <dir>
+                         [--ops a,b,c] [--no-telemetry] [--quiet]
+  distilled-lua vendor --out <dir>
+]]
+
+local function die(message, code)
+  io.stderr:write("distilled-lua: " .. message .. "\n")
+  os.exit(code or 1)
+end
+
+local function shell_quote(s)
+  return "'" .. string.gsub(s, "'", "'\\''") .. "'"
+end
+
+local function mkdir_p(dir)
+  local ok = os.execute("mkdir -p " .. shell_quote(dir))
+  if ok ~= true and ok ~= 0 then
+    die("cannot create directory " .. dir)
+  end
+end
+
+local function parse(args, spec)
+  local out = {}
+  local i = 1
+  while i <= #args do
+    local a = args[i]
+    local name, inline_value = string.match(a, "^%-%-([%w%-]+)=(.*)$")
+    name = name or string.match(a, "^%-%-([%w%-]+)$")
+    if not name then
+      die("unexpected argument " .. a .. "\n" .. USAGE, 2)
+    end
+    local kind = spec[name]
+    if kind == nil then
+      die("unknown option --" .. name .. "\n" .. USAGE, 2)
+    end
+    if kind == "flag" then
+      out[name] = true
+      i = i + 1
+    else
+      local v = inline_value
+      if v == nil then
+        v = args[i + 1]
+        i = i + 2
+      else
+        i = i + 1
+      end
+      if v == nil then
+        die("--" .. name .. " needs a value", 2)
+      end
+      out[name] = v
+    end
+  end
+  return out
+end
+
+local function cmd_generate(args)
+  local o = parse(args, {
+    model = "value",
+    provider = "value",
+    out = "value",
+    ops = "value",
+    ["no-telemetry"] = "flag",
+    quiet = "flag",
+  })
+  for _, k in ipairs({ "model", "provider", "out" }) do
+    if not o[k] then
+      die("generate needs --" .. k .. "\n" .. USAGE, 2)
+    end
+  end
+  local ops
+  if o.ops then
+    ops = {}
+    for name in string.gmatch(o.ops, "[^,%s]+") do
+      ops[#ops + 1] = name
+    end
+  end
+  local gen = require("distilled.gen")
+  local m, err = gen.model.load(o.model)
+  if not m then
+    die("generation failed:\n" .. err)
+  end
+  local files, gerr, plan = gen.generate({
+    model = m,
+    provider = o.provider,
+    ops = ops,
+    telemetry = not o["no-telemetry"],
+  })
+  if not files then
+    die("generation failed:\n" .. gerr)
+  end
+  mkdir_p(o.out)
+  local ok, werr = gen.write(files, o.out)
+  if not ok then
+    die(werr)
+  end
+  if not o.quiet then
+    for _, w in ipairs(m.warnings) do
+      io.stderr:write("warning: " .. w .. "\n")
+    end
+    local bytes = 0
+    for _, name in ipairs(files.order) do
+      bytes = bytes + #files[name]
+    end
+    print(
+      string.format(
+        "wrote %s: %d operations, %d shapes, %d errors, %d files (%d bytes)",
+        o.out,
+        #plan.ops,
+        #plan.nodes,
+        #plan.errors,
+        #files.order,
+        bytes
+      )
+    )
+  end
+end
+
+-- The runtime modules a generated client needs: lua/distilled/ without gen/ and testing/.
+local function runtime_files()
+  local list = {}
+  local p = io.popen(
+    "cd " .. shell_quote(ROOT .. "/lua") .. " && find distilled -name '*.lua' | LC_ALL=C sort"
+  )
+  if not p then
+    die("cannot list " .. ROOT .. "/lua")
+  end
+  for line in p:lines() do
+    if
+      not string.find(line, "^distilled/gen/") and not string.find(line, "^distilled/testing/")
+    then
+      list[#list + 1] = line
+    end
+  end
+  p:close()
+  return list
+end
+
+local function cmd_vendor(args)
+  local o = parse(args, { out = "value", quiet = "flag" })
+  if not o.out then
+    die("vendor needs --out\n" .. USAGE, 2)
+  end
+  local files = runtime_files()
+  local written = 0
+  for _, rel in ipairs(files) do
+    local dir = string.match(rel, "^(.*)/[^/]*$")
+    mkdir_p(o.out .. "/" .. dir)
+    local src = assert(io.open(ROOT .. "/lua/" .. rel, "rb"))
+    local text = src:read("*a")
+    src:close()
+    local dst, err = io.open(o.out .. "/" .. rel, "wb")
+    if not dst then
+      die("cannot write " .. o.out .. "/" .. rel .. ": " .. tostring(err))
+    end
+    dst:write(text)
+    dst:close()
+    written = written + 1
+  end
+  if not o.quiet then
+    print(string.format("vendored %d runtime modules into %s/distilled", written, o.out))
+  end
+end
+
+local argv = {}
+for i = 1, #arg do
+  argv[i] = arg[i]
+end
+local command = table.remove(argv, 1)
+if command == "generate" then
+  cmd_generate(argv)
+elseif command == "vendor" then
+  cmd_vendor(argv)
+elseif command == nil or command == "help" or command == "--help" or command == "-h" then
+  io.write(USAGE)
+else
+  die("unknown command " .. command .. "\n" .. USAGE, 2)
+end
