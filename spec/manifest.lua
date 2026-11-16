@@ -17,6 +17,7 @@ return {
   "gen_provider_spec.lua",
   "gen_shapes_spec.lua",
   "harness_spec.lua",
+  "host_popen_spec.lua",
   "init_spec.lua",
   "json_spec.lua",
   "keys_spec.lua",

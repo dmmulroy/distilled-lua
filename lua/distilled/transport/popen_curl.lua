@@ -179,7 +179,22 @@ local function new(opts)
   end
 end
 
-return setmetatable({ new = new }, {
+--- popen_curl.sleep(seconds): wait in a child `sleep` process (wall time; stock Lua has
+-- no sleep). Lives here because this is the one core module allowed to use io.popen
+-- (AGENTS.md); distilled.host.popen hands it to clients. Ignores non-positive, NaN and
+-- non-number values.
+local function shell_sleep(seconds)
+  if type(seconds) ~= "number" or seconds ~= seconds or seconds <= 0 then
+    return
+  end
+  local p = io.popen(string.format("sleep %.3f", seconds))
+  if p then
+    p:read("*a")
+    p:close()
+  end
+end
+
+return setmetatable({ new = new, sleep = shell_sleep }, {
   __call = function(_, opts)
     return new(opts)
   end,

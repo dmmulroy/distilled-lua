@@ -1,4 +1,5 @@
--- Span exporters: memory, file, console. (otlp_http arrives in a later task.)
+-- Span exporters: memory, file, console, and otlp_http (POST to a collector; loaded on use
+-- from distilled.trace.otlp_http).
 --
 -- Each exporter is called as exporter(spans, meta) -> true | nil, err, where spans is the
 -- list documented in docs/interfaces.md and meta = { service_name }. The tracer calls
@@ -96,7 +97,7 @@ function exporters.console(opts)
   end
 end
 
--- exporters.otlp_http{ endpoint, transport, headers, timeout } (task 05)
+-- exporters.otlp_http{ endpoint, transport, headers, timeout, service_name }
 exporters.otlp_http = function(opts)
   return require("distilled.trace.otlp_http")(opts)
 end
