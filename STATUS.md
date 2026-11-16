@@ -187,8 +187,8 @@ regex hook in `errors.match`. See `tasks/03-wire.done.md`.
 
 ## 04 runtime
 
-**In progress.** The APIs below are settled (interim; tasks 05 and 06 can build on them).
-Changes after this point will be listed here with a date-free "changed:" note.
+**Done** (`tasks/04-runtime.done.md`). The APIs below are final for this task; later
+changes are listed with a "changed:" note.
 
 ### Client.define (what the generator emits)
 
@@ -262,6 +262,27 @@ whenever a response arrived (success or failure): this is how `link` pagination 
   `error_envelope`, `transform_response`, retry `when`) becomes `SdkError` with the
   message and `err.cause`.
 - With tracing on, a failed call's `err.trace_id` is set.
+
+### Decisions and notes for others
+
+- changed: a secret option with `env` and no value becomes a function source reading the
+  variable (marked `env_fallback`); unset, it counts as absent, so a required option fails
+  the call with `ConfigError` (`err.key` = option name, message names the variable).
+- Provider options cannot reuse common names: e.g. a provider "host" option must be
+  named `api_host` (the REST spec does this).
+- `op.span` as a string is the model op name; the span name is
+  `<service.telemetry.prefix>.<op>`, falling back to `op.name`. Generated services should
+  emit `telemetry.prefix` (the task 03 fixture has `span = "Neon.GetProject"` and no
+  prefix).
+- Pagination trait paths are user names (after key mapping).
+- Proposed tracer API (task 02 owner): `tracer:attach(span)` / `tracer:detach(span)` to
+  push/remove a span on the active stack. `paginate.lua` does this today through
+  `rawget(tracer, "_stack")` so the traversal span parents page spans only while a page
+  is being fetched.
+- Retry attributes use `telemetry.ts` names (`distilled.attempts`,
+  `distilled.retry.errors`, `distilled.retry.delay_ms`) plus our
+  `distilled.retry.stopped` (`budget` | `deadline` | `hint_over_cap`).
+- The REST protocol sets `http.response.status_code` on the active debug attempt span too.
 
 ## 05 host
 
