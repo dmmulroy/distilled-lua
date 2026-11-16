@@ -473,3 +473,51 @@ neon` ok (177/178 operations build; the multipart one is acknowledged, see below
   for an assignment whose `target = {` cannot fit (`gen/emit.lua`). Neon output unchanged.
 - `docs/interfaces.md` updated to the code (all deviations listed in sections 01-08).
 - Still open: `verify/conform/node/*.mjs` bind only Neon.
+
+## 11 schema
+
+**Done.** See `tasks/11-schema.done.md`. Smoke: the 90 models that failed on these classes
+all generate now (1,029 of 1,206 with the 939 that already did; none of those regressed).
+
+### Contract additions (in `docs/interfaces.md`, schema section)
+
+- **Any node may carry `nullable = true`** (Distilled's `S.NullOr(node)`): `json.null` is a
+  value of it. `S.nullable(node)` makes a marked copy (a ref keeps its name);
+  `schema.node_nullable(node, registry)` reads it through refs (also true for `null` and
+  `unknown` nodes). `validate.check` accepts null there in every mode; `keys` and `redact`
+  needed no change (null was already passed through).
+- Generator: a sparse list item / map value (nullable trait on the list member or map
+  value) is `S.nullable(<item>)` (`S.nullable(S.sensitive(...))` with both traits); a
+  nullable rawResponse output is `output = S.nullable(<target>)`, `output_raw = true`.
+  The node keeps the target's type, so `rest.lua` needed no change: an empty body still
+  decodes as `""`/`{}` (as Distilled, whose `resolveNode` collapses NullOr) and a JSON
+  `null` body is `json.null`, in strict mode too.
+- types.lua: `(T|distilled.Null)[]`, `{ [string]: T|distilled.Null }`, and
+  `(T|distilled.Null)?` for a nullable raw output.
+- **Type-name collisions**: Distilled has no rule (no Client type in TS, its error classes
+  are the error shapes' own names). Ours (`naming.type_names`): a shape whose LuaLS type
+  name the client takes (`Client`, `Options`, `Module`, `<Tag>Error`) is typed
+  `<Name>Shape`, then `Shape2`, ... while taken. Registry keys, struct names and `S.ref`
+  names keep the model's names; only types.lua changes. `ctx.type_names` holds the renames;
+  `naming.type_name(ctx, id)` reads them.
+
+### Edits outside my file list (orchestrator: please note for merges)
+
+- `lua/distilled/gen/init.lua`: the "type names the client definitions take" block (just
+  before "5. shape nodes") no longer fails generation; it sets `ctx.type_names`. 10 lines,
+  away from tasks 10/13's areas of that file.
+- `lua/distilled/gen/types.lua` (mine) also breaks a method signature past 100 columns the
+  way stylua does: 6 newly generating models (doppler, github/orgs, remote, vercel
+  marketplace/vcr/projects) have operation names that long and failed `stylua --check`.
+
+### Problems found for others
+
+- **stripe/stripe crashes** in `gen/ops.lua` `ops.output` (task 12's part of the file): an
+  operation whose output is a prelude shape (`smithy.api#Unit` for GetQuotePdf,
+  `smithy.api#Document` for CreateTransfer/GetTransfer, 4 ops) has no `ctx.model.shapes`
+  entry, so `def` is nil. Expected: a Unit output is no output, a Document output is
+  `S.unknown` (or fail early with a message, not a crash).
+- `verify/lib/gen_input.lua` cannot synthesize an input for starburst-galaxy/live_table's
+  `update_live_table_schema` (required members recurse past depth 24), so `gen_check`
+  reports 5/6 ops built there. A generation-side non-issue; the synthesizer could stop at
+  the first optional or treat a cycle of required members as unbuildable data.
