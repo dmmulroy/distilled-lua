@@ -3,6 +3,8 @@
 return {
   "client_spec.lua",
   "compat_spec.lua",
+  "conform_diff_spec.lua",
+  "conform_replay_spec.lua",
   "credentials_spec.lua",
   "errors_spec.lua",
   "gen_emit_spec.lua",

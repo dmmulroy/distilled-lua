@@ -31,23 +31,14 @@ package.path = root
   .. package.path
 
 local diff = require("verify.conform.diff")
-local intended = require("verify.conform.intended")
+local context = require("verify.conform.context")
 local lib = require("verify.conform.lib")
 
 local runtime = rex_api and "rex" or (rawget(_G, "jit") and "luajit" or _VERSION)
 local provider = args.provider
+local ctx = context.new(root, provider)
 
-local ctx = {
-  root = root,
-  provider = provider,
-  cases_dir = root .. "/verify/conform/cases/" .. provider,
-  ref_dir = root .. "/verify/conform/ref/" .. provider,
-  class = require(provider),
-  service = require(provider .. ".service"),
-  skip = intended.skip,
-}
-
-local ORDER = { "members", "requests", "responses", "flows" }
+local ORDER = context.CATEGORIES
 local wanted = {}
 if args.only and args.only ~= "" then
   for name in string.gmatch(args.only, "[^,]+") do
@@ -69,21 +60,11 @@ local failed = 0
 local summary = {}
 for _, category in ipairs(ORDER) do
   if wanted[category] and lib.read(ctx.ref_dir .. "/" .. category .. ".jsonl") then
-    local check = require("verify.conform.check_" .. category)
-    local results = check.run(ctx)
-    local n, ok, mismatched, skipped, intended_n = #results, 0, 0, 0, 0
-    for _, r in ipairs(results) do
-      if r.skipped then
-        skipped = skipped + 1
-      else
-        local real, known = intended.split(category, r)
-        if #known > 0 then
-          intended_n = intended_n + 1
-        end
-        if #real == 0 then
-          ok = ok + 1
-        else
-          mismatched = mismatched + 1
+    local t = context.tally(ctx, category)
+    local n, ok, mismatched, skipped, intended_n = t.n, t.ok, t.mismatched, t.skipped, t.intended
+    for _, r in ipairs(t.results) do
+      if not r.skipped then
+        if #r.real > 0 then
           say(
             string.format(
               "MISMATCH %s %s  (case: verify/conform/cases/%s/%s line %d)",
@@ -94,14 +75,14 @@ for _, category in ipairs(ORDER) do
               r.line
             )
           )
-          for _, d in ipairs(real) do
+          for _, d in ipairs(r.real) do
             say(
               string.format("  %s: distilled %s | lua %s", d.path, diff.show(d.a), diff.show(d.b))
             )
           end
         end
         if args.verbose then
-          for _, d in ipairs(known) do
+          for _, d in ipairs(r.known) do
             say(string.format("  intended %s %s: %s", r.id, d.path, d.reason))
           end
         end
