@@ -11,7 +11,7 @@
 --
 -- What it does, in Distilled's order and with its reasons:
 -- 1. Secrets anywhere in the input (and in `headers`) are unwrapped here, at the last
---    moment, on a copy (like secret.unwrap_deep); the caller's tables are not changed.
+--    moment, on a copy (secret.unwrap_deep); the caller's tables are not changed.
 -- 2. Labels are checked before anything else: `.` and `..` (for a greedy `{name+}`
 --    label, any segment) fail with InvalidInput, because the URL parser resolves them
 --    and `DELETE /things/..` would go out as `DELETE /`. A missing label also fails
@@ -178,51 +178,6 @@ local function form_pairs(q, obj, order)
   end
 end
 
--- A copy of the input with every secret unwrapped, like secret.unwrap_deep, but
--- keeping json.null itself: secret.unwrap_deep copies it into a fresh table, which
--- then encodes as {} (reported in STATUS.md, task 03). Tables reached twice are copied
--- once (so a cycle stays a cycle and json.encode reports it). Explicit stack.
-local function unwrap_input(value)
-  local seen = {}
-  local function copy_of(v)
-    if secret.is(v) then
-      return secret.unwrap(v), false
-    end
-    if type(v) ~= "table" or v == null then
-      return v, false
-    end
-    if seen[v] then
-      return seen[v], false
-    end
-    local out = {}
-    seen[v] = out
-    local mt = getmetatable(v)
-    if mt ~= nil then
-      setmetatable(out, mt)
-    end
-    return out, true
-  end
-  local root, fresh = copy_of(value)
-  if not fresh then
-    return root
-  end
-  local work, n = { { value, root } }, 1
-  while n > 0 do
-    local pair = work[n]
-    work[n] = nil
-    n = n - 1
-    for k, v in pairs(pair[1]) do
-      local c, is_new = copy_of(v)
-      rawset(pair[2], k, c)
-      if is_new then
-        n = n + 1
-        work[n] = { v, c }
-      end
-    end
-  end
-  return root
-end
-
 local function check_header_value(member, value)
   if string.find(value, "[\r\n]") then
     return invalid(
@@ -275,7 +230,8 @@ function request.build(args)
   elseif type(input) ~= "table" or input == null or json.is_array(input) then
     return nil, invalid(nil, "the input of " .. tostring(op.name) .. " must be a table")
   end
-  input = unwrap_input(input)
+  -- secrets unwrapped on a copy; json.null kept; a cycle stays a cycle (json.encode reports it)
+  input = secret.unwrap_deep(input)
 
   -- labels first, before anything else is read
   local uri = op.uri

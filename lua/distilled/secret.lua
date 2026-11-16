@@ -57,15 +57,19 @@ end
 
 --- secret.unwrap_deep(value) -> a copy with every secret unwrapped. Plain tables and
 -- arrays are copied (keeping their metatable, so json array marks survive); tables that
--- are reached twice are copied once; the input is not modified.
+-- are reached twice are copied once; the input is not modified. json.null is a leaf and
+-- is returned as itself: a copy of it would be a plain table and encode as {}.
 function secret.unwrap_deep(value)
+  -- required here, not at load time: json requires errors, and nothing in json needs
+  -- this module, but keeping secret.lua free of load-time requires keeps it a leaf
+  local null = require("distilled.json").null
   local seen = {}
   -- iterative walk: gopher-lua has a shallow Lua call stack
   local function copy_of(v)
     if secret_mt(v) then
       return rawget(getmetatable(v), "__secret_value"), false
     end
-    if type(v) ~= "table" then
+    if type(v) ~= "table" or v == null then
       return v, false
     end
     if seen[v] then
