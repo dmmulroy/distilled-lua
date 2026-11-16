@@ -235,6 +235,14 @@ span:set(key, value); span:event(name, attrs); span:fail(err); span:finish()
 span.trace_id, span.span_id, span.recording
 ```
 
+Notes from task 02: exporters are callables invoked as `exporter(spans, meta)` with
+`meta = { service_name }`; `memory()` is a callable table with `.spans` and `:clear()`.
+`kind` defaults to `"internal"`. Status stays `"unset"` on success. `span:fail(err)` sets
+`error.type = err.tag` and the status message. `tracer:with` does not set `err.trace_id`;
+the operation layer does. The no-op tracer is `require("distilled.trace.noop")`, a module
+that loads nothing else, so a client with tracing off never loads the tracer. Scripts run
+by `dl trace` / `dl expect` reach their tracer through `require("verify.lib.trace_env")`.
+
 A span started with `debug = true` is recorded only at level `debug`. Exporters:
 `trace.exporters.memory()`, `.file{ path, max_bytes }`, `.console{ write }`,
 `.otlp_http{ endpoint, transport }`. Each is `fn(spans) -> true | nil, err`, where a span is

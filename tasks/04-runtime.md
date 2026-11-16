@@ -19,6 +19,17 @@ Reference implementation in `../distilled/packages/core/src/`: `api.ts` (`applyR
 `../distilled/packages/core/test/retry.test.ts`, `retry-after.test.ts`,
 `pagination.test.ts`, `protocol-rest.test.ts`.
 
+Two things to know before you start:
+
+- gopher-lua corrupts closure upvalues when a protected call catches an error in certain
+  nestings. `compat.pcall` is the only safe way to catch a raise (it is coroutine-based
+  after task 02's follow-up). Never write `pcall` or `xpcall` yourself. Your code should
+  rarely need to catch anything: failures are `nil, err`. The places that must catch are
+  user callbacks (credential functions, `classify_error`, `error_envelope`, retry `when`):
+  wrap those with `compat.pcall` and turn a raise into an `SdkError`.
+- With tracing off, hold `require("distilled.trace.noop")` and never require
+  `distilled.trace`. Set `err.trace_id` yourself in the operation layer.
+
 ## Files you own
 
 ```text
