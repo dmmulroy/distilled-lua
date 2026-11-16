@@ -27,7 +27,11 @@ add({ id = "get_project/204", op = "get_project", response = { status = 204 } })
 add({
   id = "get_project/non-json-200",
   op = "get_project",
-  response = { status = 200, headers = { ["content-type"] = "text/html" }, body = "<html>oops</html>" },
+  response = {
+    status = 200,
+    headers = { ["content-type"] = "text/html" },
+    body = "<html>oops</html>",
+  },
 })
 add({
   id = "get_project/json-without-content-type",
@@ -75,16 +79,38 @@ local extra = { project = { id = "p1", name = "demo", zz_unmodelled = true }, zz
 local wrong = { project = "not an object" }
 local missing = { project = { name = "no id" } }
 for _, mode in ipairs({ "lenient", "additional", "strict" }) do
-  add({ id = "get_project/extra-keys-" .. mode, op = "get_project", validation = mode, response = { json = extra } })
-  add({ id = "get_project/wrong-type-" .. mode, op = "get_project", validation = mode, response = { json = wrong } })
-  add({ id = "get_project/missing-required-" .. mode, op = "get_project", validation = mode, response = { json = missing } })
-  add({ id = "get_project/valid-" .. mode, op = "get_project", validation = mode, response = { json = PROJECT } })
+  add({
+    id = "get_project/extra-keys-" .. mode,
+    op = "get_project",
+    validation = mode,
+    response = { json = extra },
+  })
+  add({
+    id = "get_project/wrong-type-" .. mode,
+    op = "get_project",
+    validation = mode,
+    response = { json = wrong },
+  })
+  add({
+    id = "get_project/missing-required-" .. mode,
+    op = "get_project",
+    validation = mode,
+    response = { json = missing },
+  })
+  add({
+    id = "get_project/valid-" .. mode,
+    op = "get_project",
+    validation = mode,
+    response = { json = PROJECT },
+  })
   add({
     id = "create_api_key/wrong-type-" .. mode,
     op = "create_api_key",
     input = { key_name = "k" },
     validation = mode,
-    response = { json = { id = "one", key = "napi_secret", name = "k", created_at = "t", created_by = "u" } },
+    response = {
+      json = { id = "one", key = "napi_secret", name = "k", created_at = "t", created_by = "u" },
+    },
   })
 end
 
@@ -111,7 +137,10 @@ add({
 add({
   id = "get_project/404-extra-fields",
   op = "get_project",
-  response = { status = 404, json = { code = "E", message = "m", request_id = "r1", details = { a = 1 } } },
+  response = {
+    status = 404,
+    json = { code = "E", message = "m", request_id = "r1", details = { a = 1 } },
+  },
 })
 add({
   id = "get_project/404-retry-after",
@@ -137,7 +166,28 @@ add({
 })
 
 -- the status map and fallbacks, on an operation that declares no errors -----------------
-for _, status in ipairs({ 300, 400, 401, 402, 403, 404, 405, 408, 409, 410, 418, 422, 423, 429, 500, 501, 502, 503, 504, 599 }) do
+for _, status in ipairs({
+  300,
+  400,
+  401,
+  402,
+  403,
+  404,
+  405,
+  408,
+  409,
+  410,
+  418,
+  422,
+  423,
+  429,
+  500,
+  501,
+  502,
+  503,
+  504,
+  599,
+}) do
   add({
     id = "get_project_advisor_security_issues/" .. status,
     op = "get_project_advisor_security_issues",
@@ -152,7 +202,11 @@ add({
 add({
   id = "get_project_advisor_security_issues/502-html",
   op = "get_project_advisor_security_issues",
-  response = { status = 502, headers = { ["content-type"] = "text/html" }, body = "<h1>bad gateway</h1>" },
+  response = {
+    status = 502,
+    headers = { ["content-type"] = "text/html" },
+    body = "<h1>bad gateway</h1>",
+  },
 })
 
 -- Retry-After ---------------------------------------------------------------------------
