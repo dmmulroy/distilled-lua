@@ -452,3 +452,7 @@ neon` ok (177/178 operations build; the multipart one is acknowledged, see below
 - `docs/interfaces.md`: request.build's `random`/`host` args; the multipart module.
 - Edited outside the brief's list: `spec/neon_client_spec.lua`, only its multipart case
   (it asserted the old refusal; it now checks the whole multipart body of a Neon call).
+
+## 09 polish
+
+(not started)
