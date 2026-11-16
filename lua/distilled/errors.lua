@@ -286,11 +286,23 @@ local function json()
 end
 
 -- REGEX HOOK (task 03): test a matcher's `matches` (a JavaScript regular expression
--- source, as the model carries it) against `value`. Until distilled.regex exists, a
--- matcher with `matches` never matches. Replace only this function.
-local function regex_test(source, value) -- luacheck: ignore
-  return false
+-- source, as the model carries it) against `value` with distilled.regex. Each source
+-- is compiled once and cached by its string (sources come from the model, so the cache
+-- is bounded). A source that does not compile never matches; the generator refuses
+-- such patterns, so this only happens with hand-written matchers.
+local regex_cache = {}
+local function regex_test(source, value)
+  if type(source) ~= "string" then
+    return false
+  end
+  local matcher = regex_cache[source]
+  if matcher == nil then
+    matcher = require("distilled.regex").compile(source) or false
+    regex_cache[source] = matcher
+  end
+  return matcher ~= false and matcher:test(value)
 end
+errors._regex_cache = regex_cache
 
 -- matchesText: exact string, or the conjunction of `includes` and `matches`.
 -- Non-string values (numbers, json.null, absent) never match a text matcher.

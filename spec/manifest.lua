@@ -6,6 +6,8 @@ return {
   "harness_spec.lua",
   "init_spec.lua",
   "json_spec.lua",
+  "regex_spec.lua",
+  "request_spec.lua",
   "scope_spec.lua",
   "secret_spec.lua",
   "trace_expect_spec.lua",
@@ -13,4 +15,5 @@ return {
   "trace_otlp_spec.lua",
   "trace_tracer_spec.lua",
   "trace_tree_spec.lua",
+  "url_spec.lua",
 }

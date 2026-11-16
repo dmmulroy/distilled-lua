@@ -362,14 +362,17 @@ t.describe("errors.match (protocol-rest typed error matching)", function()
     t.eq(errors.match({ Empty }, { status = 400, message = "x", body = {} }), nil)
   end)
 
-  t.it("a text matcher with `matches` does not match until distilled.regex exists", function()
+  -- task 03 replaced the "never matches" placeholder with distilled.regex
+  t.it("a text matcher with `matches` tests the JavaScript regex (task 03)", function()
     local R =
-      errors.define({ tag = "R", matchers = { { status = 409, message = { matches = "lock" } } } })
+      errors.define({ tag = "R", matchers = { { status = 409, message = { matches = "^lock" } } } })
     local RI = errors.define({
       tag = "RI",
       matchers = { { status = 409, message = { includes = "lock", matches = "lock" } } },
     })
-    t.eq(errors.match({ R, RI }, { status = 409, message = "locked" }), nil)
+    t.eq(errors.match({ R, RI }, { status = 409, message = "locked" }).tag, "R")
+    t.eq(errors.match({ R, RI }, { status = 409, message = "unlocked" }).tag, "RI")
+    t.eq(errors.match({ R, RI }, { status = 409, message = "open" }), nil)
   end)
 
   t.it("an empty includes matcher matches any string", function()
