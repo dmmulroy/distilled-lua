@@ -94,7 +94,7 @@ function types.type_of(ctx, prefix, target, request_side)
     return SCALAR_TYPE[kind] or "any"
   end
   local def = ctx.model.shapes[target]
-  local t = prefix .. "." .. naming.local_name(target)
+  local t = prefix .. "." .. naming.type_name(ctx, target)
   if request_side and def and def.type == "enum" then
     return t .. "|string"
   end
@@ -177,7 +177,7 @@ function types.render(plan)
   for _, n in ipairs(plan.nodes) do
     local id = n.id
     local def = ctx.model.shapes[id]
-    local tname = prefix .. "." .. n.name
+    local tname = prefix .. "." .. naming.type_name(ctx, id)
     local request_side = req[id] == true
     local doc = def.traits and def.traits["smithy.api#documentation"]
     b:lines_of(doc_lines(doc))
@@ -293,7 +293,7 @@ function types.render(plan)
   b:blank()
 
   for _, op in ipairs(plan.ops) do
-    local input_t = prefix .. "." .. naming.local_name(op.input)
+    local input_t = prefix .. "." .. naming.type_name(ctx, op.input)
     local has_required = false
     for _, info in ipairs(shapes.members(ctx, ctx.model.shapes[op.input], op.input)) do
       has_required = has_required or info.required
@@ -306,7 +306,7 @@ function types.render(plan)
         output_t = output_t .. "|distilled.Null"
       end
     else
-      output_t = prefix .. "." .. naming.local_name(op.output)
+      output_t = prefix .. "." .. naming.type_name(ctx, op.output)
     end
     local doc = op.def.traits and op.def.traits["smithy.api#documentation"]
     local errs = {}

@@ -308,14 +308,61 @@ t.describe("gen.ops: http trait and selection", function()
     t.eq(svc.ops.put_blob.body_media_type, "application/zip")
   end)
 
-  t.it("names colliding with the client's type names fail", function()
-    local _, err = fx.generate({
-      extra = '"ex.api#Client": { "type": "structure", "members": {} }',
+  -- Task 11: Distilled has no such rule (its error classes are the shapes' own names and
+  -- there is no Client type), so ours is documented in naming.type_names: a shape whose
+  -- LuaLS type name the client takes (Client, Options, Module, <Tag>Error) is typed
+  -- <Name>Shape (then Shape2, ...). Registry keys and S.ref names do not change.
+  local function count(text, plain)
+    local n, at = 0, 1
+    while true do
+      local s, e = string.find(text, plain, at, true)
+      if not s then
+        return n
+      end
+      n, at = n + 1, e + 1
+    end
+  end
+
+  t.it("shapes named like the client's types get the Shape suffix in types.lua", function()
+    local files, err, plan = fx.generate({
+      extra = '"ex.api#Client": { "type": "structure", "members": { "id": { "target": "smithy.api#String" } } },'
+        .. ' "ex.api#Module": { "type": "structure", "members": {} },'
+        .. ' "ex.api#Options": { "type": "list", "member": { "target": "ex.api#Client" } },'
+        .. ' "ex.api#ModuleShape": { "type": "structure", "members": {} },'
+        .. ' "ex.api#NotFoundError": { "type": "structure", "members": { "m": { "target": "ex.api#Module" } } }',
       replace = {
-        { '"note": { "target": "smithy.api#String" }', '"note": { "target": "ex.api#Client" }' },
+        {
+          '"note": { "target": "smithy.api#String" }',
+          '"note": { "target": "ex.api#Client" }, "opts": { "target": "ex.api#Options" },'
+            .. ' "nf": { "target": "ex.api#NotFoundError" }, "ms": { "target": "ex.api#ModuleShape" }',
+        },
       },
     })
-    t.match(err, "ex.api#Client: its type name ex.Client is the client class", true)
+    t.eq(err, nil)
+    local ty = files["types.lua"]
+    t.match(ty, "---@class ex.ClientShape\n---@field id? string\n", true)
+    t.match(ty, "---@alias ex.OptionsShape ex.ClientShape[]\n", true)
+    t.match(ty, "---@class ex.ModuleShape2\n", true)
+    t.match(ty, "---@class ex.ModuleShape\n", true)
+    t.match(ty, "---@class ex.NotFoundErrorShape\n---@field m? ex.ModuleShape2\n", true)
+    t.match(ty, "---@field note? ex.ClientShape\n", true)
+    t.match(ty, "---@field nf? ex.NotFoundErrorShape\n", true)
+    t.match(ty, "---@field ms? ex.ModuleShape\n", true)
+    -- the client's own types and the error class are untouched, and declared once
+    t.match(ty, '---@class ex.NotFoundError: distilled.Error\n---@field tag "NotFound"\n', true)
+    t.eq(count(ty, "---@class ex.Client\n"), 1)
+    t.eq(count(ty, "---@class ex.Module\n"), 1)
+    t.eq(count(ty, "---@class ex.Options\n"), 1)
+    t.eq(count(ty, "---@class ex.NotFoundError:"), 1)
+    t.eq(count(ty, "---@class ex.NotFoundError\n"), 0)
+    -- the registry keeps the model's names
+    local svc = fx.load(files["service.lua"], "ex.service")
+    t.eq(svc.shapes.Client.name, "Client")
+    t.same(svc.shapes.Options, { t = "list", item = { t = "ref", name = "Client" } })
+    t.eq(svc.shapes.NotFoundError.t, "struct")
+    t.eq(plan.ctx.type_names["ex.api#Client"], "ClientShape")
+    t.eq(plan.ctx.type_names["ex.api#Thing"], nil)
+    t.truthy(require("distilled.compat").load(ty, "=types"))
   end)
 end)
 

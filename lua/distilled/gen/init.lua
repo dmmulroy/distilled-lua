@@ -403,24 +403,13 @@ function gen.plan(args)
     return naming.local_name(a) < naming.local_name(b)
   end)
 
-  -- type names the client definitions take for themselves
-  local taken =
-    { Client = "the client class", Options = "the client options", Module = "the module" }
-  for _, d in ipairs(error_classes) do
-    taken[d.tag .. "Error"] = "the error class " .. d.tag
+  -- type names the client definitions take for themselves: a shape with such a name is
+  -- typed <Name>Shape in types.lua (naming.type_names, task 11)
+  local error_tags = {}
+  for i, d in ipairs(error_classes) do
+    error_tags[i] = d.tag
   end
-  for _, id in ipairs(registry_ids) do
-    local name = naming.local_name(id)
-    if taken[name] then
-      problems[#problems + 1] = id
-        .. ": its type name "
-        .. spec.name
-        .. "."
-        .. name
-        .. " is "
-        .. taken[name]
-    end
-  end
+  ctx.type_names = naming.type_names(registry_ids, naming.client_type_names(error_tags))
 
   -- 5. shape nodes
   local nodes = {}
