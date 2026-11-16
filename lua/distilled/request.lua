@@ -6,7 +6,8 @@
 --                  map_member_header = fn(name, value) -> value,   -- optional
 --                  unknown_key_to_wire = fn(key) -> wire,          -- optional
 --                  empty_json_body = false,                        -- optional
---                  query_style = "dotted" | "brackets" }           -- optional
+--                  query_style = "dotted" | "brackets",            -- optional
+--                  random = fn() -> [0, 1), host = { random } }  -- multipart boundary
 --     -> { method, url, headers, body = string | nil } | nil, err (InvalidInput, SdkError)
 --
 -- What it does, in Distilled's order and with its reasons:
@@ -35,7 +36,9 @@
 -- 9. content-type is set for JSON and form bodies; a member bound to the content-type
 --    header wins (a Kubernetes merge patch is application/merge-patch+json).
 -- 10. json.null in the input is sent as null; an absent key is omitted.
--- Multipart bodies are not supported yet: such an operation fails with SdkError.
+-- 11. `content_type = "multipart"`: the body is multipart/form-data (see
+--    multipart_parts below and distilled/multipart.lua), whatever the method, as in
+--    Distilled. The boundary comes from `random` (or `host.random`).
 local schema = require("distilled.schema")
 local json = require("distilled.json")
 local secret = require("distilled.secret")
@@ -43,6 +46,7 @@ local errors = require("distilled.errors")
 local keys = require("distilled.keys")
 local url = require("distilled.url")
 local compat = require("distilled.compat")
+local multipart = require("distilled.multipart")
 
 local request = {}
 
@@ -192,6 +196,131 @@ local function misuse(message)
   compat.raise("request.build: " .. message, 3)
 end
 
+-- Multipart parts, Distilled's rules (protocol-http.ts, multipart branch of buildRequest):
+-- - each body member is a part under its wire name, in declaration order (undeclared
+--   keys after, sorted); a payload member holding a record is the parts instead, one per
+--   entry, in sorted key order (JavaScript keeps insertion order; a Lua table has none);
+-- - a payload member holding one file (or a string at a `blob` payload) is one file part
+--   under the member's wire name;
+-- - json.null and absent members are omitted;
+-- - binary values are file parts: a distilled.file with its own filename (the wire name
+--   when it has none, as for a nameless Blob) and content type, or a string at a `blob`
+--   node (Distilled's Uint8Array: filename = wire name, application/octet-stream);
+-- - a non-empty list whose elements are all binary is one part per element under the
+--   same name (`-F documents=@a.pdf -F documents=@b.txt`);
+-- - any other table is one JSON-encoded part (an empty list is "[]"), scalars are text
+--   parts spelled like String(v).
+-- Distilled's `FormDataFile()` binding (files under their own filename) has no Smithy
+-- trait in the models, so there is no such bind here.
+local function multipart_parts(op, body, body_order, body_nodes, raw_body, raw_member, registry)
+  local entries, nodes = body, body_nodes
+  local order = body_order
+  local raw_node = raw_member and schema.resolve(raw_member.schema, registry)
+  if
+    raw_body ~= nil
+    and (
+      multipart.is_file(raw_body)
+      or (type(raw_body) == "string" and raw_node and raw_node.t == "blob")
+    )
+  then
+    -- a payload that is one file is one part under the member's wire name (Distilled
+    -- would spread a Uint8Array payload into one text part per byte index)
+    local wire = raw_member.wire or raw_member.name
+    entries, order, nodes = { [wire] = raw_body }, { wire }, { [wire] = raw_member.schema }
+  elseif raw_body ~= nil and schema.is_record_value(raw_body) then
+    entries, order, nodes = raw_body, sorted_keys(raw_body), {}
+    local pnode = raw_node
+    for _, k in ipairs(order) do
+      if pnode and pnode.t == "map" then
+        nodes[k] = pnode.value
+      elseif pnode and pnode.t == "struct" then
+        for _, pm in ipairs(pnode.members or {}) do
+          if (pm.wire or pm.name) == k then
+            nodes[k] = pm.schema
+          end
+        end
+      end
+    end
+  end
+
+  local function is_blob(node)
+    local r = node and schema.resolve(node, registry)
+    return r ~= nil and r.t == "blob"
+  end
+  local function binary(v, blob)
+    return multipart.is_file(v) or (blob and type(v) == "string")
+  end
+
+  local parts = {}
+  local function add_binary(key, v)
+    if multipart.is_file(v) then
+      if type(v.data) ~= "string" then
+        return invalid(key, "Input member " .. key .. ": a file's data must be a string")
+      end
+      parts[#parts + 1] =
+        { name = key, value = v.data, filename = v.filename or key, content_type = v.content_type }
+    else
+      parts[#parts + 1] = { name = key, value = v, filename = key }
+    end
+    return nil
+  end
+
+  for _, key in ipairs(order) do
+    local value = rawget(entries, key)
+    local node = nodes[key]
+    if value ~= nil and value ~= null then
+      local name = tostring(key)
+      if binary(value, is_blob(node)) then
+        local bad = add_binary(name, value)
+        if bad then
+          return nil, bad
+        end
+      else
+        local item_blob = false
+        local r = node and schema.resolve(node, registry)
+        if r and r.t == "list" then
+          item_blob = is_blob(r.item)
+        end
+        local all_binary = schema.is_array_value(value) and #value > 0
+        if all_binary then
+          for i = 1, #value do
+            if not binary(value[i], item_blob) then
+              all_binary = false
+              break
+            end
+          end
+        end
+        if all_binary then
+          for i = 1, #value do
+            local bad = add_binary(name, value[i])
+            if bad then
+              return nil, bad
+            end
+          end
+        elseif type(value) == "table" then
+          local text, err = json.encode(value)
+          if not text then
+            return nil,
+              invalid(
+                nil,
+                "cannot encode the multipart part "
+                  .. name
+                  .. " of "
+                  .. tostring(op.name)
+                  .. ": "
+                  .. tostring(err.message)
+              )
+          end
+          parts[#parts + 1] = { name = name, value = text }
+        else
+          parts[#parts + 1] = { name = name, value = url.text(value) }
+        end
+      end
+    end
+  end
+  return parts
+end
+
 --- request.build(args) -> request | nil, err
 function request.build(args)
   if type(args) ~= "table" then
@@ -218,9 +347,6 @@ function request.build(args)
   end
   if node.t ~= "struct" then
     return nil, sdk_error(op, "input schema must be a struct, got " .. tostring(node.t))
-  end
-  if op.content_type == "multipart" then
-    return nil, sdk_error(op, "multipart request bodies are not supported by distilled-lua yet")
   end
   local plan = schema.plan(node)
 
@@ -263,6 +389,7 @@ function request.build(args)
   local map_member_header = args.map_member_header
   local query = url.query()
   local body, body_order, body_keys = {}, {}, 0
+  local body_nodes = {} -- wire name -> member schema (multipart: which strings are bytes)
   local has_body_members = plan.has_body_members
   local raw_body, raw_member
 
@@ -315,6 +442,7 @@ function request.build(args)
         if body[wire] == nil then
           body_order[#body_order + 1] = wire
         end
+        body_nodes[wire] = m.schema
         if m.string_encoded then
           body[wire] = keys.string_encode(value)
         else
@@ -364,6 +492,22 @@ function request.build(args)
         )
     end
     return text
+  end
+
+  if op.content_type == "multipart" then
+    local parts, perr =
+      multipart_parts(op, body, body_order, body_nodes, raw_body, raw_member, registry)
+    if not parts then
+      return nil, perr
+    end
+    local random = args.random or (type(args.host) == "table" and args.host.random) or nil
+    local encoded, eerr = multipart.encode(parts, { random = random })
+    if not encoded then
+      return nil, eerr
+    end
+    out.body = encoded.body
+    headers["content-type"] = encoded.content_type
+    return out
   end
 
   if op.content_type == "form-urlencoded" and bodied then

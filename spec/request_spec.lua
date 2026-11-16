@@ -502,18 +502,31 @@ t.describe("request: bodies", function()
     t.eq(r.headers["content-type"], "application/x-www-form-urlencoded")
   end)
 
-  t.it("multipart operations fail with SdkError naming the operation", function()
+  -- task 08: multipart is encoded now (full cases in spec/multipart_spec.lua)
+  t.it("multipart operations send a multipart/form-data body", function()
     local o = op({
       name = "CreateDeployment",
       method = "POST",
       uri = "/d",
       content_type = "multipart",
-      input = S.struct({ members = {} }),
+      input = S.struct({ members = { m({ name = "environment", schema = S.string }) } }),
     })
-    local r, err = build(o, {})
-    t.fails_with("SdkError", r, err)
-    t.match(err.message, "CreateDeployment", true)
-    t.match(err.message, "multipart", true)
+    local r, err = build(
+      o,
+      { environment = "{}" },
+      { random = require("distilled.testing").random(1) }
+    )
+    t.eq(err, nil)
+    local boundary = require("distilled.multipart").boundary(require("distilled.testing").random(1))
+    t.eq(r.headers["content-type"], "multipart/form-data; boundary=" .. boundary)
+    t.eq(
+      r.body,
+      "--"
+        .. boundary
+        .. '\r\nContent-Disposition: form-data; name="environment"\r\n\r\n{}\r\n--'
+        .. boundary
+        .. "--\r\n"
+    )
   end)
 end)
 

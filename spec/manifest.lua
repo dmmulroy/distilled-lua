@@ -18,6 +18,7 @@ return {
   "init_spec.lua",
   "json_spec.lua",
   "keys_spec.lua",
+  "multipart_spec.lua",
   "neon_client_spec.lua",
   "operation_spec.lua",
   "otlp_http_spec.lua",
