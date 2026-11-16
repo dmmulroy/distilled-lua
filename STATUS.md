@@ -387,7 +387,25 @@ neon` ok (177/178 operations build; the multipart one is acknowledged, see below
 
 ## 07 conformance
 
-(not started)
+**In progress → see `tasks/07-conformance.done.md` when it exists.**
+
+- `dl conform neon`: members 178, requests 904, responses 977, flows 36; 0 mismatches,
+  6 intended differences (listed in `verify/features/conformance.md`, normalised in
+  `verify/conform/intended.lua`). `--replay` runs lua, luajit and rex from the committed
+  dumps; `spec/conform_replay_spec.lua` does the same inside `dl test`.
+- `dl live <provider> <op>`: GET only unless `--write`; exit 3 (skipped) on ConfigError.
+- `distilled.host.popen` (new): popen_curl + `popen_curl.sleep` (shell sleep, in the
+  popen_curl module because it is the only core file allowed io.popen) + os.time.
+- `distilled.check` now raises at level 0 (plain message, no file:line), orchestrator note.
+- Docs: README.md, docs/{usage,rex,generating,tracing}.md, examples/*, verify/SKILL.md.
+
+### Notes for others
+
+- Case inputs are JSON with markers: `{ "$secret": v }`, `{ "$bytes_b64": b }`,
+  `{ "$file": { b64, filename, content_type } }`.
+- Node scripts need `node --conditions=bun --experimental-transform-types`.
+- Distilled's `retry-after.ts` uses `Date.now()`, its asctime parsing depends on the local
+  time zone (recorded as an intended difference).
 
 ## 08 multipart
 
