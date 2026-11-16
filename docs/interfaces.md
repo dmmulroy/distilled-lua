@@ -271,6 +271,15 @@ client:with{ ... } -> client      -- shallow override; shares budget and credent
 client:close()
 ```
 
+Notes from task 04 (see `STATUS.md` section 04 for the full list):
+
+- `protocol.call` returns `value, nil, meta` or `nil, err, meta` with
+  `meta = { status, headers }`; the `link` paginator reads the headers from it.
+- A secret option whose environment fallback is unset counts as absent.
+- Provider options cannot reuse the names of common client options.
+- The tracer has `tracer:attach(span)` / `tracer:detach(span)` for spans that outlive one
+  call (a pagination traversal).
+
 ## Test harness (`spec/harness.lua`)
 
 ```lua
