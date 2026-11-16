@@ -31,5 +31,5 @@ print(err)            -- never shows the key
   instead of writing `{}`. Unwrap at the point of use.
 - Secrets are read-only (`s.x = 1` raises) and compare by identity: two wraps of the same
   string are different values.
-- `string.format("%s", s)` calls `tostring` on 5.2+ but raises on 5.1/luajit; use
-  `tostring(s)`.
+- `string.format("%s", s)` gives `<redacted>` on lua 5.5 and luajit but `table: 0x...` in
+  gopher-lua, which ignores `__tostring` there (no leak either way). Use `tostring(s)`.
