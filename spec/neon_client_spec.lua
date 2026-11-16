@@ -281,6 +281,45 @@ t.describe("neon client: bodies, secrets and raw outputs", function()
   end)
 end)
 
+t.describe("neon client: spans from the telemetry traits", function()
+  -- neon.ts TELEMETRY { system, prefix "Neon", service "Neon", labels "neon" } and
+  -- span: "GetProject"; the model's trait names Neon.GetProject, Neon/GetProject
+  t.it("get_project's operation span carries Distilled's names and attributes", function()
+    local trace = require("distilled.trace")
+    local memory = trace.exporters.memory()
+    local c = client({
+      { status = 200, headers = { ["x-request-id"] = "req-1" }, body = project_body("p1") },
+    }, { tracing = { level = "operation", exporter = memory } })
+    local _, err = c:get_project({ project_id = "p1" })
+    t.eq(err, nil)
+    t.eq(#memory.spans, 1)
+    local span = memory.spans[1]
+    t.eq(span.name, "Neon.GetProject")
+    t.eq(span.kind, "client")
+    local a = span.attributes
+    t.eq(a["rpc.system.name"], "neon-api")
+    t.eq(a["rpc.method"], "Neon/GetProject")
+    t.eq(a["url.template"], "/projects/{project_id}")
+    t.eq(a["neon.project_id"], "p1")
+    t.eq(a["http.request.method"], "GET")
+    t.eq(a["http.response.status_code"], 200)
+    t.same(a["http.response.header.x-request-id"], { "req-1" })
+  end)
+
+  t.it("a failed call's span records the error tag and the error its trace id", function()
+    local trace = require("distilled.trace")
+    local memory = trace.exporters.memory()
+    local c = client(
+      { { status = 404, body = { message = "gone" } } },
+      { tracing = { level = "operation", exporter = memory } }
+    )
+    local _, err = c:get_project({ project_id = "p1" })
+    t.eq(err.tag, "NotFound")
+    t.eq(memory.spans[1].attributes["error.type"], "NotFound")
+    t.eq(err.trace_id, memory.spans[1].trace_id)
+  end)
+end)
+
 t.describe("neon client: configuration", function()
   t.it("base_url overrides the default", function()
     local c, host = client(
