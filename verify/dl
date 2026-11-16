@@ -382,6 +382,228 @@ cmd_serve() {
 }
 
 # ----------------------------------------------------------------------------------
+# rex (task 05): run a script or an action through `rex do` with this repo on the path
+# ----------------------------------------------------------------------------------
+
+# lua_path: package.path for this repo, through LUA_PATH (lua, luajit and gopher-lua read
+# it; ";;" keeps the default path), so nothing under ~/.config/rex is touched
+lua_path() {
+  printf '%s' "$ROOT/lua/?.lua;$ROOT/lua/?/init.lua;$ROOT/?.lua;;"
+}
+
+cmd_rex() {
+  serve=0
+  if [ "${1:-}" = "--serve" ]; then
+    serve=1
+    shift
+  fi
+  [ $# -gt 0 ] || die "usage: dl rex [--serve] <script.lua> [--action NAME] [key=value ...]"
+  script=$1
+  shift
+  [ -f "$script" ] || die "no such script: $script"
+  LUA_PATH=$(lua_path)
+  export LUA_PATH
+  if [ "$serve" -eq 1 ]; then
+    serve_with rex do "$(abs_path "$script")" "$@"
+  else
+    rex do "$(abs_path "$script")" "$@"
+  fi
+  exit $?
+}
+
+# ----------------------------------------------------------------------------------
+# canary (task 05): run a script with a fake key and look for the key everywhere
+# ----------------------------------------------------------------------------------
+
+# canary_inner RUNTIME SCRIPT WORK: runs under serve_with (DL_SERVE_URL is set)
+canary_inner() {
+  rt=$1
+  script=$2
+  work=$3
+  (
+    while :; do
+      ps -axww -o pid=,command= >>"$work/ps.txt" 2>/dev/null
+      sleep 0.05
+    done
+  ) &
+  sampler=$!
+  case $rt in
+    lua | luajit) (cd "$ROOT" && "$rt" "$script") >"$work/stdout.txt" 2>"$work/stderr.txt" ;;
+    rex) (cd "$ROOT" && rex do "$script") >"$work/stdout.txt" 2>"$work/stderr.txt" ;;
+  esac
+  code=$?
+  kill "$sampler" 2>/dev/null
+  wait "$sampler" 2>/dev/null
+  curl -q -s "$DL_SERVE_URL/_dl/requests" >"$work/server.json"
+  return $code
+}
+
+# canary_check RUNTIME WORK SCRIPT_EXIT: prints findings, returns 1 when anything is wrong
+canary_check() {
+  rt=$1
+  work=$2
+  script_code=$3
+  bad=0
+  for f in stdout.txt stderr.txt trace.jsonl ps.txt; do
+    [ -f "$work/$f" ] || continue
+    if lines=$(grep -n -F -- "$DL_CANARY_KEY" "$work/$f" | cut -d: -f1 | head -n 5 | tr '\n' ' ') && [ -n "$lines" ]; then
+      case $f in
+        ps.txt) say "FAIL canary $rt: key in a process command line (ps sample lines $lines)" ;;
+        trace.jsonl) say "FAIL canary $rt: key in the trace file (lines $lines)" ;;
+        *) say "FAIL canary $rt: key in $f (lines $lines)" ;;
+      esac
+      bad=1
+    fi
+  done
+  left=$(ls -A "$work/tmp")
+  if [ -n "$left" ]; then
+    say "FAIL canary $rt: temp files left behind: $(printf '%s' "$left" | tr '\n' ' ')"
+    if grep -r -l -F -- "$DL_CANARY_KEY" "$work/tmp" >/dev/null 2>&1; then
+      say "FAIL canary $rt: key in a leftover temp file"
+    fi
+    bad=1
+  fi
+  if [ "$script_code" -ne 0 ]; then
+    say "FAIL canary $rt: the script exited $script_code; stderr:"
+    sed -n '1,10p' "$work/stderr.txt" | sed "s/$DL_CANARY_KEY/<CANARY>/g"
+    bad=1
+  fi
+  if [ ! -s "$work/trace.jsonl" ]; then
+    say "FAIL canary $rt: no trace was written to DL_CANARY_TRACE (the check needs debug tracing on)"
+    bad=1
+  fi
+  if ! grep -q -E 'curl -q --config|dd bs=1 count=' "$work/ps.txt" 2>/dev/null; then
+    say "FAIL canary $rt: no curl process in the ps samples; the script needs a slow request (canary.SLOW_PATH)"
+    bad=1
+  fi
+  # the positive control: the key reached the server, in an authorization header
+  if ! python3 - "$work/server.json" <<'PY'; then
+import json, os, sys
+key = os.environ["DL_CANARY_KEY"]
+reqs = json.load(open(sys.argv[1]))
+sys.exit(0 if any(key in (r["headers"].get("authorization") or "") for r in reqs) else 1)
+PY
+    say "FAIL canary $rt: the key never reached dl serve in an authorization header (the run proves nothing)"
+    bad=1
+  fi
+  if [ "$bad" -eq 0 ]; then
+    say "ok   canary $rt: key absent from stdout, stderr, trace ($(wc -l <"$work/trace.jsonl" | tr -d ' ') lines), $(grep -c -E 'curl -q --config|dd bs=1 count=' "$work/ps.txt") curl ps entries; reached the server"
+  fi
+  return $bad
+}
+
+cmd_canary() {
+  runtimes=$RUNTIMES
+  script=""
+  keep=0
+  while [ $# -gt 0 ]; do
+    case $1 in
+      --runtime)
+        [ $# -ge 2 ] || die "--runtime needs lua, luajit or rex"
+        runtimes=$2
+        shift 2
+        ;;
+      --runtime=*)
+        runtimes=${1#--runtime=}
+        shift
+        ;;
+      --keep)
+        keep=1
+        shift
+        ;;
+      -*) die "unknown option $1" ;;
+      *)
+        script=$1
+        shift
+        ;;
+    esac
+  done
+  [ -n "$script" ] || die "usage: dl canary <script.lua> [--runtime R] [--keep]"
+  [ -f "$script" ] || die "no such script: $script"
+  script=$(abs_path "$script")
+  DL_CANARY_KEY="sk-CANARY-$(od -An -N12 -tx1 /dev/urandom | tr -d ' \n')"
+  LUA_PATH=$(lua_path)
+  export DL_CANARY_KEY LUA_PATH
+  status=0
+  for rt in $runtimes; do
+    case $rt in lua | luajit | rex) ;; *) die "unknown runtime $rt" ;; esac
+    work=$(mktemp -d "${TMPDIR:-/tmp}/dl-canary.XXXXXX") || die "canary: mktemp failed"
+    mkdir "$work/tmp"
+    DL_CANARY_TRACE="$work/trace.jsonl"
+    export DL_CANARY_TRACE
+    # temp files the run creates land here, so leftovers can be found
+    (
+      TMPDIR="$work/tmp/"
+      export TMPDIR
+      serve_with canary_inner "$rt" "$script" "$work"
+    )
+    code=$?
+    canary_check "$rt" "$work" "$code" || status=1
+    if [ "$keep" -eq 1 ]; then say "     kept $work"; else rm -rf "$work"; fi
+  done
+  exit $status
+}
+
+# ----------------------------------------------------------------------------------
+# jaeger (task 05): Jaeger all-in-one in Docker, OTLP HTTP on 4318, UI/API on 16686
+# ----------------------------------------------------------------------------------
+
+JAEGER_NAME=dl-jaeger
+JAEGER_IMAGE=${DL_JAEGER_IMAGE:-jaegertracing/all-in-one:latest}
+
+jaeger_docker_ok() {
+  if ! command -v docker >/dev/null 2>&1; then
+    say "dl jaeger: skipped: docker is not installed"
+    return 1
+  fi
+  if ! docker info >/dev/null 2>&1; then
+    say "dl jaeger: skipped: the Docker daemon is not running (dl does not start it)"
+    return 1
+  fi
+}
+
+cmd_jaeger() {
+  sub=${1:-help}
+  [ $# -gt 0 ] && shift
+  case $sub in
+    url)
+      say "otlp http://127.0.0.1:4318   ui/api http://127.0.0.1:16686"
+      ;;
+    start)
+      jaeger_docker_ok || exit 3
+      if [ -n "$(docker ps -q -f "name=^$JAEGER_NAME\$")" ]; then
+        say "dl jaeger: already running"
+      else
+        docker rm -f "$JAEGER_NAME" >/dev/null 2>&1
+        docker run -d --name "$JAEGER_NAME" -e COLLECTOR_OTLP_ENABLED=true \
+          -p 127.0.0.1:4318:4318 -p 127.0.0.1:16686:16686 "$JAEGER_IMAGE" >/dev/null || die "jaeger: docker run failed"
+      fi
+      i=0
+      until curl -q -s -o /dev/null "http://127.0.0.1:16686/api/services"; do
+        i=$((i + 1))
+        [ "$i" -lt 100 ] || die "jaeger: the query API did not come up"
+        sleep 0.2
+      done
+      cmd_jaeger url
+      ;;
+    stop)
+      jaeger_docker_ok || exit 3
+      docker rm -f "$JAEGER_NAME" >/dev/null 2>&1
+      say "dl jaeger: stopped"
+      ;;
+    check)
+      # export one trace through otlp_http + popen_curl, then find it in Jaeger's query API
+      jaeger_docker_ok || exit 3
+      LUA_PATH=$(lua_path)
+      export LUA_PATH
+      lua "$LIB/jaeger_check.lua"
+      exit $?
+      ;;
+    *) die "usage: dl jaeger start | stop | url | check" ;;
+  esac
+}
+
+# ----------------------------------------------------------------------------------
 # help
 # ----------------------------------------------------------------------------------
 
@@ -404,11 +626,21 @@ verify/dl: distilled-lua verification driver
   dl trace --file <path>    print the span tree of an OTLP/JSON lines file
   dl expect <script>        as trace, then run the function the script returns with
                             expect(spans); exit 1 when an assertion fails
+  dl serve start|stop|port|url   fixture HTTP server (verify/lib/serve.py) on 127.0.0.1
+  dl serve run <cmd...>     run cmd with a private server (DL_SERVE_URL, DL_SERVE_PORT)
+  dl rex [--serve] <script> [--action NAME] [k=v ...]
+                            rex do with this repo on LUA_PATH (no ~/.config/rex change);
+                            --serve wraps it in dl serve run
+  dl canary <script>        run with a fake key (DL_CANARY_KEY) and debug tracing
+                            (DL_CANARY_TRACE); fail if the key shows up in stdout, stderr,
+                            the trace, temp files or ps samples, or never reaches the server
+      --runtime R           lua | luajit | rex (default: all three)   --keep: keep the files
+  dl jaeger start|stop|url|check   Jaeger all-in-one in Docker (OTLP HTTP 4318, UI 16686);
+                            check exports one trace and finds it in the query API.
+                            Exit 3 (skipped) when Docker is not running.
   dl help                   this screen
 
   not implemented yet (exit 2):
-  dl serve                  task 05         dl rex <script>         task 05
-  dl canary                 task 05         dl jaeger               task 05
   dl gen-diff <provider>    task 06         dl conform <provider>   later task
   dl live <provider> <op>   later task
 EOF
@@ -430,10 +662,10 @@ case $cmd in
   conform) stub conform "a later task (plan build step 7)" ;;
   gen-diff) stub gen-diff "task 06" ;;
   serve) cmd_serve "$@" ;;
-  rex) stub rex "task 05" ;;
+  rex) cmd_rex "$@" ;;
   live) stub live "a later task (plan build step 8)" ;;
-  canary) stub canary "task 05" ;;
-  jaeger) stub jaeger "task 05" ;;
+  canary) cmd_canary "$@" ;;
+  jaeger) cmd_jaeger "$@" ;;
   *)
     say "dl: unknown command $cmd"
     cmd_help

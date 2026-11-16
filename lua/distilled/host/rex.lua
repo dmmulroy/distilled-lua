@@ -8,7 +8,9 @@
 -- * now: os.clock, which is wall time in gopher-lua (CPU time elsewhere);
 -- * sleep: rex.sleep in scripts; in the configuration file rex.sleep is nil, and
 --   rex.exec{ "sleep", s } waits while letting the server handle other work;
--- * epoch: os.time (whole seconds; the tracer adds sub-second precision from now).
+-- * epoch: os.time (whole seconds; the tracer adds sub-second precision from now);
+-- * random is left to distilled.host's default: math.random starts from a fixed seed
+--   in some runtimes, which would repeat trace ids between runs.
 local exec_curl = require("distilled.transport.exec_curl")
 local compat = require("distilled.compat")
 
@@ -56,7 +58,6 @@ return function(opts)
     sleep = sleep,
     now = os.clock,
     epoch = os.time,
-    random = math.random,
     getenv = os.getenv,
     name = "rex",
   }
