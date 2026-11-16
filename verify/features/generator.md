@@ -72,9 +72,13 @@ telemetry }` returns the files.
 - Lua 5.5 makes `for` loop variables constant: never assign to one.
 - gopher-lua's `table.concat` overflows past ~2,500 items: the generator uses
   `compat.concat` (the whole Neon generation runs in Rex in about a second).
-- `CreateProjectBranchFunctionDeployment` is multipart: generation fails unless the
-  provider lists `"multipart"` in `allow_unsupported`; Neon does, the method returns
-  SdkError, and gen-check counts it as "acknowledged unsupported".
+- `CreateProjectBranchFunctionDeployment` is multipart. Since task 08 `request.build`
+  encodes multipart bodies, so it generates and builds like any other operation (no
+  `allow_unsupported`; gen-check requires a `multipart/form-data; boundary=` content
+  type). `provider.UNSUPPORTED` is empty now, and a stale `allow_unsupported =
+  { "multipart" }` fails generation and says to remove it (`provider.CLOSED_GAPS`).
+  Its Blob members are typed `distilled.File|string` in `types.lua`, and the README lists
+  the multipart operations with `distilled.file{...}`.
 - `status_map` in a provider spec names tags; `rest.new` takes classes and replaces the
   whole map, so the generated `init.lua` copies `errors.STATUS_MAP` and sets entries.
 - `types.lua` is checked by reading only: lua-language-server is not installed.

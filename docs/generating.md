@@ -97,7 +97,7 @@ Optional keys:
 | `classify_error = "mod.name"` | a module returning `fn(info) -> err | nil`, consulted before the status map |
 | `protocol = "mod.name"` | escape hatch: a module returning `fn(service, spec) -> protocol` for an API that is not plain REST/JSON |
 | `naming.words`, `naming.operations` | extra mixed-case words for snake-casing; per-operation method names |
-| `allow_unsupported = { ... }` | emit operations using a feature the runtime does not support yet (they fail with `SdkError` when called) instead of failing generation |
+| `allow_unsupported = { ... }` | emit operations using a feature the runtime does not support yet (they fail with `SdkError` when called) instead of failing generation. No feature needs it today: multipart is supported since task 08, and listing `"multipart"` is an error |
 
 ## 5. Adding a provider
 
