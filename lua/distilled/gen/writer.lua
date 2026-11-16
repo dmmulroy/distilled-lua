@@ -184,16 +184,27 @@ function writer.client(plan)
     protocol_args.status_map = emit.raw("status_map")
   end
   if spec.error_envelope then
-    b:lines_of(emit.comment("The provider's error envelope (provider spec error_envelope)."))
+    b:lines_of(
+      emit.comment(
+        "The provider's error envelope (provider spec error_envelope): text or numbers only, "
+          .. "like Distilled's default envelope."
+      )
+    )
+    b:line("local function text_at(body, pointer)")
+    b:line("  local v = errors.at_pointer(body, pointer)")
+    b:line('  if type(v) == "string" or type(v) == "number" then')
+    b:line("    return v")
+    b:line("  end")
+    b:line("  return nil")
+    b:line("end")
+    b:blank()
     b:line("local function error_envelope(body)")
     b:line("  return {")
     if spec.error_envelope.code then
-      b:line("    code = errors.at_pointer(body, " .. emit.string(spec.error_envelope.code) .. "),")
+      b:line("    code = text_at(body, " .. emit.string(spec.error_envelope.code) .. "),")
     end
     if spec.error_envelope.message then
-      b:line(
-        "    message = errors.at_pointer(body, " .. emit.string(spec.error_envelope.message) .. "),"
-      )
+      b:line("    message = text_at(body, " .. emit.string(spec.error_envelope.message) .. "),")
     end
     b:line("  }")
     b:line("end")

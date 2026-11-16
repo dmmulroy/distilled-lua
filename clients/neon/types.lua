@@ -27,11 +27,11 @@
 
 ---A paginated traversal: call it in a `for` loop; it stops at the first failure and
 ---records it in `err`.
----@class distilled.Iterator<T>: { [integer]: T }
+---@class distilled.Iterator<T>
 ---@field err? distilled.Error
 ---@field collect fun(self: distilled.Iterator<T>, limit?: integer): T[]?, distilled.Error?
 ---@field close fun(self: distilled.Iterator<T>)
----@operator call: T
+---@operator call: T?
 
 ---@class neon.AcceptProjectTransferRequestRequest
 ---@field project_id string The Neon project ID

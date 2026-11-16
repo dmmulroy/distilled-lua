@@ -114,7 +114,35 @@ t.describe("gen: output files", function()
       seen.rest.error_envelope({ error = { code = "E1", message = "bad" } }),
       { code = "E1", message = "bad" }
     )
+    t.same(seen.rest.error_envelope({ error = { code = { nested = true } } }), {})
     t.truthy(seen.define.options.token.secret)
+  end)
+
+  t.it("the protocol escape hatch requires the provider's module instead of rest.new", function()
+    local f3 = assert(fx.generate({ provider = fx.provider({ protocol = "ex_extra.protocol" }) }))
+    t.no_match(f3["init.lua"], "distilled.protocol.rest", true)
+    local seen = {}
+    local svc = { ops = {} }
+    fx.load(f3["init.lua"], "ex", {
+      ["distilled.client"] = {
+        define = function(args)
+          seen.define = args
+          return {}
+        end,
+      },
+      ["ex.service"] = svc,
+      ["ex_extra.protocol"] = function(service, spec)
+        seen.service, seen.spec = service, spec
+        return { custom = true }
+      end,
+    })
+    t.eq(seen.service, svc)
+    t.same(seen.spec, {
+      unknown_tag = "UnknownExError",
+      parse_tag = "ExParseError",
+      base_url_option = "base_url",
+    })
+    t.same(seen.define.protocol, { custom = true })
   end)
 
   t.it("a status_map tag that is no error fails generation", function()
@@ -234,6 +262,43 @@ t.describe("gen: the CLI", function()
     out, code = run(bin .. " frobnicate")
     t.eq(code, 2)
     t.match(out, "unknown command frobnicate", true)
+  end)
+
+  t.it("every provider-spec variant of the output passes stylua --check", function()
+    local gen = require("distilled.gen")
+    local variants = {
+      plain = {},
+      hatch = { provider = fx.provider({ protocol = "ex_extra.protocol" }) },
+      full = {
+        provider = fx.provider({
+          auth = { kind = "header", from = "token", header = "X-Api-Key" },
+          error_envelope = { code = "/error/code", message = "/error/message" },
+          error_fields_at = "/error",
+          status_map = { [418] = "Conflict" },
+          classify_error = "ex_extra.classify",
+          naming = { members = "snake_case" },
+        }),
+      },
+      none = { provider = fx.provider({ auth = { kind = "none" } }), telemetry = false },
+      nulls = {
+        replace = {
+          {
+            '[{ "status": 404 }]',
+            '[{ "status": 404, "body": { "/error": null, "/code": 3, "/x": { "includes": "y" } } }]',
+          },
+        },
+      },
+    }
+    local dir = os.tmpname()
+    os.remove(dir)
+    for name, opts in pairs(variants) do
+      local files = assert(fx.generate(opts))
+      run("mkdir -p " .. dir .. "/" .. name .. "/ex")
+      assert(gen.write(files, dir .. "/" .. name .. "/ex"))
+    end
+    local out, code = run("stylua --check --config-path " .. root .. "/stylua.toml " .. dir)
+    t.eq(code, 0, out)
+    run("rm -rf " .. dir)
   end)
 
   t.it("vendor copies the runtime without gen/ and testing/", function()
