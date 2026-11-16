@@ -236,13 +236,17 @@ local function build(class, opts, shared)
         cells[name] = inherited
       else
         local source = opts[name]
+        local fallback = false
         if source == nil and spec.env then
+          -- a function source, so a rotated key is picked up on refresh
           source = credentials.from_env(spec.env)
+          fallback = true
         end
         if source == nil and spec.default ~= nil then
           source = spec.default
         end
         cells[name] = credentials.cell(source)
+        cells[name].env_fallback = fallback
       end
     end
   end
@@ -256,9 +260,8 @@ local function build(class, opts, shared)
         if cell.source ~= nil then
           local v, err = credentials.get(cell, host, name)
           if v == nil then
-            if err and err.tag == "ConfigError" and not spec.required then
-              v = nil
-            else
+            -- an unset env fallback is an absent option: required -> the error below
+            if not (cell.env_fallback and errors.is_tag(err, "ConfigError")) then
               return nil, err
             end
           end

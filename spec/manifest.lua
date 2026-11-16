@@ -2,7 +2,12 @@
 -- Rex (gopher-lua) has no io.popen, so spec/run.lua reads this list instead.
 return {
   "compat_spec.lua",
+  "credentials_spec.lua",
   "errors_spec.lua",
+  "gen_emit_spec.lua",
+  "gen_model_spec.lua",
+  "gen_naming_spec.lua",
+  "gen_provider_spec.lua",
   "harness_spec.lua",
   "init_spec.lua",
   "json_spec.lua",
