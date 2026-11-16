@@ -134,6 +134,16 @@ local function member_type(ctx, prefix, info, request_side, multipart_input)
   return t
 end
 
+-- A list item or map value: a sparse list or map (the nullable trait on the element)
+-- holds json.null too.
+local function element_type(ctx, prefix, mem, request_side)
+  local t = types.type_of(ctx, prefix, mem.target, request_side)
+  if mem.traits and mem.traits["com.distilled.openapi#nullable"] ~= nil then
+    t = t .. "|distilled.Null"
+  end
+  return t
+end
+
 local function needs_parens(t)
   return string.find(t, "|", 1, true) ~= nil
 end
@@ -189,7 +199,7 @@ function types.render(plan)
         b:line("---@field [string] any")
       end
     elseif def.type == "list" or def.type == "set" then
-      local item = types.type_of(ctx, prefix, def.member.target, request_side)
+      local item = element_type(ctx, prefix, def.member, request_side)
       if needs_parens(item) then
         item = "(" .. item .. ")"
       end
@@ -199,7 +209,7 @@ function types.render(plan)
         "---@alias "
           .. tname
           .. " { [string]: "
-          .. types.type_of(ctx, prefix, def.value.target, request_side)
+          .. element_type(ctx, prefix, def.value, request_side)
           .. " }"
       )
     elseif def.type == "enum" or def.type == "intEnum" then
