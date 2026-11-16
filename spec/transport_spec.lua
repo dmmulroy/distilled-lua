@@ -503,6 +503,27 @@ else
         t.no_match(tostring(e), SECRET, true)
       end)
 
+      t.it("follows redirects only when asked (follow_redirects = true)", function()
+        local follow = key == "popen" and popen_curl({ follow_redirects = true })
+          or exec_curl(REX and REX.exec or serve.popen_exec, { follow_redirects = true })
+        s.script("/" .. key .. "/redir", {
+          { status = 302, headers = { Location = "/_dl/echo/landed" }, body = "" },
+        })
+        local r = ok(follow({ method = "GET", url = url("/" .. key .. "/redir") }))
+        t.eq(r.status, 200)
+        t.eq(json.decode(r.body).path, "/_dl/echo/landed")
+      end)
+
+      t.it("a TLS failure (https to a plain HTTP port) is TransportError with err.tls", function()
+        local https = string.gsub(BASE, "^http:", "https:")
+        local e = t.fails_with(
+          "TransportError",
+          tr({ method = "GET", url = https .. "/_dl/echo", timeout = 5 })
+        )
+        t.eq(e.tls, true)
+        t.falsy(e.timeout)
+      end)
+
       t.it("a dropped connection is TransportError", function()
         s.script("/" .. key .. "/drop", { { drop = true } })
         local e =
