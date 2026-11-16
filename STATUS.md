@@ -387,7 +387,7 @@ neon` ok (177/178 operations build; the multipart one is acknowledged, see below
 
 ## 07 conformance
 
-**In progress → see `tasks/07-conformance.done.md` when it exists.**
+**Done.** See `tasks/07-conformance.done.md`.
 
 - `dl conform neon`: members 178, requests 904, responses 977, flows 36; 0 mismatches,
   6 intended differences (listed in `verify/features/conformance.md`, normalised in
