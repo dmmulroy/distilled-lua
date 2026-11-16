@@ -269,7 +269,27 @@ whenever a response arrived (success or failure): this is how `link` pagination 
 
 ## 06 generator
 
-(not started)
+**In progress.** Interim decisions other tasks can rely on (the generated service data):
+
+- `op.span` and `service.telemetry` are Distilled's compressed form (`codegen/generator.ts`
+  `telemetryLines` / `TELEMETRY`, read by core `telemetry.ts` `operationInfo`), keys in
+  snake_case: `service.telemetry = { system, response_headers = { { header, name,
+  transform } }, prefix = "Neon", service = "Neon", labels = "neon", label_names,
+  attributes, templates = false|nil, propagate = "w3c" }`; `op.span` is the op's model
+  name (`"GetProject"`) when everything else derives, else `{ op, name, method, kind,
+  template = false, attributes, input = { [member] = { rules } }, output }`. The runtime
+  derives: span name `<prefix>.<op>`, `rpc.method` `<service>/<op>`, `url.template` from
+  `op.uri` (before any `?`) unless `templates == false` or `span.template == false`, and
+  one attribute `<labels>.<snake_case(member)>` per label member (overridden by
+  `label_names[member]` and by `span.input[member]`; an empty rule list drops it).
+  With `--no-telemetry` neither field is emitted.
+- `op.retry` keys are snake_case of `distilled.retry#policy` (`max_attempts`, `base_ms`,
+  `throttling_base_ms`, `cap_ms`, `factor`, `long_poll`). Neon has none.
+- Generated error classes follow Distilled's `errorCategories` exactly: Neon's `NotFound`
+  (404) gets `BadRequestError`, not `NotFoundError` (the core built-in keeps
+  `NotFoundError`).
+- `CreateProjectBranchFunctionDeployment` is `content_type = "multipart"`, which
+  `request.build` refuses (SdkError). Proposed: multipart support in `request.lua`.
 
 ## 07 conformance
 
