@@ -10,6 +10,7 @@ return {
   "gen_model_spec.lua",
   "gen_naming_spec.lua",
   "gen_ops_spec.lua",
+  "gen_output_spec.lua",
   "gen_provider_spec.lua",
   "gen_shapes_spec.lua",
   "harness_spec.lua",

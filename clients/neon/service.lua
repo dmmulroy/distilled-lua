@@ -7010,8 +7010,8 @@ return {
     labels = "neon",
     propagate = "w3c",
     response_headers = {
-      { name = "http.response.header.x-request-id", header = "x-request-id", transform = "list" },
-      { name = "http.response.header.request-id", header = "request-id", transform = "list" },
+      { header = "x-request-id", name = "http.response.header.x-request-id", transform = "list" },
+      { header = "request-id", name = "http.response.header.request-id", transform = "list" },
     },
   },
 }

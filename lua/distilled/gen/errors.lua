@@ -6,6 +6,7 @@
 -- as the model has them; every `matches` regex is compiled with `distilled.regex` here, so
 -- a pattern the runtime cannot run fails generation instead of never matching.
 local emit = require("distilled.gen.emit")
+local json = require("distilled.json")
 local naming = require("distilled.gen.naming")
 
 local gen_errors = {}
@@ -157,7 +158,7 @@ local function check_matcher(ctx, where, m, problems)
           end
           if k == "body" and (type(x) == "number" or type(x) == "boolean") then
             t[key] = x
-          elseif k == "body" and x == ctx.model.null then
+          elseif k == "body" and x == json.null then
             t[key] = emit.raw("json.null")
             ctx.uses_json = true
           else

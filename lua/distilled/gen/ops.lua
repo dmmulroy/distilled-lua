@@ -5,6 +5,7 @@
 -- `distilled.retry#policy` reader (`retryPolicyOf`), and the telemetry compression
 -- (`telemetryRules`, `telemetryLines`, the TELEMETRY const), with snake_case keys.
 local emit = require("distilled.gen.emit")
+local json = require("distilled.json")
 local naming = require("distilled.gen.naming")
 local shapes = require("distilled.gen.shapes")
 
@@ -308,7 +309,7 @@ local RETRY_KEYS = {
 
 -- retryPolicyOf: known keys, whole numbers, factor >= 1, longPoll a boolean.
 local function retry_policy_of(ctx, value, where)
-  if type(value) ~= "table" or value == ctx.model.null then
+  if type(value) ~= "table" or value == json.null then
     return nil, where .. ": " .. T_RETRY .. " must be an object"
   end
   local out = {}
@@ -384,7 +385,7 @@ ops.telemetry_snake_case = tel_snake
 
 local function deep_copy_json(ctx, v)
   -- model values -> emit values: null becomes json.null, arrays become emit lists
-  if v == ctx.model.null then
+  if v == json.null then
     ctx.uses_json = true
     return emit.raw("json.null")
   end

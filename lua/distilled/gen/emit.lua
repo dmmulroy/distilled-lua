@@ -42,9 +42,10 @@ end
 emit.FIELD_ORDER = {
   -- schema nodes and members
   "t",
+  "op",
+  "header",
   "name",
   "tag",
-  "header",
   "key",
   "wire",
   "bind",
@@ -88,8 +89,12 @@ emit.FIELD_ORDER = {
   "throttling",
   "matchers",
   "fields",
+  -- error matchers
+  "status",
+  "message",
+  "body",
+  "headers",
   -- telemetry
-  "op",
   "system",
   "prefix",
   "service",
