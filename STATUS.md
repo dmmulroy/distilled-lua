@@ -68,3 +68,11 @@ One section per task. Edit only your own section.
   `distilled.errors` are exported too.
 - `scope:defer` on a closed scope runs the finalizer at once.
 
+
+## 02 trace
+
+(not started)
+
+## 03 wire
+
+(not started)

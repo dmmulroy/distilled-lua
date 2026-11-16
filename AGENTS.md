@@ -49,6 +49,22 @@ In Rex (gopher-lua): `rex.exec(argv, { stdin, timeout, cwd, env })` returns
 only; `rex.json` is lossy and must not be used by the library. A script's return value is
 printed as JSON. Rex reference: `curl -s https://www.superlogical.com/rex/docs/reference/lua.md`.
 
+### gopher-lua defects that library code must work around (found in task 01, each reproduced)
+
+- **Never use plain `pcall`.** A `pcall` that catches an error corrupts the upvalues of
+  closures in running frames. Use `compat.pcall` (built on `xpcall`); in specs `t.pcall`.
+- `error(msg, 2)` reports one level too shallow: use `compat.raise(msg, 2)`.
+- `table.concat` fails past about 2,500 items: use `compat.concat`.
+- The call stack is about 250 frames: **no recursion over data depth**. Walk values and
+  schemas with an explicit stack, or bound the depth and fail with a clear error.
+- `math.huge` is the largest finite double, not infinity (`1/0` is).
+- `tonumber` rejects `"1e5"` and large digit strings: parse wire numbers with `json.decode`.
+- Weak tables are never collected: a weak-keyed cache is a plain cache there. Only cache
+  on long-lived keys (schema nodes, classes), never on per-call values.
+- `string.format("%s", t)` ignores `__tostring`: call `tostring(t)` first.
+
+`STATUS.md` (section 01) has the full list and the `rex do` script facts. Read it.
+
 Do not restart the Rex server, do not edit anything under `~/.config/rex`, and do not touch
 other Rex sessions or panes.
 
