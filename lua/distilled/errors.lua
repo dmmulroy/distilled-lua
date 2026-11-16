@@ -160,7 +160,9 @@ function errors.is_tag(err, tag)
 end
 
 function errors.has_category(err, category)
-  return type(err) == "table" and type(err.categories) == "table" and err.categories[category] == true
+  return type(err) == "table"
+    and type(err.categories) == "table"
+    and err.categories[category] == true
 end
 
 -- Distilled's isThrottling.
@@ -217,7 +219,12 @@ builtin({
   retryable = true,
   fields = RETRY_FIELDS,
 })
-builtin({ tag = "BadGateway", categories = { "ServerError" }, retryable = true, fields = RETRY_FIELDS })
+builtin({
+  tag = "BadGateway",
+  categories = { "ServerError" },
+  retryable = true,
+  fields = RETRY_FIELDS,
+})
 builtin({
   tag = "ServiceUnavailable",
   categories = { "ServerError" },
@@ -255,8 +262,17 @@ errors.STATUS_MAP = {
 }
 
 -- RETRYABLE_HTTP_STATUSES and DEFAULT_ERROR_STATUSES from errors.ts.
-errors.RETRYABLE_STATUSES = { [408] = true, [423] = true, [429] = true, [500] = true, [502] = true, [503] = true, [504] = true }
-errors.DEFAULT_STATUSES = { [401] = true, [429] = true, [500] = true, [502] = true, [503] = true, [504] = true }
+errors.RETRYABLE_STATUSES = {
+  [408] = true,
+  [423] = true,
+  [429] = true,
+  [500] = true,
+  [502] = true,
+  [503] = true,
+  [504] = true,
+}
+errors.DEFAULT_STATUSES =
+  { [401] = true, [429] = true, [500] = true, [502] = true, [503] = true, [504] = true }
 
 ---------------------------------------------------------------------------------------
 -- Typed error matching (protocol-http.ts)
@@ -301,7 +317,11 @@ local function at_pointer(body, pointer)
   if pointer == "" then
     return body
   end
-  if string.sub(pointer, 1, 1) ~= "/" or string.find(pointer, "~[^01]") or string.find(pointer, "~$") then
+  if
+    string.sub(pointer, 1, 1) ~= "/"
+    or string.find(pointer, "~[^01]")
+    or string.find(pointer, "~$")
+  then
     return nil
   end
   local J = json()
@@ -445,7 +465,8 @@ function errors.match(classes, info)
             local specificity = matcher_specificity(m)
             -- strictly greater: ties keep the first declared class
             if not best or specificity > best.specificity then
-              best = { class = class, specificity = specificity, code = e.code, message = e.message }
+              best =
+                { class = class, specificity = specificity, code = e.code, message = e.message }
             end
           end
         end

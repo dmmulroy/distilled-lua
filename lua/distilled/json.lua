@@ -411,7 +411,8 @@ function json.decode(text)
         value = is_array and setmetatable({}, ARRAY_MT) or {}
         pos = np + 1
       else
-        local frame = { t = is_array and setmetatable({}, ARRAY_MT) or {}, is_array = is_array, n = 0 }
+        local frame =
+          { t = is_array and setmetatable({}, ARRAY_MT) or {}, is_array = is_array, n = 0 }
         depth = depth + 1
         stack[depth] = frame
         if is_array then
@@ -481,7 +482,8 @@ function json.decode(text)
         return decode_error(
           text,
           pos,
-          (frame.is_array and "expected ',' or ']', " or "expected ',' or '}', ") .. describe_char(text, pos)
+          (frame.is_array and "expected ',' or ']', " or "expected ',' or '}', ")
+            .. describe_char(text, pos)
         )
       end
     end

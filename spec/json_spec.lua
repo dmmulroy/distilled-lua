@@ -89,9 +89,11 @@ t.describe("json empty array vs empty object", function()
   end)
 
   t.it("marks a table that already has a metatable without replacing it", function()
-    local mt = { __index = function()
-      return "dflt"
-    end }
+    local mt = {
+      __index = function()
+        return "dflt"
+      end,
+    }
     local x = setmetatable({}, mt)
     json.array(x)
     t.eq(getmetatable(x), mt)
@@ -306,7 +308,7 @@ t.describe("json invalid input", function()
   end)
 
   t.it("accepts all four whitespace characters", function()
-    t.same(decode_ok(' \t\r\n[ 1 ,\n\t2 ] \n'), { 1, 2 })
+    t.same(decode_ok(" \t\r\n[ 1 ,\n\t2 ] \n"), { 1, 2 })
   end)
 end)
 

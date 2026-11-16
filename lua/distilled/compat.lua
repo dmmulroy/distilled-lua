@@ -13,6 +13,58 @@ end
 
 local loadstring_fn = rawget(_G, "loadstring")
 
+-- compat.pcall(fn, ...) -> true, ... | false, raised
+-- Use this instead of pcall. In gopher-lua (Rex), a pcall that catches an error closes
+-- every open upvalue of the frames still running, so a closure created earlier keeps
+-- writing to a stale copy of its variable (measured: `local n = 0; local function bump()
+-- n = n + 1 end; pcall(error, "x"); bump()` leaves n == 0). xpcall does not have the
+-- bug. 5.1's xpcall takes no arguments, so they travel in a closure.
+local function identity(raised)
+  return raised
+end
+
+function compat.pcall(fn, ...)
+  local n = select("#", ...)
+  if n == 0 then
+    return xpcall(fn, identity)
+  end
+  local args = { ... }
+  return xpcall(function()
+    return fn(compat.unpack(args, 1, n))
+  end, identity)
+end
+
+-- gopher-lua reports error(msg, level) at level - 1 (error(msg, 2) names the function
+-- that raised, not its caller). Measure once, so compat.raise names the right line.
+local LEVEL_SHIFT = 0
+do
+  local getinfo = debug and debug.getinfo
+  if getinfo then
+    -- error(_, 2) should name the caller; if the reported line falls inside thrower
+    -- itself, the runtime is off by one.
+    local function thrower()
+      error("probe", 2)
+    end
+    local ok, message = xpcall(thrower, identity)
+    local info = getinfo(thrower, "S")
+    local line = type(message) == "string" and tonumber(string.match(message, ":(%d+): probe$"))
+    if not ok and info and line and line >= info.linedefined and line <= info.lastlinedefined then
+      LEVEL_SHIFT = 1
+    end
+  end
+end
+compat.ERROR_LEVEL_SHIFT = LEVEL_SHIFT
+
+-- compat.raise(message, level): error(message, level) with gopher-lua's level fixed.
+-- Level 1 is the function calling compat.raise, 2 its caller, as with error().
+function compat.raise(message, level)
+  level = level or 1
+  if level <= 0 then
+    error(message, 0)
+  end
+  error(message, level + 1 + LEVEL_SHIFT)
+end
+
 -- compat.load(chunk_string, chunkname) -> fn | nil, message
 -- 5.5's `load` takes strings; 5.1's `load` takes only functions, so use loadstring there.
 function compat.load(chunk, chunkname)

@@ -14,6 +14,16 @@ local state = {
   file = "?",
 }
 
+-- pcall replacement: in gopher-lua a pcall that catches an error breaks closures'
+-- upvalues in the frames still running (see lua/distilled/compat.lua). xpcall is safe.
+local function identity(raised)
+  return raised
+end
+local function safe_pcall(fn)
+  return xpcall(fn, identity)
+end
+t.pcall = safe_pcall
+
 local FAILURE_MT = {
   __tostring = function(f)
     return f.message
@@ -143,11 +153,13 @@ end
 -- raw equality (==)
 function t.eq(actual, expected, label)
   if actual ~= expected then
-    fail((label and (label .. ": ") or "")
-      .. "values differ\n    expected: "
-      .. t.show(expected)
-      .. "\n    actual:   "
-      .. t.show(actual))
+    fail(
+      (label and (label .. ": ") or "")
+        .. "values differ\n    expected: "
+        .. t.show(expected)
+        .. "\n    actual:   "
+        .. t.show(actual)
+    )
   end
 end
 
@@ -202,17 +214,19 @@ end
 function t.same(actual, expected, label)
   local path, x, y = first_difference(actual, expected, "value", {})
   if path then
-    fail((label and (label .. ": ") or "")
-      .. "tables differ at "
-      .. path
-      .. "\n    expected: "
-      .. t.show(y)
-      .. "\n    actual:   "
-      .. t.show(x)
-      .. "\n  whole expected: "
-      .. t.show(expected)
-      .. "\n  whole actual:   "
-      .. t.show(actual))
+    fail(
+      (label and (label .. ": ") or "")
+        .. "tables differ at "
+        .. path
+        .. "\n    expected: "
+        .. t.show(y)
+        .. "\n    actual:   "
+        .. t.show(x)
+        .. "\n  whole expected: "
+        .. t.show(expected)
+        .. "\n  whole actual:   "
+        .. t.show(actual)
+    )
   end
 end
 
@@ -232,13 +246,19 @@ end
 -- Returns e so the caller can inspect it further.
 function t.err(v, e, tag)
   if v ~= nil then
-    fail("expected nil, err but the value was " .. t.show(v) .. (e ~= nil and (" (err " .. t.show(e) .. ")") or ""))
+    fail(
+      "expected nil, err but the value was "
+        .. t.show(v)
+        .. (e ~= nil and (" (err " .. t.show(e) .. ")") or "")
+    )
   end
   if type(e) ~= "table" or type(e.tag) ~= "string" then
     fail("expected an error table, got " .. t.show(e))
   end
   if tag ~= nil and e.tag ~= tag then
-    fail("expected error tag " .. t.show(tag) .. ", got " .. t.show(e.tag) .. ": " .. t.show(e.message))
+    fail(
+      "expected error tag " .. t.show(tag) .. ", got " .. t.show(e.tag) .. ": " .. t.show(e.message)
+    )
   end
   return e
 end
@@ -255,7 +275,9 @@ function t.match(s, pattern, plain)
     fail("expected a string to match " .. t.show(pattern) .. ", got " .. t.show(s))
   end
   if not string.find(s, pattern, 1, plain == true) then
-    fail("string does not match\n    pattern: " .. t.show(pattern) .. "\n    string:  " .. t.show(s))
+    fail(
+      "string does not match\n    pattern: " .. t.show(pattern) .. "\n    string:  " .. t.show(s)
+    )
   end
 end
 
@@ -268,14 +290,19 @@ end
 -- t.raises(fn [, pattern]) -> the raised value. Fails when fn returns normally, or when
 -- the raised message does not match the Lua pattern.
 function t.raises(fn, pattern)
-  local ok, raised = pcall(fn)
+  local ok, raised = safe_pcall(fn)
   if ok then
     fail("expected an error to be raised")
   end
   if pattern ~= nil then
     local text = tostring(raised)
     if not string.find(text, pattern) then
-      fail("raised error does not match\n    pattern: " .. t.show(pattern) .. "\n    raised:  " .. t.show(text))
+      fail(
+        "raised error does not match\n    pattern: "
+          .. t.show(pattern)
+          .. "\n    raised:  "
+          .. t.show(text)
+      )
     end
   end
   return raised
@@ -288,7 +315,7 @@ end
 function t.describe(name, fn)
   local names = state.names
   names[#names + 1] = name
-  local ok, raised = pcall(fn)
+  local ok, raised = safe_pcall(fn)
   names[#names] = nil
   if not ok then
     -- a describe body that raises is reported as one failing test
@@ -336,7 +363,9 @@ local function traceback(raised)
   end
   local text = tostring(raised)
   if debug and debug.traceback then
-    local ok, tb = pcall(debug.traceback, text, 2)
+    local ok, tb = xpcall(function()
+      return debug.traceback(text, 3)
+    end, identity)
     if ok and type(tb) == "string" then
       text = tb
     end

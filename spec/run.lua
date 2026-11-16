@@ -32,7 +32,13 @@ local function repo_root()
 end
 
 local ROOT = repo_root()
-package.path = ROOT .. "/lua/?.lua;" .. ROOT .. "/lua/?/init.lua;" .. ROOT .. "/?.lua;" .. package.path
+package.path = ROOT
+  .. "/lua/?.lua;"
+  .. ROOT
+  .. "/lua/?/init.lua;"
+  .. ROOT
+  .. "/?.lua;"
+  .. package.path
 
 local rex_api = rawget(_G, "rex")
 
@@ -58,9 +64,12 @@ end
 local t = require("spec.harness")
 t.root = ROOT
 
-local manifest_ok, manifest = pcall(dofile, ROOT .. "/spec/manifest.lua")
+local manifest_ok, manifest = t.pcall(function()
+  return dofile(ROOT .. "/spec/manifest.lua")
+end)
 if not manifest_ok or type(manifest) ~= "table" then
-  local message = "FAIL cannot load spec/manifest.lua (run verify/dl manifest): " .. tostring(manifest)
+  local message = "FAIL cannot load spec/manifest.lua (run verify/dl manifest): "
+    .. tostring(manifest)
   if rex_api then
     error(message, 0)
   end
@@ -73,11 +82,12 @@ if filter == "" then
   filter = nil
 end
 
-local passed, failed, skipped = 0, 0, 0
+-- counters live in a table: see compat.pcall for the gopher-lua upvalue bug
+local count = { passed = 0, failed = 0, skipped = 0 }
 local lines = {}
 
 local function report(file, name, failure)
-  failed = failed + 1
+  count.failed = count.failed + 1
   local where = failure.where and (" (" .. failure.where .. ")") or ""
   lines[#lines + 1] = "FAIL " .. file .. ": " .. name .. where
   lines[#lines + 1] = "  " .. string.gsub(tostring(failure.message), "\n", "\n  ")
@@ -92,7 +102,7 @@ for _, file in ipairs(manifest) do
       report(path, "(load)", { message = tostring(load_err) })
     end
   else
-    local ok, raised = pcall(chunk)
+    local ok, raised = t.pcall(chunk)
     local tests = t._take_tests()
     if not ok then
       if not filter or string.find(path, filter, 1, true) then
@@ -103,13 +113,13 @@ for _, file in ipairs(manifest) do
     for _, test in ipairs(tests) do
       if not filter or file_matches or string.find(test.name, filter, 1, true) then
         if test.pending then
-          skipped = skipped + 1
+          count.skipped = count.skipped + 1
         else
           local failure = t._run(test)
           if failure then
             report(path, test.name, failure)
           else
-            passed = passed + 1
+            count.passed = count.passed + 1
           end
         end
       end
@@ -121,12 +131,14 @@ for _, line in ipairs(lines) do
   print(line)
 end
 
+local passed, failed, skipped = count.passed, count.failed, count.skipped
 local summary
 if failed > 0 then
   summary = string.format("FAIL %d failed, %d passed", failed, passed)
 elseif passed == 0 then
   failed = 1
-  summary = "FAIL no tests ran" .. (filter and (" (filter " .. string.format("%q", filter) .. ")") or "")
+  summary = "FAIL no tests ran"
+    .. (filter and (" (filter " .. string.format("%q", filter) .. ")") or "")
 else
   summary = string.format("ok %d passed", passed)
 end

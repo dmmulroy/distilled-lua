@@ -1,0 +1,65 @@
+local t = require("spec.harness")
+local distilled = require("distilled")
+local json = require("distilled.json")
+local errors = require("distilled.errors")
+local secret = require("distilled.secret")
+
+t.describe("distilled (init)", function()
+  t.it("exposes null, secret and scope", function()
+    t.eq(distilled.null, json.null)
+    t.eq(distilled.secret, secret)
+    t.eq(secret.unwrap(distilled.secret("k")), "k")
+    t.eq(
+      distilled.scope(function()
+        return 5
+      end),
+      5
+    )
+  end)
+
+  t.it("check returns the value", function()
+    t.eq(distilled.check(42), 42)
+    t.eq(distilled.check("x", nil), "x")
+    local tbl = {}
+    t.eq(distilled.check(tbl), tbl)
+    t.eq(distilled.check(false), false)
+  end)
+
+  t.it("check raises tostring(err) as a string", function()
+    local err = errors.new("NotFound", { message = "no project p1" })
+    local ok, raised = t.pcall(function()
+      return distilled.check(nil, err)
+    end)
+    t.eq(ok, false)
+    t.eq(type(raised), "string")
+    t.match(raised, "NotFound: no project p1", true)
+  end)
+
+  t.it("check works directly on a call's results", function()
+    local function failing()
+      return nil, errors.new("TooManyRequests", { message = "slow down" })
+    end
+    local raised = t.raises(function()
+      distilled.check(failing())
+    end)
+    t.eq(type(raised), "string")
+    t.match(raised, "TooManyRequests: slow down", true)
+  end)
+
+  t.it("check raises for a string error and for no error", function()
+    t.raises(function()
+      distilled.check(nil, "plain failure")
+    end, "plain failure")
+    t.raises(function()
+      distilled.check(nil)
+    end, "no value and no error")
+  end)
+
+  t.it("check names the caller's line (level 2)", function()
+    local ok, raised = t.pcall(function()
+      distilled.check(nil, "where")
+    end)
+    t.eq(ok, false)
+    t.match(raised, "init_spec.lua:%d+: where")
+  end)
+end)
