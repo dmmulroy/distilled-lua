@@ -338,8 +338,9 @@ the end-to-end client runs over HTTP and `examples/rex_action.lua`.
 
 ## 06 generator
 
-**Done except the final proof run**, which waits for task 04's done file (the client
-parts already pass against task 04's interim API). See `verify/features/generator.md`.
+**Done.** See `tasks/06-generator.done.md` and `verify/features/generator.md`. Proof run
+after task 04's done file: doctor ok, `dl test` green in all three runtimes, `dl gen-diff
+neon` ok (177/178 operations build; the multipart one is acknowledged, see below).
 
 ### Decisions others should know (the generated service data)
 
