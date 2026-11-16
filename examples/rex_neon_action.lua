@@ -4,7 +4,7 @@
 -- `rex do` against the fixture server, with the vendored tree in /tmp/dlv/vendor:
 --
 --   lua bin/distilled-lua vendor --out /tmp/dlv/vendor
---   lua bin/distilled-lua generate --model models/neon.json --provider providers/neon.lua \
+--   lua bin/distilled-lua generate --model models/neon/neon.json --provider providers/neon.lua \
 --     --out /tmp/dlv/vendor/neon
 --   verify/dl serve run sh -c 'lua examples/serve_neon_fixture.lua &&
 --     DISTILLED_VENDOR=/tmp/dlv/vendor NEON_API_KEY=fake NEON_API_BASE_URL=$DL_SERVE_URL/neon \

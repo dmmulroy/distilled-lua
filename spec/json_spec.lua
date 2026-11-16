@@ -414,10 +414,10 @@ t.describe("json.encode tables", function()
 end)
 
 t.describe("json real model", function()
-  t.it("decodes models/neon.json and re-encodes it losslessly", function()
-    local f = io.open(t.root .. "/models/neon.json", "rb")
+  t.it("decodes models/neon/neon.json and re-encodes it losslessly", function()
+    local f = io.open(t.root .. "/models/neon/neon.json", "rb")
     if not f then
-      t.fail("models/neon.json is missing")
+      t.fail("models/neon/neon.json is missing")
     end
     local text = f:read("*a")
     f:close()
