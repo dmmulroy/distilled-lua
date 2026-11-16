@@ -13,7 +13,9 @@ says exactly what. All modules live under `lua/` and are required as `distilled.
 ## `distilled.compat`
 
 `compat.unpack`, `compat.load(chunk_string, chunkname)`, `compat.pack(...)` (returns a table
-with `n`). Anything else that differs between 5.1 and 5.5 goes here.
+with `n`), `compat.pcall(fn, ...)` (use instead of `pcall`, always), `compat.raise(msg, level)`,
+`compat.concat(list [, sep])`, `compat.normalize_number`, `compat.is_integer_subtype`.
+Anything else that differs between runtimes goes here.
 
 ## `distilled.json`
 
@@ -34,6 +36,8 @@ json.is_array(t)            -- true for marked tables
   infinities fail with an error. Strings are treated as UTF-8 bytes; control characters and
   `"` `\` are escaped; `\uXXXX` (with surrogate pairs) decodes to UTF-8.
 - Object key order when encoding is sorted, so output is deterministic.
+- Also: `json.is_object(t)`, `json.MAX_DEPTH` (1000). Decode errors are `ParseError` with
+  `err.position`; encode errors are `InvalidInput`. `json.encode` refuses secrets.
 
 ## `distilled.errors`
 
@@ -75,7 +79,12 @@ Built-in classes (same tags, categories and retry marks as `core/src/errors.ts`)
 `TransportError` (category `NetworkError`), `UnknownError`; and `errors.STATUS_MAP`.
 
 `response_info` for `errors.match`:
-`{ status, code, message, body, headers, fields_at }`. Matcher fields and specificity rules
+`{ status, code, message, body, headers, fields_at, errors = { { code, message }, ... },
+retry_after }`. A matched error's `code` is the wire code or `nil`. Instance field names
+(`status`, `code`, `message`, `body`, `headers`, `retry_after`, ...) are reserved: a class
+field with such a name is not filled from the body. Also exported: `errors.classes[tag]`,
+`errors.<Tag>` for built-ins, `errors.is_class`, `errors.at_pointer`,
+`errors.RETRYABLE_STATUSES`, `errors.DEFAULT_STATUSES`. Matcher fields and specificity rules
 are Distilled's (`trait.ts` `ErrorMatcher`, `protocol-http.ts` `matchTypedError`).
 A text matcher is `"exact"` or `{ includes = "...", matches = "<regex source>" }`, exactly
 as the model carries it. `matches` is a JavaScript regular expression; `distilled.regex`
