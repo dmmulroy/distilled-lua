@@ -206,6 +206,83 @@ cmd_fmt() {
 }
 
 # ----------------------------------------------------------------------------------
+# trace / expect (task 02): verify/lib/trace_run.lua does the work in the chosen runtime
+# ----------------------------------------------------------------------------------
+
+abs_path() { # abs_path PATH: absolute path of an existing file
+  case $1 in
+    /*) printf '%s\n' "$1" ;;
+    *) printf '%s/%s\n' "$(cd "$(dirname "$1")" && pwd)" "$(basename "$1")" ;;
+  esac
+}
+
+# trace_run RUNTIME MODE PATH LEVEL OUT
+trace_run() {
+  case $1 in
+    lua | luajit) "$1" "$LIB/trace_run.lua" "$2" "$3" "$4" "$5" ;;
+    rex) rex do "$LIB/trace_run.lua" "mode=$2" "path=$3" "level=$4" "out=$5" ;;
+    *) die "unknown runtime $1 (lua, luajit or rex)" ;;
+  esac
+}
+
+# cmd_trace_or_expect MODE ARGS...
+cmd_trace_or_expect() {
+  mode=$1
+  shift
+  rt=lua
+  level=debug
+  file=""
+  script=""
+  while [ $# -gt 0 ]; do
+    case $1 in
+      --runtime)
+        [ $# -ge 2 ] || die "--runtime needs lua, luajit or rex"
+        rt=$2
+        shift 2
+        ;;
+      --runtime=*)
+        rt=${1#--runtime=}
+        shift
+        ;;
+      --level)
+        [ $# -ge 2 ] || die "--level needs debug or operation"
+        level=$2
+        shift 2
+        ;;
+      --level=*)
+        level=${1#--level=}
+        shift
+        ;;
+      --file)
+        [ "$mode" = trace ] || die "--file is for dl trace"
+        [ $# -ge 2 ] || die "--file needs a path"
+        file=$2
+        shift 2
+        ;;
+      -*) die "unknown option $1" ;;
+      *)
+        [ -z "$script" ] || die "one script at a time"
+        script=$1
+        shift
+        ;;
+    esac
+  done
+  case $level in debug | operation) ;; *) die "--level must be debug or operation" ;; esac
+  case $rt in lua | luajit | rex) ;; *) die "unknown runtime $rt (lua, luajit or rex)" ;; esac
+  if [ -n "$file" ]; then
+    [ -f "$file" ] || die "no such file: $file"
+    trace_run "$rt" file "$(abs_path "$file")" "" ""
+    exit $?
+  fi
+  [ -n "$script" ] || die "usage: dl $mode <script.lua> [--level debug|operation] [--runtime lua|luajit|rex]"
+  [ -f "$script" ] || die "no such script: $script"
+  mkdir -p "$TMP/trace"
+  out="$TMP/trace/$(basename "$script" .lua)-$rt.jsonl"
+  trace_run "$rt" "$mode" "$(abs_path "$script")" "$level" "$out"
+  exit $?
+}
+
+# ----------------------------------------------------------------------------------
 # help
 # ----------------------------------------------------------------------------------
 
@@ -220,10 +297,16 @@ verify/dl: distilled-lua verification driver
   dl manifest               regenerate spec/manifest.lua (dl test does this too)
   dl fmt [--check]          format (or check) Lua with stylua
   dl json-bench [file]      time json.decode of a file (default models/neon.json)
+  dl trace <script>         run a script with a tracer (verify/lib/trace_env.lua), write
+                            OTLP/JSON lines to verify/tmp/trace/, print the span tree
+      --level L             debug (default) | operation
+      --runtime R           lua (default) | luajit | rex
+  dl trace --file <path>    print the span tree of an OTLP/JSON lines file
+  dl expect <script>        as trace, then run the function the script returns with
+                            expect(spans); exit 1 when an assertion fails
   dl help                   this screen
 
   not implemented yet (exit 2):
-  dl trace <script>         task 02         dl expect <script>      task 02
   dl serve                  task 05         dl rex <script>         task 05
   dl canary                 task 05         dl jaeger               task 05
   dl gen-diff <provider>    task 06         dl conform <provider>   later task
@@ -242,8 +325,8 @@ case $cmd in
   fmt) cmd_fmt "$@" ;;
   json-bench) cmd_json_bench "$@" ;;
   help | -h | --help) cmd_help ;;
-  trace) stub trace "task 02" ;;
-  expect) stub expect "task 02" ;;
+  trace) cmd_trace_or_expect trace "$@" ;;
+  expect) cmd_trace_or_expect expect "$@" ;;
   conform) stub conform "a later task (plan build step 7)" ;;
   gen-diff) stub gen-diff "task 06" ;;
   serve) stub serve "task 05" ;;

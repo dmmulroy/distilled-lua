@@ -8,4 +8,5 @@ return {
   "json_spec.lua",
   "scope_spec.lua",
   "secret_spec.lua",
+  "trace_tracer_spec.lua",
 }
