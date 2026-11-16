@@ -138,6 +138,24 @@ function lib.b64_decode(s)
   return compat.concat(out)
 end
 
+--- lib.b64_encode(bytes) -> base64 text (with padding)
+function lib.b64_encode(s)
+  local out = {}
+  for i = 1, #s, 3 do
+    local a, b, c = string.byte(s, i, i + 2)
+    local n = a * 65536 + (b or 0) * 256 + (c or 0)
+    local c1 = math.floor(n / 262144) % 64
+    local c2 = math.floor(n / 4096) % 64
+    local c3 = math.floor(n / 64) % 64
+    local c4 = n % 64
+    out[#out + 1] = string.sub(B64, c1 + 1, c1 + 1)
+      .. string.sub(B64, c2 + 1, c2 + 1)
+      .. (b and string.sub(B64, c3 + 1, c3 + 1) or "=")
+      .. (c and string.sub(B64, c4 + 1, c4 + 1) or "=")
+  end
+  return compat.concat(out)
+end
+
 --- lib.bytes_of(rec) -> the bytes of a { text } or { b64 } record, or nil
 function lib.bytes_of(rec)
   if rec == nil then
