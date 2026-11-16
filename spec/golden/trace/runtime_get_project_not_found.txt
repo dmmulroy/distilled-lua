@@ -1,0 +1,7 @@
+trace trace-1
+  Neon.GetProject client ERROR "no such project" error.type=NotFound http.request.method=GET http.response.status_code=404 neon.project_id=missing rpc.method=Neon/GetProject rpc.system.name=neon-api server.address=console.neon.tech server.port=443 url.template="/projects/{project_id}"
+    distilled.attempt ERROR "no such project" distilled.attempt=1 error.type=NotFound http.request.resend_count=0 http.response.status_code=404
+      distilled.credentials unset
+      distilled.request.build unset
+      distilled.transport unset http.request.method=GET http.response.status_code=404 server.address=console.neon.tech
+      distilled.decode ERROR "no such project" error.type=NotFound

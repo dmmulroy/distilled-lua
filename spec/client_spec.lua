@@ -383,3 +383,86 @@ t.describe("distilled exports", function()
     t.eq(distilled.nothing, nil)
   end)
 end)
+
+---------------------------------------------------------------------------------------
+-- golden traces of real calls (ids and times normalised by tree.golden)
+-- regenerate: DL_GOLDEN_WRITE=1 lua spec/run.lua client_spec
+---------------------------------------------------------------------------------------
+
+local tree = require("distilled.trace.tree")
+
+local function golden_run(level, responses, fn)
+  local host = testing.host({ responses = responses, seed = 11, epoch = 1700000000 })
+  local memory = trace.exporters.memory()
+  local c =
+    Neon.new({ host = host, api_key = "sk-golden", tracing = { level = level, exporter = memory } })
+  fn(c)
+  c:close()
+  return tree.golden(memory.spans)
+end
+
+local GOLDEN = {
+  {
+    file = "runtime_get_project_retry.txt",
+    render = function()
+      return golden_run("debug", { { status = 429 }, { status = 503 }, project() }, function(c)
+        must(c:get_project({ project_id = "p1" }))
+      end)
+    end,
+  },
+  {
+    file = "runtime_list_projects_items.txt",
+    render = function()
+      return golden_run("operation", {
+        { body = fixtures.bodies.page({ "a", "b" }, "c1") },
+        { body = fixtures.bodies.page({ "c" }) },
+      }, function(c)
+        must(c:list_projects_items({ limit = 2 }):collect())
+      end)
+    end,
+  },
+  {
+    file = "runtime_get_project_not_found.txt",
+    render = function()
+      return golden_run(
+        "debug",
+        { { status = 404, body = { message = "no such project" } } },
+        function(c)
+          c:get_project({ project_id = "missing" })
+        end
+      )
+    end,
+  },
+}
+
+local function read_file(path)
+  local f = io.open(path, "rb")
+  if not f then
+    return nil
+  end
+  local text = f:read("*a")
+  f:close()
+  return text
+end
+
+t.describe("client: golden traces", function()
+  local write = os.getenv and os.getenv("DL_GOLDEN_WRITE") == "1"
+  for _, case in ipairs(GOLDEN) do
+    t.it("matches spec/golden/trace/" .. case.file, function()
+      local path = t.root .. "/spec/golden/trace/" .. case.file
+      local actual = case.render()
+      if write then
+        local f = assert(io.open(path, "wb"))
+        f:write(actual)
+        f:close()
+      end
+      local expected = read_file(path)
+      if expected == nil then
+        t.fail(
+          "golden file missing: " .. path .. " (DL_GOLDEN_WRITE=1 lua spec/run.lua client_spec)"
+        )
+      end
+      t.eq(actual, expected)
+    end)
+  end
+end)

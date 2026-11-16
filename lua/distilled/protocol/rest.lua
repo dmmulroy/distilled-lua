@@ -607,6 +607,11 @@ function rest.new(opts)
       attempt.hint_ms = retry.bounded_hint_ms(headers)
     end
     span:set("http.response.status_code", res.status)
+    -- the debug attempt span gets the facts of its own try (telemetry.ts annotate)
+    local current = tracer:current()
+    if current and current ~= span then
+      current:set("http.response.status_code", res.status)
+    end
 
     local value, derr = tracer:with("distilled.decode", { debug = true }, function()
       return protocol.decode(ctx, op, res)

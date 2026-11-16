@@ -1,0 +1,19 @@
+trace trace-1
+  Neon.GetProject client unset distilled.attempts=3 distilled.retry.delay_ms=227 distilled.retry.errors=[TooManyRequests,ServiceUnavailable] http.request.method=GET http.response.status_code=200 neon.project_id=p1 rpc.method=Neon/GetProject rpc.system.name=neon-api server.address=console.neon.tech server.port=443 url.template="/projects/{project_id}"
+    distilled.attempt ERROR "HTTP 429" distilled.attempt=1 error.type=TooManyRequests http.request.resend_count=0 http.response.status_code=429
+      distilled.credentials unset
+      distilled.request.build unset
+      distilled.transport unset http.request.method=GET http.response.status_code=429 server.address=console.neon.tech
+      distilled.decode ERROR "HTTP 429" error.type=TooManyRequests
+    distilled.retry.backoff unset distilled.retry.attempt=1 distilled.retry.delay_ms=149 distilled.retry.reason=TooManyRequests
+    distilled.attempt ERROR "HTTP 503" distilled.attempt=2 error.type=ServiceUnavailable http.request.resend_count=1 http.response.status_code=503
+      distilled.credentials unset
+      distilled.request.build unset
+      distilled.transport unset http.request.method=GET http.response.status_code=503 server.address=console.neon.tech
+      distilled.decode ERROR "HTTP 503" error.type=ServiceUnavailable
+    distilled.retry.backoff unset distilled.retry.attempt=2 distilled.retry.delay_ms=77 distilled.retry.reason=ServiceUnavailable
+    distilled.attempt unset distilled.attempt=3 http.request.resend_count=2 http.response.status_code=200
+      distilled.credentials unset
+      distilled.request.build unset
+      distilled.transport unset http.request.method=GET http.response.status_code=200 server.address=console.neon.tech
+      distilled.decode unset

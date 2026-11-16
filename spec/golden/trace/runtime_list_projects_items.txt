@@ -1,0 +1,4 @@
+trace trace-1
+  distilled.pagination unset distilled.pagination.items=3 distilled.pagination.kind=items distilled.pagination.mode=cursor distilled.pagination.operation=Neon.ListProjects distilled.pagination.pages=2 distilled.pagination.stop=no_token rpc.method=Neon/ListProjects
+    Neon.ListProjects client unset http.request.method=GET http.response.status_code=200 rpc.method=Neon/ListProjects rpc.system.name=neon-api server.address=console.neon.tech server.port=443 url.template=/projects
+    Neon.ListProjects client unset http.request.method=GET http.response.status_code=200 rpc.method=Neon/ListProjects rpc.system.name=neon-api server.address=console.neon.tech server.port=443 url.template=/projects
