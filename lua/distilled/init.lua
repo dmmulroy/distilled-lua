@@ -35,4 +35,27 @@ function distilled.scope(fn)
   return Scope.with(fn)
 end
 
+-- Runtime modules (task 04), loaded on first use so require("distilled") stays cheap:
+-- distilled.Client, distilled.rest, distilled.retry, distilled.paginate,
+-- distilled.credentials, distilled.host.
+local LAZY = {
+  Client = "distilled.client",
+  rest = "distilled.protocol.rest",
+  retry = "distilled.retry",
+  paginate = "distilled.paginate",
+  credentials = "distilled.credentials",
+  host = "distilled.host",
+}
+setmetatable(distilled, {
+  __index = function(t, k)
+    local name = LAZY[k]
+    if name == nil then
+      return nil
+    end
+    local m = require(name)
+    rawset(t, k, m)
+    return m
+  end,
+})
+
 return distilled
