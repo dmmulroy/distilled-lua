@@ -78,7 +78,7 @@ t.describe("gen: output files", function()
         auth = { kind = "header", from = "token", header = "X-Api-Key" },
         error_envelope = { code = "/error/code", message = "/error/message" },
         error_fields_at = "/error",
-        status_map = { [418] = "Teapot" },
+        status_map = { [418] = "Conflict", [404] = "NotFound" },
         classify_error = "ex_extra.classify",
       }),
     }))
@@ -100,18 +100,26 @@ t.describe("gen: output files", function()
           return "header:" .. name .. ":" .. option
         end,
       },
-      ["ex.service"] = {},
+      ["ex.service"] = { errors = { NotFound = "service NotFound" } },
       ["ex_extra.classify"] = classify,
     })
     t.eq(seen.rest.headers, "header:x-api-key:token")
     t.eq(seen.rest.classify_error, classify)
     t.eq(seen.rest.error_fields_at, "/error")
-    t.same(seen.rest.status_map, { [418] = "Teapot" })
+    local errors = require("distilled.errors")
+    t.eq(seen.rest.status_map[418], errors.classes.Conflict)
+    t.eq(seen.rest.status_map[404], "service NotFound")
+    t.eq(seen.rest.status_map[500], errors.STATUS_MAP[500])
     t.same(
       seen.rest.error_envelope({ error = { code = "E1", message = "bad" } }),
       { code = "E1", message = "bad" }
     )
     t.truthy(seen.define.options.token.secret)
+  end)
+
+  t.it("a status_map tag that is no error fails generation", function()
+    local _, err = fx.generate({ provider = fx.provider({ status_map = { [418] = "Teapot" } }) })
+    t.match(err, "status_map[418] names Teapot, which is neither a built-in error", true)
   end)
 
   t.it("types.lua declares classes, aliases, and a documented method per operation", function()

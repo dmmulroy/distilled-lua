@@ -14,6 +14,8 @@
 -- Mixed-case words such as "OAuth" cannot be told apart from an acronym followed by a
 -- word ("OA" + "uth") by case alone, so they come from a word list: DEFAULT_WORDS, plus
 -- the provider's `naming.words`.
+local compat = require("distilled.compat")
+
 local naming = {}
 
 naming.DEFAULT_WORDS = { "OAuth", "IPv4", "IPv6", "GraphQL", "MySQL", "PostgreSQL", "macOS" }
@@ -120,7 +122,7 @@ function naming.snake_case(name, words)
   for k, w in ipairs(parts) do
     parts[k] = string.lower(w)
   end
-  return table.concat(parts, "_")
+  return compat.concat(parts, "_")
 end
 
 --- naming.words(extra) -> the default word list plus extra
@@ -196,7 +198,7 @@ function naming.operation_names(ops, opts)
   end
   if #problems > 0 then
     table.sort(problems)
-    return nil, table.concat(problems, "\n")
+    return nil, compat.concat(problems, "\n")
   end
   return result
 end

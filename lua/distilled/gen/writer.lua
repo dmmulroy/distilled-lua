@@ -1,6 +1,7 @@
 -- Writes the generated files from a plan (gen/init.lua): service.lua (shapes, errors and
 -- operations as data), init.lua (the client class), README.md. types.lua is
 -- gen/types.lua's.
+local compat = require("distilled.compat")
 local emit = require("distilled.gen.emit")
 local naming = require("distilled.gen.naming")
 local gen_errors = require("distilled.gen.errors")
@@ -148,24 +149,41 @@ function writer.client(plan)
     unknown_tag = spec.unknown_tag,
     parse_tag = spec.parse_tag,
     error_fields_at = spec.error_fields_at,
-    status_map = spec.status_map,
   }
   if auth.kind == "bearer" then
     protocol_args.headers = emit.call("rest.bearer", auth.from)
   elseif auth.kind == "header" then
-    if auth.prefix and auth.prefix ~= "" then
-      protocol_args.headers = emit.call("rest.header", auth.header, auth.from, auth.prefix)
-    else
-      protocol_args.headers = emit.call("rest.header", auth.header, auth.from)
-    end
+    protocol_args.headers = emit.call("rest.header", auth.header, auth.from)
   end
   if spec.classify_error then
     protocol_args.classify_error = emit.call("require", spec.classify_error)
   end
 
-  if spec.error_envelope then
+  if spec.error_envelope or spec.status_map then
     b:line('local errors = require("distilled.errors")')
     b:blank()
+  end
+  if spec.status_map then
+    -- rest.new takes the whole map: the built-in one with the provider's entries over it
+    b:lines_of(emit.comment("errors.STATUS_MAP with the provider spec's status_map over it."))
+    b:line("local status_map = {}")
+    b:line("for status, class in pairs(errors.STATUS_MAP) do")
+    b:line("  status_map[status] = class")
+    b:line("end")
+    local statuses = {}
+    for k in pairs(spec.status_map) do
+      statuses[#statuses + 1] = k
+    end
+    table.sort(statuses)
+    for _, status in ipairs(statuses) do
+      local tag = spec.status_map[status]
+      local where = plan.error_tags_set[tag] and "service.errors" or "errors.classes"
+      b:line("status_map[" .. status .. "] = " .. where .. "." .. tag)
+    end
+    b:blank()
+    protocol_args.status_map = emit.raw("status_map")
+  end
+  if spec.error_envelope then
     b:lines_of(emit.comment("The provider's error envelope (provider spec error_envelope)."))
     b:line("local function error_envelope(body)")
     b:line("  return {")
@@ -317,12 +335,12 @@ function writer.readme(plan)
   add("| Tag | Categories | Matchers |")
   add("| --- | --- | --- |")
   for _, d in ipairs(plan.errors) do
-    local cats = table.concat(d.categories.items, ", ")
+    local cats = compat.concat(d.categories.items, ", ")
     local matchers = d.matchers and emit.inline(d.matchers) or ""
     add("| `" .. d.tag .. "` | " .. cats .. " | `" .. md_escape(matchers) .. "` |")
   end
   add()
-  return table.concat(out, "\n")
+  return compat.concat(out, "\n")
 end
 
 return writer

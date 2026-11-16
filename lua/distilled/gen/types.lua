@@ -9,6 +9,7 @@
 -- Enum aliases list their values; members of request-reachable shapes accept any string
 -- too (`| string`), as Distilled re-opens enums on the request side so callers can send
 -- values newer than the model.
+local compat = require("distilled.compat")
 local emit = require("distilled.gen.emit")
 local naming = require("distilled.gen.naming")
 local shapes = require("distilled.gen.shapes")
@@ -175,13 +176,13 @@ function types.render(plan)
       for i, v in ipairs(shapes.enum_values(ctx, def)) do
         values[i] = type(v) == "string" and emit.string(v) or emit.number(v)
       end
-      b:line("---@alias " .. tname .. " " .. table.concat(values, "|"))
+      b:line("---@alias " .. tname .. " " .. compat.concat(values, "|"))
     elseif def.type == "union" then
       local arms = {}
       for i, target in ipairs(shapes.union_arms(ctx, id, def)) do
         arms[i] = types.type_of(ctx, prefix, target, request_side)
       end
-      b:line("---@alias " .. tname .. " " .. table.concat(arms, "|"))
+      b:line("---@alias " .. tname .. " " .. compat.concat(arms, "|"))
     else
       b:line("---@alias " .. tname .. " " .. (SCALAR_TYPE[ctx.model:scalar(id)] or "any"))
     end
@@ -199,7 +200,7 @@ function types.render(plan)
         list[i] = types.type_of(ctx, prefix, t, false)
       end
       list[#list + 1] = "string"
-      b:line("---@field body? " .. table.concat(list, "|"))
+      b:line("---@field body? " .. compat.concat(list, "|"))
     end
     b:blank()
   end
@@ -279,7 +280,7 @@ function types.render(plan)
       b:line("---")
       b:line("---`" .. op.http.method .. " " .. op.http.uri .. "`")
       if #errs > 0 then
-        b:line("---Errors: " .. table.concat(errs, ", ") .. ".")
+        b:line("---Errors: " .. compat.concat(errs, ", ") .. ".")
       end
       b:line(param)
       for _, r in ipairs(ret) do

@@ -11,6 +11,7 @@
 -- on one line when that line fits in 100 columns, otherwise one entry per line with a
 -- trailing comma. stylua keeps an expanded table expanded and an inline table that fits
 -- inline, so output written this way passes `stylua --check` unchanged.
+local compat = require("distilled.compat")
 local naming = require("distilled.gen.naming")
 
 local emit = {}
@@ -250,7 +251,7 @@ function inline(v)
     for i = 1, v.n do
       args[i] = inline(v.args[i])
     end
-    return v.fn .. "(" .. table.concat(args, ", ") .. ")"
+    return v.fn .. "(" .. compat.concat(args, ", ") .. ")"
   end
   local es = entries(v)
   if #es == 0 then
@@ -260,7 +261,7 @@ function inline(v)
   for i, e in ipairs(es) do
     parts[i] = e[1] .. inline(e[2])
   end
-  return "{ " .. table.concat(parts, ", ") .. " }"
+  return "{ " .. compat.concat(parts, ", ") .. " }"
 end
 emit.inline = inline
 
@@ -368,7 +369,7 @@ function Buffer:text()
   while out[#out] == "" do
     out[#out] = nil
   end
-  return table.concat(out, "\n") .. "\n"
+  return compat.concat(out, "\n") .. "\n"
 end
 
 return emit

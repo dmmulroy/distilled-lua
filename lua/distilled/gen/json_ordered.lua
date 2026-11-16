@@ -72,7 +72,7 @@ function M.decode(text)
       parts[#parts + 1] = sub(text, i, j - 1)
       if byte(text, j) == 34 then
         pos = j + 1
-        return table.concat(parts)
+        return compat.concat(parts)
       end
       local e = sub(text, j + 1, j + 1)
       if e == "u" then

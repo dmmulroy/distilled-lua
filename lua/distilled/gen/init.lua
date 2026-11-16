@@ -16,6 +16,7 @@
 -- errors), ops.lua (3: pagination; 6: operations), shapes.lua (5: shapes), types.lua and
 -- the README (7, our equivalent of the aliases and footer). Everything that can be
 -- checked is checked here; generation stops on the first batch of problems.
+local compat = require("distilled.compat")
 local model_mod = require("distilled.gen.model")
 local provider_mod = require("distilled.gen.provider")
 local naming = require("distilled.gen.naming")
@@ -36,7 +37,7 @@ local function fail(problems)
     return nil, problems
   end
   table.sort(problems)
-  return nil, table.concat(problems, "\n")
+  return nil, compat.concat(problems, "\n")
 end
 
 -- Resolve `--ops` names (method names or model names) to operations; unknown names fail
@@ -59,7 +60,7 @@ local function select_ops(m, method_names, wanted)
       problems[#problems + 1] = "unknown operation "
         .. name
         .. "; nearest: "
-        .. table.concat(naming.nearest(name, candidates, 3), ", ")
+        .. compat.concat(naming.nearest(name, candidates, 3), ", ")
     else
       chosen[op.id] = op
     end
@@ -317,6 +318,20 @@ function gen.plan(args)
       error_classes[#error_classes + 1] = d
     end
   end
+  local error_tags_set = {}
+  for _, d in ipairs(error_classes) do
+    error_tags_set[d.tag] = true
+  end
+  local builtin = require("distilled.errors").classes
+  for status, tag in pairs(spec.status_map or {}) do
+    if not error_tags_set[tag] and not builtin[tag] then
+      problems[#problems + 1] = "provider spec status_map["
+        .. status
+        .. "] names "
+        .. tag
+        .. ", which is neither a built-in error nor an error of the selected operations"
+    end
+  end
   if spec.unknown_tag == spec.parse_tag then
     problems[#problems + 1] = "provider spec: unknown_tag and parse_tag are the same"
   end
@@ -462,6 +477,7 @@ function gen.plan(args)
     telemetry = telemetry,
     ops = plan_ops,
     errors = error_classes,
+    error_tags_set = error_tags_set,
     nodes = nodes,
     registry_ids = registry_ids,
     service_telemetry = service_telemetry,

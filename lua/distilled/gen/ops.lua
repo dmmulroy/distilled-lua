@@ -4,6 +4,7 @@
 -- `assertPaginationFields` from pagination.ts), step 6 (operation config), the
 -- `distilled.retry#policy` reader (`retryPolicyOf`), and the telemetry compression
 -- (`telemetryRules`, `telemetryLines`, the TELEMETRY const), with snake_case keys.
+local compat = require("distilled.compat")
 local emit = require("distilled.gen.emit")
 local json = require("distilled.json")
 local naming = require("distilled.gen.naming")
@@ -173,7 +174,7 @@ local function lua_path(ctx, start_id, path)
       id = nil
     end
   end
-  return table.concat(out, ".")
+  return compat.concat(out, ".")
 end
 
 --- ops.pagination(ctx, op) -> trait (snake_case, Lua names) | nil | false, message
@@ -209,7 +210,7 @@ function ops.pagination(ctx, op)
         .. ": "
         .. mode
         .. " pagination needs "
-        .. table.concat(missing, ", ")
+        .. compat.concat(missing, ", ")
         .. " in smithy.api#paginated. Patch the operation's trait."
   end
   -- validatePaginated: the token must be an input member and the items root an output

@@ -13,13 +13,14 @@
 --     },
 --     auth = { kind = "bearer", from = "api_key", env = "NEON_API_KEY" },
 --          -- kind "bearer": authorization: Bearer <secret>
---          -- kind "header": <header>: <prefix><secret>   (header = "x-api-key", prefix = "")
+--          -- kind "header": <header>: <secret>   (header = "x-api-key")
 --          -- kind "none"
 --     unknown_tag = "UnknownNeonError",       -- tag of the error nothing else matched
 --     parse_tag = "NeonParseError",           -- tag of an unparseable success body
 --     error_envelope = { code = "/code", message = "/message" },   -- JSON pointers, optional
 --     error_fields_at = "/error",             -- where error class fields live, optional
---     status_map = { [418] = "Teapot" },      -- extra status -> tag entries, optional
+--     status_map = { [418] = "Teapot" },      -- status -> tag entries over errors.STATUS_MAP;
+--                                             -- a tag is a built-in error or a model error
 --     classify_error = "neon_extra.classify", -- module returning fn(info) -> err | nil
 --     protocol = "neon_extra.protocol",       -- escape hatch: module returning
 --                                             -- fn(service, spec) -> protocol
@@ -72,7 +73,7 @@ local function check_keys(where, t, allowed, problems)
         .. ": unknown key "
         .. tostring(k)
         .. " (allowed: "
-        .. table.concat(names, ", ")
+        .. compat.concat(names, ", ")
         .. ")"
     end
   end
@@ -156,12 +157,7 @@ function provider.validate(spec)
     p[#p + 1] = "provider spec: auth must be a table"
     auth = { kind = "none" }
   end
-  check_keys(
-    "provider spec auth",
-    auth,
-    { kind = true, from = true, env = true, header = true, prefix = true },
-    p
-  )
+  check_keys("provider spec auth", auth, { kind = true, from = true, env = true, header = true }, p)
   if auth.kind == "bearer" or auth.kind == "header" then
     if not naming.is_identifier(auth.from) then
       p[#p + 1] = "provider spec auth.from must name the client option holding the secret"
@@ -173,11 +169,8 @@ function provider.validate(spec)
       if type(auth.header) ~= "string" or not string.find(auth.header, "^[A-Za-z0-9-]+$") then
         p[#p + 1] = "provider spec auth.header must be a header name"
       end
-      if auth.prefix ~= nil and type(auth.prefix) ~= "string" then
-        p[#p + 1] = "provider spec auth.prefix must be a string"
-      end
-    elseif auth.header ~= nil or auth.prefix ~= nil then
-      p[#p + 1] = "provider spec auth: header and prefix are for kind = header"
+    elseif auth.header ~= nil then
+      p[#p + 1] = "provider spec auth: header is for kind = header"
     end
   elseif auth.kind == "none" then
     if auth.from ~= nil or auth.env ~= nil or auth.header ~= nil then
@@ -192,7 +185,6 @@ function provider.validate(spec)
     from = auth.from,
     env = auth.env,
     header = auth.header and string.lower(auth.header),
-    prefix = auth.prefix,
   }
   if out.auth.from ~= nil and out.auth.from == out.base_url.option then
     p[#p + 1] = "provider spec: auth.from and base_url.option are the same option"
@@ -323,7 +315,7 @@ function provider.validate(spec)
   end
 
   if #p > 0 then
-    return nil, table.concat(p, "\n")
+    return nil, compat.concat(p, "\n")
   end
   out.__validated = true
   return out

@@ -7,6 +7,7 @@
 --
 -- Every problem is collected as a message naming the shape; `model.load` fails with all
 -- of them at once, so one run shows everything that is wrong.
+local compat = require("distilled.compat")
 local json = require("distilled.json")
 local ordered = require("distilled.gen.json_ordered")
 local naming = require("distilled.gen.naming")
@@ -540,7 +541,7 @@ function model.from_text(text, path)
   check_shapes(m, problems)
   audit_traits(m, problems, m.warnings)
   if #problems > 0 then
-    return nil, table.concat(problems, "\n")
+    return nil, compat.concat(problems, "\n")
   end
 
   -- the service (at most one)

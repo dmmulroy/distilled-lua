@@ -5,6 +5,7 @@
 -- NotFound carries NotFoundError. Matchers come from `com.distilled.openapi#errorMatchers`
 -- as the model has them; every `matches` regex is compiled with `distilled.regex` here, so
 -- a pattern the runtime cannot run fails generation instead of never matching.
+local compat = require("distilled.compat")
 local emit = require("distilled.gen.emit")
 local json = require("distilled.json")
 local naming = require("distilled.gen.naming")
@@ -83,7 +84,7 @@ function gen_errors.categories(traits, where)
       return nil,
         (where or "error")
           .. ": distilled.errors#categories must list categories from core category.ts ("
-          .. table.concat(gen_errors.CATEGORY_NAMES, ", ")
+          .. compat.concat(gen_errors.CATEGORY_NAMES, ", ")
           .. ")"
     end
     for _, name in ipairs(declared) do
@@ -218,7 +219,7 @@ function gen_errors.class(ctx, id)
     d.fields = emit.list(fields)
   end
   if #problems > 0 then
-    return nil, table.concat(problems, "\n")
+    return nil, compat.concat(problems, "\n")
   end
   return d
 end
