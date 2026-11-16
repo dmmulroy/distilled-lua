@@ -39,4 +39,27 @@ return {
     op = "create_project",
     input = { project = { name = "n", zz_nested_extra = { a = json.array({}) } } },
   },
+  {
+    id = "create_project_branch_function_deployment/file",
+    op = "create_project_branch_function_deployment",
+    input = {
+      project_id = "p1",
+      branch_id = "b1",
+      slug = "fn",
+      zip = {
+        ["$file"] = {
+          b64 = "UEsDBAoAAAAA/w==",
+          filename = 'my "fn".zip',
+          content_type = "application/zip",
+        },
+      },
+      runtime = "nodejs24",
+      environment = { ["$secret"] = "KEY=value\nOTHER=2" },
+    },
+  },
+  {
+    id = "create_project_branch_function_deployment/text-crlf",
+    op = "create_project_branch_function_deployment",
+    input = { project_id = "p1", branch_id = "b1", slug = "fn", environment = "A=1\r\nB=2\rC=3\n" },
+  },
 }

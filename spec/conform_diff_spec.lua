@@ -116,16 +116,13 @@ t.describe("conform intended differences", function()
       b = "error InvalidInput: Input member project_id is required: it fills the path /p/{project_id}",
     }
     t.same({ split("requests", {}, { d }) }, { 0, 1 })
-    t.same(
-      {
-        split(
-          "requests",
-          {},
-          { { path = "outcome", a = "request", b = "error InvalidInput: other" } }
-        ),
-      },
-      { 1, 0 }
-    )
+    t.same({
+      split(
+        "requests",
+        {},
+        { { path = "outcome", a = "request", b = "error InvalidInput: other" } }
+      ),
+    }, { 1, 0 })
   end)
 
   t.it("parse error message only for a ParseError tag with an empty Distilled message", function()

@@ -51,6 +51,114 @@ local function header_names(service, op_name)
   return names
 end
 
+local function unescape_param(v)
+  v = string.gsub(v, "%%22", '"')
+  v = string.gsub(v, "%%0D", "\r")
+  v = string.gsub(v, "%%0A", "\n")
+  return v
+end
+
+--- parse_multipart(body, content_type) -> parts { name, filename?, content_type?, data } | nil, why
+function check.parse_multipart(body, content_type)
+  local boundary = string.match(content_type or "", "boundary=([^;]+)")
+  if not boundary or not body then
+    return nil, "no boundary in content-type " .. tostring(content_type)
+  end
+  local delim = "--" .. boundary
+  local parts = {}
+  local pos = string.find(body, delim, 1, true)
+  if pos ~= 1 then
+    return nil, "body does not start with the boundary"
+  end
+  pos = pos + #delim
+  while true do
+    if string.sub(body, pos, pos + 1) == "--" then
+      break -- closing delimiter
+    end
+    if string.sub(body, pos, pos + 1) ~= "\r\n" then
+      return nil, "no CRLF after a boundary at byte " .. pos
+    end
+    pos = pos + 2
+    local head_end = string.find(body, "\r\n\r\n", pos, true)
+    if not head_end then
+      return nil, "part headers do not end"
+    end
+    local head = string.sub(body, pos, head_end - 1)
+    local next_delim = string.find(body, "\r\n" .. delim, head_end + 4, true)
+    if not next_delim then
+      return nil, "part does not end with the boundary"
+    end
+    local part = { data = string.sub(body, head_end + 4, next_delim - 1) }
+    for line in string.gmatch(head .. "\r\n", "(.-)\r\n") do
+      local lower = string.lower(line)
+      if string.find(lower, "^content%-disposition:") then
+        part.name = unescape_param(string.match(line, ' name="([^"]*)"') or "")
+        local fname = string.match(line, ' filename="([^"]*)"')
+        part.filename = fname and unescape_param(fname)
+      elseif string.find(lower, "^content%-type:") then
+        part.content_type = string.match(line, "^[^:]+:%s*(.-)%s*$")
+      end
+    end
+    parts[#parts + 1] = part
+    pos = next_delim + 2 + #delim
+  end
+  return parts
+end
+
+-- Distilled hands a FormData to the HTTP client, which serializes it (undici): text values
+-- get CRLF line breaks there. Do the same to the dumped value before comparing bytes.
+local function crlf(s)
+  s = string.gsub(s, "\r\n", "\n")
+  s = string.gsub(s, "\r", "\n")
+  return (string.gsub(s, "\n", "\r\n"))
+end
+
+local function compare_multipart(want, got, out)
+  local ct = got.headers["content-type"]
+  if not string.find(ct or "", "^multipart/form%-data; boundary=") then
+    out[#out + 1] =
+      { path = "headers.content-type", a = "multipart/form-data; boundary=...", b = ct }
+  end
+  local parts, why = check.parse_multipart(got.body.text, ct)
+  if not parts then
+    out[#out + 1] = { path = "body", a = "multipart", b = "unparseable: " .. why }
+    return out
+  end
+  local n = math.max(#want.body.parts, #parts)
+  for i = 1, n do
+    local w, g = want.body.parts[i], parts[i]
+    local p = "body.parts[" .. (i - 1) .. "]"
+    if not w or not g then
+      out[#out + 1] = { path = p, a = w and w.name, b = g and g.name }
+    else
+      if w.name ~= g.name then
+        out[#out + 1] = { path = p .. ".name", a = w.name, b = g.name }
+      end
+      local wdata
+      if w.filename ~= nil then
+        wdata = lib.bytes_of(w)
+        if w.filename ~= g.filename then
+          out[#out + 1] = { path = p .. ".filename", a = w.filename, b = g.filename }
+        end
+        local wct = (w.content_type ~= nil and w.content_type ~= "") and w.content_type
+          or "application/octet-stream"
+        if wct ~= g.content_type then
+          out[#out + 1] = { path = p .. ".content_type", a = wct, b = g.content_type }
+        end
+      else
+        wdata = crlf(w.value)
+        if g.filename ~= nil then
+          out[#out + 1] = { path = p .. ".filename", a = nil, b = g.filename }
+        end
+      end
+      if wdata ~= g.data then
+        out[#out + 1] = { path = p .. ".data", a = wdata, b = g.data }
+      end
+    end
+  end
+  return out
+end
+
 local function body_bytes(rec)
   if rec == nil or rec.kind == "none" then
     return nil
@@ -83,13 +191,14 @@ function check.compare(case, want, got, service)
   diff.urls(want.url, got.url, out)
   for _, name in ipairs(header_names(service, case.op)) do
     local a, b = want.headers[name], got.headers[name]
-    if a ~= b then
+    -- multipart: Distilled's request has no content-type (fetch derives it from the
+    -- FormData); compare_multipart checks Lua's
+    if a ~= b and not (name == "content-type" and want.body.kind == "multipart") then
       out[#out + 1] = { path = "headers." .. name, a = a, b = b }
     end
   end
-  if want.body.kind == "multipart" or got.body.kind == "multipart" then
-    out[#out + 1] = { path = "body.kind", a = want.body.kind, b = got.body.kind }
-    return out
+  if want.body.kind == "multipart" then
+    return compare_multipart(want, got, out)
   end
   diff.bodies(body_bytes(want.body), body_bytes(got.body), want.headers["content-type"], out)
   return out

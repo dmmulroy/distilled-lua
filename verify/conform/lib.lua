@@ -4,6 +4,9 @@
 -- Case files are JSON so the same input reaches both languages:
 --   JSON null           -> json.null in Lua, null in TypeScript
 --   { "$secret": "v" }  -> distilled.secret("v") in Lua, Redacted.make("v") in TypeScript
+--   { "$bytes_b64": b } -> the byte string in Lua, a Uint8Array in TypeScript
+--   { "$file": { b64, filename, content_type } }
+--                       -> multipart.file{...} in Lua, a File in TypeScript
 -- Everything else is plain JSON in both.
 local json = require("distilled.json")
 local secret = require("distilled.secret")
@@ -78,13 +81,22 @@ function lib.to_lua(v, depth)
   if type(v) ~= "table" or v == json.null then
     return v
   end
-  if not json.is_array(v) and type(v["$secret"]) == "string" then
-    local n = 0
-    for _ in pairs(v) do
-      n = n + 1
+  if not json.is_array(v) then
+    local n, only = 0, nil
+    for k in pairs(v) do
+      n, only = n + 1, k
     end
-    if n == 1 then
+    if n == 1 and only == "$secret" and type(v["$secret"]) == "string" then
       return secret.wrap(v["$secret"])
+    elseif n == 1 and only == "$bytes_b64" then
+      return lib.b64_decode(v["$bytes_b64"])
+    elseif n == 1 and only == "$file" then
+      local f = v["$file"]
+      return require("distilled.multipart").file({
+        data = lib.b64_decode(f.b64),
+        filename = f.filename,
+        content_type = f.content_type,
+      })
     end
   end
   local out = {}

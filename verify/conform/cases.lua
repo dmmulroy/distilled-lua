@@ -81,7 +81,14 @@ function gen.value(node, member, mode, rng, depth)
       v = mode == "full" and "full value" or "x"
     end
   elseif t == "blob" then
-    v = "bytes"
+    -- bytes (a Uint8Array on Distilled's side); a response body carries text
+    if gen.output then
+      v = "bytes"
+    else
+      v = {
+        ["$bytes_b64"] = mode == "rand" and pick(rng, { "", "AAEC/w==", "aGVsbG8K" }) or "UEsDBAo=",
+      }
+    end
   elseif t == "number" then
     v = mode == "rand" and pick(rng, NUMBERS) or (mode == "full" and 2 or 1)
   elseif t == "boolean" then

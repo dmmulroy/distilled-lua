@@ -39,6 +39,12 @@ export const toInput = (v) => {
   const keys = Object.keys(v);
   if (keys.length === 1 && keys[0] === "$secret" && typeof v.$secret === "string")
     return Redacted.make(v.$secret);
+  if (keys.length === 1 && keys[0] === "$bytes_b64")
+    return new Uint8Array(Buffer.from(v.$bytes_b64, "base64"));
+  if (keys.length === 1 && keys[0] === "$file") {
+    const f = v.$file;
+    return new File([Buffer.from(f.b64, "base64")], f.filename, { type: f.content_type ?? "" });
+  }
   const out = {};
   for (const k of keys) out[k] = toInput(v[k]);
   return out;
