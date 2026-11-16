@@ -70,18 +70,28 @@ local function response_of(r)
   return { status = r.status or 200, headers = r.headers or {}, body = body or "" }
 end
 
---- outcome(ctx, op_name, input, script, opts) -> { ok, value | error }, host
--- script(n, req) -> response | nil (a transport failure)
-function check.outcome(ctx, op_name, input, script, opts)
+--- session(ctx, script, opts) -> client, host, sent
+-- A client over a scripted transport and a fake clock at EPOCH with jitter pinned to 0.5
+-- (as Distilled's side). script(n, req) -> response | "transport" | nil (n is 0-based;
+-- nil and "transport" are transport failures). `sent` lists { method, url, at_ms }.
+function check.session(ctx, script, opts)
   opts = opts or {}
+  local errors = require("distilled.errors")
+  local retry = require("distilled.retry")
+  local sent = {}
   local host
   local transport = testing.transport({
     responses = setmetatable({}, {
       __index = function(_, n)
         return function(req)
-          local r = script(n, req)
-          if r == nil then
-            return nil, require("distilled.errors").new("TransportError", { message = "reset" })
+          sent[#sent + 1] = {
+            method = req.method,
+            url = req.url,
+            at_ms = math.floor(host.now() * 1000 + 0.5),
+          }
+          local r = script(n - 1, req)
+          if r == nil or r == "transport" then
+            return nil, errors.new("TransportError", { message = "reset" })
           end
           return response_of(r)
         end
@@ -100,25 +110,36 @@ function check.outcome(ctx, op_name, input, script, opts)
     random = host.random,
     validation = opts.validation or "lenient",
     retry = opts.retry or "none",
+    budget = retry.new_budget(),
   })
-  local method = client[op_name]
-  local value, err = method(client, lib.to_lua(input))
+  return client, host, sent
+end
+
+--- value_view(ctx, op_name, value) -> the JSON-able view Distilled's side produces
+function check.value_view(ctx, op_name, value)
   local op = ctx.service.ops[op_name]
-  if err then
-    return { ok = false, error = check.error_view(err) }, host
-  end
   local out = op.output and schema.resolve(op.output, ctx.service.shapes)
   if out and out.t == "blob" and type(value) == "string" then
-    return { ok = true, value = { ["$bytes_b64"] = lib.b64_encode(value) } }, host
+    return { ["$bytes_b64"] = lib.b64_encode(value) }
   end
   local v = check.view(value)
   if v == nil then
     v = json.null
   end
-  return { ok = true, value = v }, host
+  return v
 end
 
-local function strip_id(rec)
+--- outcome(ctx, op_name, input, script, opts) -> { ok, value | error }, sent
+function check.outcome(ctx, op_name, input, script, opts)
+  local client, _, sent = check.session(ctx, script, opts)
+  local value, err = client[op_name](client, lib.to_lua(input))
+  if err then
+    return { ok = false, error = check.error_view(err) }, sent
+  end
+  return { ok = true, value = check.value_view(ctx, op_name, value) }, sent
+end
+
+function check.strip_id(rec)
   local out = {}
   for k, v in pairs(rec) do
     if k ~= "id" then
@@ -148,7 +169,8 @@ function check.run(ctx)
         return case.response
       end, { validation = case.validation })
       result.got = got
-      result.diffs = diff.values(strip_id(want), got, "", {})
+      result.want = want
+      result.diffs = diff.values(check.strip_id(want), got, "", {})
     end
     results[#results + 1] = result
   end

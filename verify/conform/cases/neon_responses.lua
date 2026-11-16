@@ -74,6 +74,68 @@ add({
   response = { status = 200, json = json.array({}) },
 })
 
+-- awkward JSON and status codes ----------------------------------------------------------
+add({
+  id = "get_project/unicode-and-numbers",
+  op = "get_project",
+  response = {
+    status = 200,
+    headers = { ["content-type"] = "application/json; charset=utf-8" },
+    body = '{"project":{"id":"p\\u00e9","name":"\\ud83d\\ude42 \\u0000x","pg_version":1e2,'
+      .. '"big":12345678901234567890,"neg":-0,"frac":0.1,"tiny":5e-324,"nested":[[],{},null]}}',
+  },
+})
+add({ id = "get_project/202", op = "get_project", response = { status = 202, json = PROJECT } })
+add({
+  id = "create_project/200-for-201",
+  op = "create_project",
+  input = { project = json.object({}) },
+  response = { status = 200, json = PROJECT },
+})
+add({
+  id = "get_project/whitespace-body",
+  op = "get_project",
+  response = { status = 200, json = nil, body = "  \n " },
+})
+add({
+  id = "get_project/truncated-json",
+  op = "get_project",
+  response = {
+    status = 200,
+    headers = { ["content-type"] = "application/json" },
+    body = '{"project":',
+  },
+})
+add({
+  id = "get_project/404-message-number",
+  op = "get_project",
+  response = { status = 404, json = { message = 42, code = json.null } },
+})
+add({
+  id = "get_project/404-nested-error",
+  op = "get_project",
+  response = { status = 404, json = { error = { message = "inner", code = "X" } } },
+})
+add({
+  id = "get_project/404-empty-object",
+  op = "get_project",
+  response = { status = 404, json = json.object({}) },
+})
+add({
+  id = "get_project/404-array",
+  op = "get_project",
+  response = { status = 404, json = json.array({ "a" }) },
+})
+add({
+  id = "get_project/500-truncated-json",
+  op = "get_project_advisor_security_issues",
+  response = {
+    status = 500,
+    headers = { ["content-type"] = "application/json" },
+    body = '{"message":',
+  },
+})
+
 -- validation modes ----------------------------------------------------------------------
 local extra = { project = { id = "p1", name = "demo", zz_unmodelled = true }, zz_top = 1 }
 local wrong = { project = "not an object" }

@@ -190,16 +190,11 @@ end
 ---------------------------------------------------------------------------------------
 
 local responses = {}
-local function add_response(c)
-  local op = service.ops[c.op]
-  c.ts = c.ts or lib.ts_name(op.name)
-  if c.input == nil then
-    local was = gen.output
-    gen.output = false
-    c.input = gen.struct(assert(schema.resolve(op.input, registry)), "min", nil, 0)
-    gen.output = was
+-- a canned response: `json` becomes the body (with a JSON content type); "transport" stays
+local function normalize_response(r)
+  if type(r) ~= "table" then
+    return r
   end
-  local r = c.response
   r.headers = r.headers or json.object({})
   if r.json ~= nil then
     r.body = assert(json.encode(r.json))
@@ -208,6 +203,24 @@ local function add_response(c)
       r.headers["content-type"] = "application/json"
     end
   end
+  return r
+end
+
+local function complete_case(c)
+  local op = assert(service.ops[c.op], "no operation " .. tostring(c.op))
+  c.ts = c.ts or lib.ts_name(op.name)
+  if c.input == nil then
+    local was = gen.output
+    gen.output = false
+    c.input = gen.struct(assert(schema.resolve(op.input, registry)), "min", nil, 0)
+    gen.output = was
+  end
+  return c
+end
+
+local function add_response(c)
+  complete_case(c)
+  normalize_response(c.response)
   responses[#responses + 1] = c
 end
 
@@ -258,6 +271,21 @@ if lib.read(resp_path) then
 end
 lib.write_lines(root .. "/verify/conform/cases/" .. provider .. "/responses.jsonl", responses)
 print(string.format("cases: %d response cases", #responses))
+
+-- flows: scripted multi-response sequences (pagination, retry), all hand-written
+local flows_path = root .. "/verify/conform/cases/" .. provider .. "_flows.lua"
+if lib.read(flows_path) then
+  local flows = {}
+  for _, c in ipairs(dofile(flows_path)) do
+    complete_case(c)
+    for i, r in ipairs(c.script) do
+      c.script[i] = normalize_response(r)
+    end
+    flows[#flows + 1] = c
+  end
+  lib.write_lines(root .. "/verify/conform/cases/" .. provider .. "/flows.jsonl", flows)
+  print(string.format("cases: %d flow cases", #flows))
+end
 
 -- hand-written edge cases (verify/conform/cases/<provider>_requests.lua), after the generated
 local hand_path = root .. "/verify/conform/cases/" .. provider .. "_requests.lua"

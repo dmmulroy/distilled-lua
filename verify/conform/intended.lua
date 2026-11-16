@@ -7,17 +7,17 @@ local lib = require("verify.conform.lib")
 local intended = {}
 
 -- { category, path = "<diff path pattern>", when = fn(case, d) -> bool | nil, reason }
--- The response a result's error came from (responses: the case's; flows: the last one).
-local function last_response(case)
+-- The response a result's error came from (responses: the case's; flows: the response
+-- to the last request sent, which check_flows records).
+local function last_response(case, result)
   if case.response then
     return case.response
   end
-  local script = case.script or {}
-  return script[#script]
+  return result and result.last_response
 end
 
-local function wire_code(case)
-  local r = last_response(case)
+local function wire_code(case, result)
+  local r = last_response(case, result)
   if type(r) ~= "table" or type(r.body) ~= "string" then
     return nil
   end
@@ -33,9 +33,25 @@ local OUTCOME = { responses = true, flows = true }
 intended.rules = {
   {
     category = OUTCOME,
-    path = "^%.error%.status$",
-    when = function(case, d)
-      local r = last_response(case)
+    path = "^%.result%.error%.[%a_]+",
+    when = function(_, _, result)
+      local want, got = result.want, result.got
+      return want
+        and got
+        and want.error
+        and got.error
+        and want.error.tag == "HttpClientError"
+        and got.error.tag == "TransportError"
+    end,
+    reason = "a transport failure is the TransportError tag (category NetworkError) with the "
+      .. "transport's message; Distilled surfaces Effect's HttpClientError (no category; "
+      .. "isTransientError retries it by tag)",
+  },
+  {
+    category = OUTCOME,
+    path = "%.error%.status$",
+    when = function(case, d, result)
+      local r = last_response(case, result)
       return d.a == nil and type(r) == "table" and d.b == (r.status or 200)
     end,
     reason = "every Lua HTTP error carries `status`; Distilled's typed and status-mapped "
@@ -43,9 +59,9 @@ intended.rules = {
   },
   {
     category = OUTCOME,
-    path = "^%.error%.code$",
-    when = function(case, d)
-      local wire = wire_code(case)
+    path = "%.error%.code$",
+    when = function(case, d, result)
+      local wire = wire_code(case, result)
       if d.a == 0 then
         -- Distilled's generated classes declare `code: S.Number`: a string or absent wire
         -- code becomes 0; Lua keeps the wire code or nil
@@ -59,7 +75,7 @@ intended.rules = {
   },
   {
     category = OUTCOME,
-    path = "^%.error%.message$",
+    path = "%.error%.message$",
     when = function(_, d, result)
       local got = result.got
       return d.a == ""
@@ -72,9 +88,9 @@ intended.rules = {
   },
   {
     category = OUTCOME,
-    path = "^%.error%.retry_after$",
-    when = function(case, d)
-      local r = last_response(case)
+    path = "%.error%.retry_after$",
+    when = function(case, d, result)
+      local r = last_response(case, result)
       local ra = type(r) == "table" and r.headers and r.headers["retry-after"]
       -- asctime has no zone: RFC 9110 says GMT; JavaScript's Date.parse reads it in the
       -- host's local zone, so Distilled is off by the machine's UTC offset

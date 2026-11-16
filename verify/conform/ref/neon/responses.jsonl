@@ -894,6 +894,16 @@
 {"id":"create_api_key/non-json-secret-output","ok":false,"error":{"tag":"NeonParseError","categories":["ParseError"],"retryable":false,"throttling":false,"message":"","body":"[REDACTED]"}}
 {"id":"list_api_keys/array","ok":true,"value":[{"id":1,"name":"a"},{"id":2,"name":"b"}]}
 {"id":"list_api_keys/empty-array","ok":true,"value":[]}
+{"id":"get_project/unicode-and-numbers","ok":true,"value":{"project":{"id":"pé","name":"🙂 \u0000x","pg_version":100,"big":12345678901234567000,"neg":0,"frac":0.1,"tiny":5e-324,"nested":[[],{},null]}}}
+{"id":"get_project/202","ok":true,"value":{"project":{"created_at":"2024-01-01T00:00:00Z","id":"p1","name":"demo","pg_version":17,"platform_id":"aws","region_id":"aws-us-east-2","updated_at":"2024-01-01T00:00:00Z"}}}
+{"id":"create_project/200-for-201","ok":true,"value":{"project":{"created_at":"2024-01-01T00:00:00Z","id":"p1","name":"demo","pg_version":17,"platform_id":"aws","region_id":"aws-us-east-2","updated_at":"2024-01-01T00:00:00Z"}}}
+{"id":"get_project/whitespace-body","ok":true,"value":{}}
+{"id":"get_project/truncated-json","ok":true,"value":"{\"project\":"}
+{"id":"get_project/404-message-number","ok":false,"error":{"tag":"NotFound","categories":["BadRequestError"],"retryable":false,"throttling":false,"code":0,"message":"HTTP 404","body":{"code":null,"message":42}}}
+{"id":"get_project/404-nested-error","ok":false,"error":{"tag":"NotFound","categories":["BadRequestError"],"retryable":false,"throttling":false,"code":0,"message":"HTTP 404","body":{"error":{"code":"X","message":"inner"}}}}
+{"id":"get_project/404-empty-object","ok":false,"error":{"tag":"NotFound","categories":["BadRequestError"],"retryable":false,"throttling":false,"code":0,"message":"HTTP 404","body":{}}}
+{"id":"get_project/404-array","ok":false,"error":{"tag":"NotFound","categories":["BadRequestError"],"retryable":false,"throttling":false,"code":0,"message":"HTTP 404","body":["a"]}}
+{"id":"get_project/500-truncated-json","ok":false,"error":{"tag":"InternalServerError","categories":["ServerError"],"retryable":true,"throttling":false,"message":"{\"message\":","body":"{\"message\":"}}
 {"id":"get_project/extra-keys-lenient","ok":true,"value":{"project":{"id":"p1","name":"demo","zz_unmodelled":true},"zz_top":1}}
 {"id":"get_project/wrong-type-lenient","ok":true,"value":{"project":"not an object"}}
 {"id":"get_project/missing-required-lenient","ok":true,"value":{"project":{"name":"no id"}}}
