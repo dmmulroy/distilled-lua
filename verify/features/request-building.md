@@ -16,7 +16,8 @@
   bracket notation, the `{}` rule, GET bodies only when set, `content-type` member wins.
 - Secrets unwrapped on a copy at build time; `json.null` sent as `null`.
 - `schema.plan(struct)`: members grouped by binding, cached per node.
-- Multipart: `SdkError` naming the operation.
+- Multipart (`op.content_type = "multipart"`, task 08): an RFC 7578 body string from
+  `distilled.multipart`; see "Multipart bodies" below.
 
 ## How a user reaches it
 
@@ -48,3 +49,48 @@ local req, err = request.build{ op = service.ops.get_project, input = { project_
   `String(null)`. A string `payload` without `blob` or `body_media_type` is sent as a
   JSON string (`"text"`), also like Distilled.
 - Indices in form bodies are 0-based (`a[0]`), as in JavaScript.
+
+## Multipart bodies (task 08)
+
+`op.content_type = "multipart"` builds a `multipart/form-data` body as a string
+(`lua/distilled/multipart.lua`), following the multipart branch of Distilled's
+`buildRequest` and the bytes undici writes for a `FormData` (checked against Node 24).
+
+- A file value: `require("distilled.multipart").file{ data = "<bytes>", filename = "a.zip",
+  content_type = "application/zip" }` (filename and content_type optional; data may be a
+  secret). `multipart.is_file(v)` tells it from an ordinary table.
+- Each body member is a part under its wire name, in declaration order, undeclared keys
+  after (sorted). A file is a file part with its own filename, or the wire name when it
+  has none (Distilled's nameless Blob), and its content type, else
+  `application/octet-stream`. A string at a `blob` node is a file part named after the
+  member (Distilled's Uint8Array). A non-empty list whose elements are all binary is one
+  part per element under the same name. Other tables are one JSON part (`[]` for an empty
+  list); scalars are text (`String(v)`); `json.null` and absent members are omitted.
+- A `payload` member holding a record is the parts instead, one per entry, in **sorted**
+  key order (JavaScript keeps insertion order; a Lua table has none). A `payload` holding
+  one file (or a string at a blob payload) is one file part under the wire name.
+- Names: line breaks normalized to CRLF, then `"`, CR, LF escaped as `%22`, `%0D`, `%0A`;
+  filenames: the same escapes without the normalization. Text values: line breaks become
+  CRLF (undici does this). File data is byte for byte (NUL, CRLF, 0xFF).
+- Boundary: `----distilled-lua-` + 24 alphanumerics from `random` (`args.random` or
+  `args.host.random`; without either, `distilled.host`'s private generator). It is drawn
+  again (up to 16 times) while it occurs in any part; then `SdkError`. With the testing
+  host's seeded random the body is deterministic, so specs compare whole bodies.
+- The multipart body is sent for any method, GET included, as Distilled does.
+- Generated types: a Blob member of a multipart input is `distilled.File|string`.
+
+Driving it: `verify/dl test multipart` (`spec/multipart_spec.lua`): the encoder, the
+ported `protocol-http.test.ts` cases ("multipart binary parts", "multipart file lists"),
+and a differential against Node's `Request.formData()` (via io.popen under lua/luajit and
+rex.exec under gopher-lua; pending when node is missing) that checks names, filenames,
+content types and every byte value. `verify/dl gen-diff neon` builds all 178 operations.
+
+Gotchas:
+
+- Through a generated client the boundary does not come from the client's host yet: the
+  REST protocol (`protocol/rest.lua`, task 04) does not pass `random` to `request.build`
+  (proposed in STATUS.md, 08). It is random, just not the host's.
+- Distilled's `FormDataFile()` binding (files appended under their own filename) has no
+  Smithy trait in the models, so there is no such bind.
+- A file nested inside a JSON part is JSON-encoded as a table with its fields (Distilled
+  would write `{}` for a File): files belong at the top level of the form.
