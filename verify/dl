@@ -708,10 +708,11 @@ verify/dl: distilled-lua verification driver
                             Distilled's requests/outcomes with Node, diff the Lua side (lua)
       --replay              no Node: diff the saved verify/conform/ref dumps under lua,
                             luajit and rex      --runtime R   --only members,requests,...
+  dl live <provider> <op> [--write] [key=value ...]
+                            one real API call with debug tracing (span tree on stderr);
+                            GET only unless --write; key from the environment
+                            (NEON_API_KEY). Exit 3: skipped, no credentials
   dl help                   this screen
-
-  not implemented yet (exit 2):
-  dl live <provider> <op>   later task
 EOF
 }
 
@@ -772,6 +773,23 @@ cmd_conform() {
 }
 
 # ----------------------------------------------------------------------------------
+# live (task 07): one opt-in call to the real API (verify/lib/live.lua)
+# ----------------------------------------------------------------------------------
+
+cmd_live() {
+  [ $# -ge 2 ] || die "usage: dl live <provider> <op> [--write] [key=value ...]"
+  rt=lua
+  if [ "$1" = "--runtime" ]; then
+    rt=$2
+    shift 2
+  fi
+  case $rt in
+    lua | luajit) "$rt" "$LIB/live.lua" "$ROOT" "$@" ;;
+    *) die "live: runtime $rt not supported (lua or luajit; Rex needs a config action)" ;;
+  esac
+}
+
+# ----------------------------------------------------------------------------------
 
 cmd=${1:-help}
 [ $# -gt 0 ] && shift
@@ -788,7 +806,7 @@ case $cmd in
   gen-diff) cmd_gen_diff "$@" ;;
   serve) cmd_serve "$@" ;;
   rex) cmd_rex "$@" ;;
-  live) stub live "a later task (plan build step 8)" ;;
+  live) cmd_live "$@" ;;
   canary) cmd_canary "$@" ;;
   jaeger) cmd_jaeger "$@" ;;
   *)
