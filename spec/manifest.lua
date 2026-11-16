@@ -44,4 +44,5 @@ return {
   "transport_spec.lua",
   "url_spec.lua",
   "validate_spec.lua",
+  "xml_spec.lua",
 }
