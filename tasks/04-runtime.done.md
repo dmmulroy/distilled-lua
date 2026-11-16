@@ -233,3 +233,37 @@ trace 53610d6d046855485722cfa9279d932c
   reuse common option names.
 - The task 03 fixture gives `op.span` as `"Neon.GetProject"` with no
   `telemetry.prefix`. Generated services should emit the prefix and the model op name.
+
+## Follow-up: tracer attach/detach (assigned after task 04)
+
+- `lua/distilled/trace/init.lua`: `tracer:detach(span) -> true|false` takes the innermost
+  open span off the active stack but keeps it open. It returns false, and changes nothing,
+  for a span that has open children, is not on the stack, is the no-op span, or is nil.
+  `tracer:attach(span) -> true|false` pushes a detached open span back as the current one.
+  It returns false for the no-op span, a finished span, or a span already on the stack.
+  A span from another tracer is misuse and raises (`compat.raise`). Existing methods are
+  unchanged.
+- `lua/distilled/trace/noop.lua`: `attach` and `detach` return false.
+- `lua/distilled/paginate.lua`: uses `tracer:attach` and `tracer:detach` instead of
+  `rawget(tracer, "_stack")`. A tracer object without these methods still works; its
+  traversal span just stays current.
+- Specs:
+  - `spec/trace_tracer_spec.lua`, "tracer:attach / tracer:detach" (8 tests): parenting
+    while detached and after re-attaching, innermost-only detach, refusals, debug spans
+    on an operation-level tracer, another tracer's span, finishing a detached span, a
+    parent finish ending an attached child, and noop.
+  - `spec/paginate_spec.lua` (2 tests): paginate calls attach and detach in the expected
+    order, and a tracer without the API still pages.
+- Mutation check: with `tracer:attach(span)` commented out in `paginate.lua`, 2
+  paginate_spec tests fail.
+
+```
+$ verify/dl test trace_     ->  lua/luajit/rex: ok 87 passed
+$ verify/dl test paginate   ->  lua/luajit/rex: ok 70 passed
+$ verify/dl test client     ->  lua/luajit/rex: ok 71 passed, 1 pending (verify/tmp gate)
+$ verify/dl doctor          ->  doctor: ok
+```
+
+`verify/dl test` takes one filter (the last argument wins), so I ran the three filters
+separately. `docs/interfaces.md` (the orchestrator's file) should list
+`tracer:attach(span)` and `tracer:detach(span)` next to `tracer:current()`.

@@ -275,14 +275,23 @@ whenever a response arrived (success or failure): this is how `link` pagination 
   emit `telemetry.prefix` (the task 03 fixture has `span = "Neon.GetProject"` and no
   prefix).
 - Pagination trait paths are user names (after key mapping).
-- Proposed tracer API (task 02 owner): `tracer:attach(span)` / `tracer:detach(span)` to
-  push/remove a span on the active stack. `paginate.lua` does this today through
-  `rawget(tracer, "_stack")` so the traversal span parents page spans only while a page
-  is being fetched.
+- changed (follow-up): the tracer has `tracer:attach(span)` and `tracer:detach(span)`
+  (see "Follow-up" below). `paginate.lua` no longer touches `_stack`.
 - Retry attributes use `telemetry.ts` names (`distilled.attempts`,
   `distilled.retry.errors`, `distilled.retry.delay_ms`) plus our
   `distilled.retry.stopped` (`budget` | `deadline` | `hint_over_cap`).
 - The REST protocol sets `http.response.status_code` on the active debug attempt span too.
+
+### Follow-up: tracer attach/detach (done)
+
+- `tracer:detach(span) -> true|false`: takes the innermost open span off the active stack
+  and keeps it open, so later spans are not its children.
+- `tracer:attach(span) -> true|false`: makes a detached open span current again.
+- Both return false, and change nothing, for the no-op span, a finished span, a span not
+  innermost (detach), or a span already on the stack (attach). Attaching another
+  tracer's span raises. `trace.noop` has both; they return false.
+- `paginate.lua` uses them, and falls back gracefully for a tracer without them.
+  `docs/interfaces.md` should list them (orchestrator).
 
 ## 05 host
 
