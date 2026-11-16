@@ -54,8 +54,26 @@ local function callable(v)
 end
 hostlib.callable = callable
 
+hostlib.TRANSPORT_HINT = 'pass a transport: require("distilled.transport.popen_curl")(), '
+  .. 'require("distilled.transport.exec_curl")(exec), '
+  .. 'or a whole host: host = require("distilled.host.popen")()'
+
 --- hostlib.check(value, name, level): raises unless value is nil or callable
+-- The transport modules are callable too (they construct transports); they carry
+-- `transport_module = "<module name>"`, and passing one as a transport is misuse.
 function hostlib.check(value, name, level)
+  local module = type(value) == "table" and rawget(value, "transport_module")
+  if module then
+    compat.raise(
+      "host field "
+        .. name
+        .. " is the "
+        .. tostring(module)
+        .. " module, a transport constructor, not a transport; "
+        .. hostlib.TRANSPORT_HINT,
+      (level or 1) + 1
+    )
+  end
   if value ~= nil and not callable(value) then
     compat.raise(
       "host field " .. name .. " must be a function, got " .. type(value),

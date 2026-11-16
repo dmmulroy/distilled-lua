@@ -406,6 +406,67 @@ t.describe("rest: request encoding", function()
   )
 end)
 
+-- task 09: a transport that breaks the contract says what was passed and what to pass
+t.describe("rest: a transport that is not a transport", function()
+  local function test_class()
+    return Client.define({ service = service(), protocol = DEFAULT, options = OPTIONS })
+  end
+
+  t.it("a transport that returns a function (a constructor) is a ConfigError", function()
+    local popen_curl = require("distilled.transport.popen_curl")
+    -- popen_curl.new is the constructor as a plain function: calling it with the request
+    -- returns a transport function instead of a response
+    local c = test_class().new({ retry = "none", transport = popen_curl.new })
+    local err = t.fails_with("ConfigError", c:create_thing({ id = "t1" }))
+    t.eq(err.key, "transport")
+    t.match(err.message, "returned a function", true)
+    t.match(err.message, 'require("distilled.transport.popen_curl")()', true)
+    t.match(err.message, 'require("distilled.transport.exec_curl")(exec)', true)
+    t.match(err.message, 'host = require("distilled.host.popen")()', true)
+  end)
+
+  t.it("a transport that returns neither a response nor nil, err is a ConfigError", function()
+    local results = {
+      { "ok", "returned a string" },
+      { 200, "returned a number" },
+      { true, "returned a boolean" },
+    }
+    for _, case in ipairs(results) do
+      local c = test_class().new({
+        retry = "none",
+        transport = function()
+          return case[1]
+        end,
+      })
+      local err = t.fails_with("ConfigError", c:create_thing({ id = "t1" }))
+      t.eq(err.key, "transport")
+      t.match(err.message, case[2], true)
+    end
+    local c = test_class().new({
+      retry = "none",
+      transport = function()
+        return nil
+      end,
+    })
+    local err = t.fails_with("ConfigError", c:create_thing({ id = "t1" }))
+    t.match(err.message, "returned nothing", true)
+  end)
+
+  t.it("a contract failure is not retried", function()
+    local n = 0
+    local c = test_class().new({
+      retry = { max_retries = 3 },
+      sleep = function() end,
+      transport = function()
+        n = n + 1
+        return function() end
+      end,
+    })
+    t.fails_with("ConfigError", c:create_thing({ id = "t1" }))
+    t.eq(n, 1)
+  end)
+end)
+
 t.describe("rest: success decoding", function()
   t.it("maps wire keys to user names and wraps sensitive members as secrets", function()
     local c = client({

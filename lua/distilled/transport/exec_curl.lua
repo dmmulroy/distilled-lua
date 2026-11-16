@@ -65,7 +65,8 @@ local function new(exec, opts)
   end
 end
 
-return setmetatable({ new = new }, {
+-- transport_module: distilled.host.check refuses this table as a transport (task 09)
+return setmetatable({ new = new, transport_module = "distilled.transport.exec_curl" }, {
   __call = function(_, exec, opts)
     return new(exec, opts)
   end,

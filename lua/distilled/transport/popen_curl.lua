@@ -194,7 +194,12 @@ local function shell_sleep(seconds)
   end
 end
 
-return setmetatable({ new = new, sleep = shell_sleep }, {
+-- transport_module: distilled.host.check refuses this table as a transport (task 09)
+return setmetatable({
+  new = new,
+  sleep = shell_sleep,
+  transport_module = "distilled.transport.popen_curl",
+}, {
   __call = function(_, opts)
     return new(opts)
   end,

@@ -60,6 +60,13 @@ local tr = require("distilled.transport.exec_curl")(my_exec, { curl = "/usr/bin/
 
 ## Gotchas
 
+- The modules are constructors, not transports: `transport = require("distilled.transport.popen_curl")`
+  (no call) raises in `Class.new` ("... is the distilled.transport.popen_curl module, a
+  transport constructor ..."; the modules carry `transport_module`). A transport that
+  returns a function, nothing, or a non-table is a `ConfigError` (`key = "transport"`,
+  not retried) that names what to pass (task 09, `spec/client_spec.lua`,
+  `spec/rest_spec.lua`).
+
 - io.popen is one-way, so popen_curl uses temp files; mktemp (mkstemp) creates them 0600.
   They are removed by a scope finalizer, but a process killed mid-request leaves them in
   `$TMPDIR` (exec_curl writes nothing to disk).

@@ -34,6 +34,26 @@ local schema = require("distilled.schema")
 local secret = require("distilled.secret")
 local validate = require("distilled.validate")
 
+-- A transport returned something that is neither a response table nor `nil, err`. The
+-- usual cause is a transport constructor passed as the transport (popen_curl.new, or a
+-- custom factory): called with the request it returns a transport function. Not
+-- retryable: the next try would do the same.
+local TRANSPORT_HINT = require("distilled.host").TRANSPORT_HINT
+local function contract_error(res)
+  local what
+  if res == nil then
+    what = "returned nothing (neither a response table nor nil, err)"
+  elseif type(res) == "function" then
+    what = "returned a function, so it is probably a transport constructor, not a transport"
+  else
+    what = "returned a " .. type(res) .. " instead of a response table or nil, err"
+  end
+  return errors.new("ConfigError", {
+    message = "the transport " .. what .. "; " .. TRANSPORT_HINT,
+    key = "transport",
+  })
+end
+
 local rest = {}
 
 rest.VERSION = "0.1.0"
@@ -577,8 +597,7 @@ function rest.new(opts)
     if transport == nil then
       return nil,
         errors.new("ConfigError", {
-          message = "no transport: pass transport = ... (for example "
-            .. 'require("distilled.transport.popen_curl")) or a host',
+          message = "no transport; " .. TRANSPORT_HINT,
           key = "transport",
         })
     end
@@ -592,6 +611,9 @@ function rest.new(opts)
       end
       return r, e
     end)
+    if type(res) ~= "table" and (res ~= nil or terr == nil) then
+      return nil, contract_error(res)
+    end
     if type(res) ~= "table" then
       if not errors.is(terr) then
         terr = errors.new("TransportError", { message = "transport failed: " .. tostring(terr) })

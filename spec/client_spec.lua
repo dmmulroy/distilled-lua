@@ -105,6 +105,36 @@ t.describe("Client.define", function()
   end)
 end)
 
+-- task 09: the transport modules are constructors; passing one is misuse, caught in new
+t.describe("Class.new: a transport module instead of a transport", function()
+  t.it("transport = the popen_curl or exec_curl module raises and says what to pass", function()
+    local popen_curl = require("distilled.transport.popen_curl")
+    local exec_curl = require("distilled.transport.exec_curl")
+    for _, case in ipairs({
+      { { transport = popen_curl }, "distilled.transport.popen_curl" },
+      { { host = { transport = popen_curl } }, "distilled.transport.popen_curl" },
+      { { transport = exec_curl }, "distilled.transport.exec_curl" },
+    }) do
+      local opts = case[1]
+      opts.api_key = "k"
+      local raised = t.raises(function()
+        Neon.new(opts)
+      end, "transport is the " .. case[2] .. " module")
+      raised = tostring(raised)
+      t.match(raised, 'require("distilled.transport.popen_curl")()', true)
+      t.match(raised, 'require("distilled.transport.exec_curl")(exec)', true)
+      t.match(raised, 'host = require("distilled.host.popen")()', true)
+    end
+  end)
+
+  t.it("host = the host.popen module (a function) says to call it", function()
+    local raised = t.raises(function()
+      Neon.new({ host = function() end })
+    end, "host must be a table")
+    t.match(tostring(raised), 'require("distilled.host.popen")()', true)
+  end)
+end)
+
 t.describe("Class.new: options", function()
   t.it("an unknown option is misuse, and the message lists the valid names", function()
     local raised = t.raises(function()

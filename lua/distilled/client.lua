@@ -182,7 +182,12 @@ local function check_options(class, opts, level)
     end
   end
   if opts.host ~= nil and type(opts.host) ~= "table" then
-    misuse(class.name .. ": host must be a table", level)
+    local hint = ""
+    if hostlib.callable(opts.host) then
+      -- distilled.host.popen and distilled.host.rex are functions that build a host
+      hint = ' (got a function: call it, e.g. host = require("distilled.host.popen")())'
+    end
+    misuse(class.name .. ": host must be a table" .. hint, level)
   end
   for _, k in ipairs(hostlib.FIELDS) do
     hostlib.check(opts[k], k, level)
