@@ -768,6 +768,65 @@ t.describe("paginate: through a client", function()
     expect(memory.spans):spans("Neon.ListProjects"):nth(2):attr("distilled.attempts", 2)
   end)
 
+  t.it("the traversal span is made current with tracer:attach and released with detach", function()
+    local memory = trace.exporters.memory()
+    local tracer = trace.new({ level = "operation", exporter = memory, host = testing.host({}) })
+    local calls = {}
+    for _, name in ipairs({ "attach", "detach" }) do
+      local real = tracer[name]
+      tracer[name] = function(self, span)
+        calls[#calls + 1] = name .. ":" .. tostring(span.recording)
+        return real(self, span)
+      end
+    end
+    local pages = { { items = { 1 }, next = "t2" }, { items = { 2 } } }
+    local n = 0
+    local function call()
+      n = n + 1
+      -- each page call runs with the traversal span current
+      t.eq(tracer:current().span_id ~= nil, true)
+      return pages[n]
+    end
+    local it = paginate.items(
+      call,
+      {},
+      { input_token = "token", output_token = "next", items = "items" },
+      { tracer = tracer }
+    )
+    t.same(must(it:collect()), { 1, 2 })
+    t.same(calls, { "detach:true", "attach:true", "detach:true", "attach:true", "detach:true" })
+    t.eq(tracer:current(), nil)
+    must(tracer:flush())
+    expect(memory.spans):span("distilled.pagination"):attr("distilled.pagination.pages", 2)
+  end)
+
+  t.it("a tracer without attach/detach (a caller's own object) still pages", function()
+    local finished = 0
+    local span = { recording = true }
+    function span.set() end
+    function span.fail() end
+    function span.event() end
+    function span.finish()
+      finished = finished + 1
+    end
+    local tracer = {
+      level = "operation",
+      start = function()
+        return span
+      end,
+    }
+    local pages = { { items = { "a" }, next = "t2" }, { items = { "b" } } }
+    local n = 0
+    local it = paginate.items(function()
+      n = n + 1
+      return pages[n]
+    end, {}, { input_token = "token", output_token = "next", items = "items" }, {
+      tracer = tracer,
+    })
+    t.same(must(it:collect()), { "a", "b" })
+    t.eq(finished, 1)
+  end)
+
   t.it("with tracing off nothing is recorded and pagination still works", function()
     local service = fixtures.service()
     local Neon =

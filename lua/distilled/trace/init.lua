@@ -447,6 +447,49 @@ function Tracer:current()
   return self._stack[#self._stack]
 end
 
+local function stack_index(stack, span)
+  for i = #stack, 1, -1 do
+    if stack[i] == span then
+      return i
+    end
+  end
+  return nil
+end
+
+--- tracer:detach(span) -> true | false. Takes an open span off the active stack while
+-- keeping it open: spans started afterwards are not its children, until attach(span).
+-- Only the innermost span can be detached (a span with open children cannot leave the
+-- stack without orphaning them); anything else, a non-recording span or a span not on
+-- the stack, returns false and changes nothing. Used by long-lived spans that are active
+-- only part of the time, e.g. the pagination traversal span between page fetches.
+function Tracer:detach(span)
+  local stack = self._stack
+  if type(span) ~= "table" or not span.recording or stack[#stack] ~= span then
+    return false
+  end
+  stack[#stack] = nil
+  return true
+end
+
+--- tracer:attach(span) -> true | false. Makes a detached open span the current one
+-- again (pushed as the innermost span). A non-recording span (NOOP_SPAN), a finished
+-- span, or a span already on the stack returns false and changes nothing. A span of
+-- another tracer is misuse and raises.
+function Tracer:attach(span)
+  if type(span) ~= "table" or not span.recording then
+    return false
+  end
+  if span._tracer ~= self then
+    compat.raise("tracer:attach: the span belongs to another tracer", 2)
+  end
+  local stack = self._stack
+  if span._done or stack_index(stack, span) then
+    return false
+  end
+  stack[#stack + 1] = span
+  return true
+end
+
 --- tracer:traceparent() -> "00-<trace_id>-<span_id>-01" for the current span, or nil
 function Tracer:traceparent()
   local span = self._stack[#self._stack]

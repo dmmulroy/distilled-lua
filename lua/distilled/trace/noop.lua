@@ -28,6 +28,12 @@ end
 function tracer_methods.traceparent()
   return nil
 end
+function tracer_methods.attach()
+  return false
+end
+function tracer_methods.detach()
+  return false
+end
 function tracer_methods.flush()
   return true
 end

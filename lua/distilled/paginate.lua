@@ -473,18 +473,16 @@ strategies.keyset = {
 local Iterator = {}
 Iterator.__index = Iterator
 
--- the tracer's span stack is private to distilled.trace; these two helpers are the only
--- places that touch it (proposed as tracer API in STATUS.md, task 04)
+-- the traversal span is current only while a page is fetched (tracer:attach/detach);
+-- a tracer without that API (a caller's own tracer object) just keeps it current
 local function attach(tracer, span)
-  local stack = rawget(tracer, "_stack")
-  if stack and span and span.recording then
-    stack[#stack + 1] = span
+  if tracer.attach then
+    tracer:attach(span)
   end
 end
 local function detach(tracer, span)
-  local stack = rawget(tracer, "_stack")
-  if stack and span and stack[#stack] == span then
-    stack[#stack] = nil
+  if tracer.detach then
+    tracer:detach(span)
   end
 end
 
