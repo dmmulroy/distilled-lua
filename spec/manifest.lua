@@ -12,6 +12,7 @@ return {
   "redact_spec.lua",
   "regex_spec.lua",
   "request_spec.lua",
+  "retry_spec.lua",
   "rex_host_spec.lua",
   "schema_spec.lua",
   "scope_spec.lua",
