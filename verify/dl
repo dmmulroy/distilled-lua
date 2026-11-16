@@ -224,10 +224,10 @@ verify/dl: distilled-lua verification driver
 
   not implemented yet (exit 2):
   dl trace <script>         task 02         dl expect <script>      task 02
-  dl serve                  plan step 6     dl rex <script>         plan step 6
-  dl canary                 plan step 6     dl gen-diff <provider>  plan step 7
-  dl conform <provider>     plan step 7     dl live <provider> <op> plan step 8
-  dl jaeger                 plan step 8     (plan = ../distilled-lua-plan.md "Build order")
+  dl serve                  task 05         dl rex <script>         task 05
+  dl canary                 task 05         dl jaeger               task 05
+  dl gen-diff <provider>    task 06         dl conform <provider>   later task
+  dl live <provider> <op>   later task
 EOF
 }
 
@@ -244,13 +244,13 @@ case $cmd in
   help | -h | --help) cmd_help ;;
   trace) stub trace "task 02" ;;
   expect) stub expect "task 02" ;;
-  conform) stub conform "the task for plan build step 7" ;;
-  gen-diff) stub gen-diff "the task for plan build step 7" ;;
-  serve) stub serve "the task for plan build step 6" ;;
-  rex) stub rex "the task for plan build step 6" ;;
-  live) stub live "the task for plan build step 8" ;;
-  canary) stub canary "the task for plan build step 6" ;;
-  jaeger) stub jaeger "the task for plan build step 8" ;;
+  conform) stub conform "a later task (plan build step 7)" ;;
+  gen-diff) stub gen-diff "task 06" ;;
+  serve) stub serve "task 05" ;;
+  rex) stub rex "task 05" ;;
+  live) stub live "a later task (plan build step 8)" ;;
+  canary) stub canary "task 05" ;;
+  jaeger) stub jaeger "task 05" ;;
   *)
     say "dl: unknown command $cmd"
     cmd_help
