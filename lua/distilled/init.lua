@@ -3,7 +3,6 @@ local json = require("distilled.json")
 local secret = require("distilled.secret")
 local Scope = require("distilled.scope")
 local errors = require("distilled.errors")
-local compat = require("distilled.compat")
 
 local distilled = {}
 
@@ -17,6 +16,8 @@ distilled.Scope = Scope
 --- distilled.check(value, err) -> value, or raises tostring(err) as a string.
 -- For callers that do want to raise (for example a Rex action boundary): gopher-lua's
 -- assert rejects table messages, and Rex prints a raised table as "table: 0x...".
+-- Raised at level 0: the message is exactly tostring(err), with no "file:line:" prefix
+-- (that would point into this file and is noise in the failure Rex shows).
 function distilled.check(value, err)
   if value == nil or (value == false and err ~= nil) then
     local message
@@ -25,7 +26,7 @@ function distilled.check(value, err)
     else
       message = tostring(err)
     end
-    compat.raise(message, 2)
+    error(message, 0)
   end
   return value
 end
