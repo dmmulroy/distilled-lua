@@ -133,6 +133,10 @@ cmd_test() {
         fuzz=1
         shift
         ;;
+      --xml-fuzz)
+        fuzz=2
+        shift
+        ;;
       -*) die "unknown option $1" ;;
       *)
         filter=$1
@@ -142,6 +146,10 @@ cmd_test() {
   done
   if [ "$fuzz" -eq 1 ]; then
     json_fuzz "$runtimes"
+    return
+  fi
+  if [ "$fuzz" -eq 2 ]; then
+    xml_fuzz "$runtimes"
     return
   fi
   manifest_fresh || cmd_manifest
@@ -189,6 +197,66 @@ json_fuzz() {
       diff "$TMP/fuzz_expected.txt" "$TMP/fuzz_$rt.txt" | head -n 8 | cut -c 1-300
     fi
   done
+  exit $status
+}
+
+# xml_fuzz "RUNTIMES" (task 15): documents and Distilled's outcomes from Node (xml.ts, with
+# its ASCII-name bug patched, checked against its reference parser), parsed by
+# distilled.xml under each runtime and compared line for line (tree or error message)
+DISTILLED_XML_TS="$ROOT/../distilled/packages/core/src/xml.ts"
+xml_fuzz() {
+  mkdir -p "$TMP"
+  seed=${DL_FUZZ_SEED:-20261116}
+  count=${DL_FUZZ_COUNT:-3000}
+  [ -f "$DISTILLED_XML_TS" ] || die "xml-fuzz: no $DISTILLED_XML_TS"
+  $NODE_TS "$LIB/xml_gen.mjs" "$seed" "$count" "$TMP/xml_in.bin" "$TMP/xml_expected.txt" \
+    "$DISTILLED_XML_TS" "$ROOT/spec/fixtures/xml" || die "node generator failed"
+  status=0
+  for rt in $1; do
+    rm -f "$TMP/xml_$rt.txt"
+    case $rt in
+      lua | luajit) res=$("$rt" "$LIB/xml_diff.lua" "$TMP/xml_in.bin" "$TMP/xml_$rt.txt") ;;
+      rex) res=$(rex do "$LIB/xml_diff.lua" "in=$TMP/xml_in.bin" "out=$TMP/xml_$rt.txt" | grep -v '^"') ;;
+      *) die "unknown runtime $rt" ;;
+    esac
+    if cmp -s "$TMP/xml_expected.txt" "$TMP/xml_$rt.txt"; then
+      say "ok   xml-fuzz $rt: $res (seed $seed), all match Distilled's xml.ts"
+    else
+      status=1
+      say "FAIL xml-fuzz $rt: output differs from Node (seed $seed); first differences:"
+      diff "$TMP/xml_expected.txt" "$TMP/xml_$rt.txt" | head -n 8 | cut -c 1-300
+    fi
+  done
+  exit $status
+}
+
+# xml-bench [file] (task 15): parse throughput of distilled.xml per runtime, and of
+# Distilled's xml.ts in Node on the same bytes
+cmd_xml_bench() {
+  mkdir -p "$TMP"
+  file=${1:-}
+  if [ -z "$file" ]; then
+    file="$TMP/xml_bench.xml"
+    lua "$LIB/xml_bench.lua" "write=$file" >/dev/null || die "xml-bench: could not build the document"
+  fi
+  status=0
+  for rt in $RUNTIMES; do
+    case $rt in
+      lua | luajit) "$rt" "$LIB/xml_bench.lua" "$file" || status=1 ;;
+      rex) rex do "$LIB/xml_bench.lua" "file=$file" | grep -v '^"' || status=1 ;;
+    esac
+  done
+  if [ -f "$DISTILLED_XML_TS" ]; then
+    $NODE_TS --input-type=module -e "
+      import { readFileSync } from 'node:fs';
+      const { parseXmlSync } = await import(process.argv[1]);
+      const text = readFileSync(process.argv[2], 'utf8');
+      let best = Infinity;
+      for (let i = 0; i < 5; i++) { const t0 = performance.now(); parseXmlSync(text); best = Math.min(best, performance.now() - t0); }
+      const mb = Buffer.byteLength(text) / 1048576;
+      console.log('node ' + process.version + ' xml.ts: ' + mb.toFixed(2) + ' MB in ' + (best / 1000).toFixed(3) + ' s (' + (mb / best * 1000).toFixed(1) + ' MB/s)');
+    " "$DISTILLED_XML_TS" "$file" || status=1
+  fi
   exit $status
 }
 
@@ -678,10 +746,15 @@ verify/dl: distilled-lua verification driver
   dl test [filter]          run specs under lua, luajit and rex (gopher-lua)
       --runtime R           run one runtime: lua | luajit | rex
       --json-fuzz           seeded random JSON round trip vs Node (DL_FUZZ_SEED, DL_FUZZ_COUNT)
+      --xml-fuzz            generated XML documents (and corruptions) parsed by distilled.xml
+                            vs Distilled's xml.ts in Node: trees and error messages
+                            (DL_FUZZ_SEED, DL_FUZZ_COUNT = documents per generator)
       --http                start a private dl serve and run the HTTP specs too (DL_SERVE_URL)
   dl manifest               regenerate spec/manifest.lua (dl test does this too)
   dl fmt [--check]          format (or check) Lua with stylua
   dl json-bench [file]      time json.decode of a file (default models/neon.json)
+  dl xml-bench [file]       time xml.decode per runtime and xml.ts in Node (default: a
+                            generated 5 MB S3 ListObjectsV2 page)
   dl trace <script>         run a script with a tracer (verify/lib/trace_env.lua), write
                             OTLP/JSON lines to verify/tmp/trace/, print the span tree
       --level L             debug (default) | operation
@@ -799,6 +872,7 @@ case $cmd in
   manifest) cmd_manifest "$@" ;;
   fmt) cmd_fmt "$@" ;;
   json-bench) cmd_json_bench "$@" ;;
+  xml-bench) cmd_xml_bench "$@" ;;
   help | -h | --help) cmd_help ;;
   trace) cmd_trace_or_expect trace "$@" ;;
   expect) cmd_trace_or_expect expect "$@" ;;
