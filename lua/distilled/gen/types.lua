@@ -330,7 +330,16 @@ function types.render(plan)
       for _, r in ipairs(ret) do
         b:line("---@return " .. r)
       end
-      b:line("function Client:" .. name .. "(input) end")
+      local signature = "function Client:" .. name .. "(input) end"
+      if #signature > emit.WIDTH then
+        -- stylua's layout for a signature past the width (long operation names)
+        b:line("function Client:" .. name .. "(")
+        b:line(emit.INDENT .. "input")
+        b:line(")")
+        b:line("end")
+      else
+        b:line(signature)
+      end
       b:blank()
     end
     local out_ret = needs_parens(output_t) and ("(" .. output_t .. ")?") or (output_t .. "?")
