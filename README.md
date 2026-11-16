@@ -96,3 +96,8 @@ verify/dl doctor     # toolchain check
 verify/dl test       # all specs under lua, luajit and rex
 verify/dl help       # everything else
 ```
+
+## License
+
+Apache-2.0. See `LICENSE` and `NOTICE`. distilled-lua is derived from
+[Distilled](https://github.com/alchemy-run/distilled), which is also Apache-2.0.
