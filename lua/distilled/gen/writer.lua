@@ -79,7 +79,7 @@ function writer.service(plan)
   for _, d in ipairs(plan.errors) do
     local target = "classes"
       .. (naming.is_identifier(d.tag) and ("." .. d.tag) or ("[" .. emit.string(d.tag) .. "]"))
-    b:lines_of(emit.value(gen_errors.value(d), "", target .. " = errors.define(", ")"))
+    b:lines_of(emit.assign(target, emit.call("errors.define", gen_errors.value(d))))
   end
   b:blank()
   b:line("local ops = {}")

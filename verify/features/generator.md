@@ -69,6 +69,12 @@ telemetry }` returns the files.
 - stylua keeps an expanded table expanded and an inline one inline; the emitter's only
   rule is "inline if the line fits in 100 columns", so its output is already formatted.
   Quoting follows `AutoPreferDouble` (single quotes when the string has `"` and no `'`).
+- Long shape names (PlanetScale's `PaginatedDatabaseDeployRequest...` names, task 09)
+  need two more stylua layouts, both in `gen/emit.lua` with specs in
+  `spec/gen_emit_spec.lua`: a call past the width breaks its arguments out
+  (`S.ref(\n  "Name"\n)`, one table argument hugs `fn({ ... })`), and an assignment
+  whose first line `target = {` cannot fit hangs its value on the next line.
+  Neon's names never needed either, so its output is unchanged.
 - Lua 5.5 makes `for` loop variables constant: never assign to one.
 - gopher-lua's `table.concat` overflows past ~2,500 items: the generator uses
   `compat.concat` (the whole Neon generation runs in Rex in about a second).

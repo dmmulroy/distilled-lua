@@ -274,8 +274,8 @@ local function expandable(v)
     return false
   end
   if mt == CALL then
-    -- a call expands only through a table argument; generator calls take literals
-    return false
+    -- a call breaks its arguments out (emit.value); a call without any cannot
+    return v.n > 0
   end
   return #entries(v) > 0
 end
@@ -291,8 +291,25 @@ function emit.value(v, indent, prefix, suffix)
   if width(one) <= emit.WIDTH or not expandable(v) then
     return { one }
   end
-  local lines = { indent .. prefix .. "{" }
   local inner = indent .. emit.INDENT
+  if getmetatable(v) == CALL then
+    -- stylua's layout for a call past the width (found on PlanetScale's long shape
+    -- names): one table argument hugs the parentheses, `fn({ ... })`; otherwise every
+    -- argument goes on its own line, comma-separated with no trailing comma.
+    local only = v.args[1]
+    if v.n == 1 and type(only) == "table" and getmetatable(only) ~= CALL and expandable(only) then
+      return emit.value(only, indent, prefix .. v.fn .. "(", ")" .. suffix)
+    end
+    local lines = { indent .. prefix .. v.fn .. "(" }
+    for i = 1, v.n do
+      for _, l in ipairs(emit.value(v.args[i], inner, "", i < v.n and "," or "")) do
+        lines[#lines + 1] = l
+      end
+    end
+    lines[#lines + 1] = indent .. ")" .. suffix
+    return lines
+  end
+  local lines = { indent .. prefix .. "{" }
   for _, e in ipairs(entries(v)) do
     for _, l in ipairs(emit.value(e[2], inner, e[1], ",")) do
       lines[#lines + 1] = l
@@ -303,8 +320,29 @@ function emit.value(v, indent, prefix, suffix)
 end
 
 --- emit.assign(target, v) -> lines for `target = <v>`
+-- When even the first line `target = {` (or `target = fn(`, or a value that cannot be
+-- broken) is past the width, stylua hangs the value of an assignment statement (not of a
+-- table field) on the next line, one level in: on one line when it fits there, else
+-- expanded one level deeper. Long targets come from long shape names (PlanetScale's
+-- model, task 09). Otherwise the value hugs `=`: stylua keeps an expanded table expanded.
 function emit.assign(target, v)
-  return emit.value(v, "", target .. " = ", "")
+  local one = target .. " = " .. inline(v)
+  if width(one) <= emit.WIDTH then
+    return { one }
+  end
+  local lines = emit.value(v, "", target .. " = ", "")
+  if #lines > 1 and width(lines[1]) <= emit.WIDTH then
+    return lines
+  end
+  local hung = emit.INDENT .. inline(v)
+  if width(hung) <= emit.WIDTH then
+    return { target .. " =", hung }
+  end
+  lines = { target .. " =" }
+  for _, l in ipairs(emit.value(v, emit.INDENT, "", "")) do
+    lines[#lines + 1] = l
+  end
+  return lines
 end
 
 --- emit.comment(text [, indent]) -> "-- " lines, wrapped at WIDTH on spaces
