@@ -15,9 +15,17 @@ One file per feature area. Each has the same four headings:
 | Secrets | [secret.md](secret.md) | task 01 |
 | Scope | [scope.md](scope.md) | task 01 |
 | Tracing | [tracing.md](tracing.md) | task 02 |
+| Request building | [request-building.md](request-building.md) | task 03 |
+| Key mapping | [key-mapping.md](key-mapping.md) | task 03 |
+| Redaction | [redaction.md](redaction.md) | task 03 |
+| Response validation | [validation.md](validation.md) | task 03 |
+| Retry, budget, deadline | [retry.md](retry.md) | task 04 |
+| Pagination | [pagination.md](pagination.md) | task 04 |
+| Credentials | [credentials.md](credentials.md) | task 04 |
+| REST protocol | [rest-protocol.md](rest-protocol.md) | task 04 |
+| Client and operations | [client.md](client.md) | task 04 |
 
-Other areas (request building, retry, pagination, transports, generator, Rex host)
-add their file here when their task lands.
+Other areas (transports, generator, Rex host) add their file here when their task lands.
 
 ## The proof bar
 

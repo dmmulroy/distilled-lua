@@ -42,9 +42,11 @@ fields_at, retry_after })` and fall back to `errors.STATUS_MAP`.
 
 ## Gotchas
 
-- Text matchers are `"exact"` or `{ includes = "...", matches = "<JS regex>" }`. Until
-  `distilled.regex` (task 03) lands, a matcher with `matches` never matches; the hook is the
-  `regex_test` function in `errors.lua`.
+- Text matchers are `"exact"` or `{ includes = "...", matches = "<JS regex>" }`. `matches`
+  is tested with `distilled.regex` (the JavaScript subset the patches use), compiled once
+  per source through the `regex_test` hook in `errors.lua`; a source that does not compile
+  never matches (the generator refuses such patterns). `spec/rest_spec.lua` covers a regex
+  matcher picking the class through a whole call.
 - A matched error's `code` is the wire error's code or `nil`. Distilled uses `0` when the
   envelope had no numeric code.
 - `status` is always the HTTP status, and `code`, `message`, `body`, `headers`,
