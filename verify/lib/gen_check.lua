@@ -10,6 +10,8 @@
 -- request.build. Failures are reported by operation name. Multipart operations (task 08)
 -- must build too, with a multipart/form-data content type and a closed body. The
 -- "acknowledged unsupported" count stays in the summary for future gaps; it is 0 today.
+-- A multi-model package (task 10) is checked through its index: lazy loading, every
+-- listed service as above, index.new.
 local rex_api = rawget(_G, "rex")
 local args = {}
 if rex_api then
@@ -44,134 +46,203 @@ local function fail(what)
 end
 
 local clock = os.clock
-local t0 = clock()
-local ok_service, service = compat.pcall(require, args.provider .. ".service")
-local load_ms = (clock() - t0) * 1000
-if not ok_service then
-  fail("service: does not load: " .. tostring(service))
-  service = nil
-end
-
--- the client module needs task 04's runtime
 local client_note
-if service then
-  local has_client = compat.pcall(require, "distilled.client")
-  if has_client then
-    local ok, Class = compat.pcall(require, args.provider)
-    if not ok then
-      fail("client: " .. args.provider .. " does not load: " .. tostring(Class))
-    elseif type(Class) ~= "table" or type(Class.new) ~= "function" then
-      fail("client: " .. args.provider .. " does not return a class with new")
+local shape_count, ref_count, ops_built, ops_skipped, op_count = 0, 0, 0, 0, 0
+local load_ms = 0
+
+-- check_module(module, fail): one generated client (module, module.service)
+local function check_module(module, fail)
+  local t0 = clock()
+  local ok_service, service = compat.pcall(require, module .. ".service")
+  load_ms = load_ms + (clock() - t0) * 1000
+  if not ok_service then
+    fail("service: does not load: " .. tostring(service))
+    service = nil
+  end
+
+  -- the client module needs task 04's runtime
+  if service then
+    local has_client = compat.pcall(require, "distilled.client")
+    if has_client then
+      local ok, Class = compat.pcall(require, module)
+      if not ok then
+        fail("client: " .. module .. " does not load: " .. tostring(Class))
+      elseif type(Class) ~= "table" or type(Class.new) ~= "function" then
+        fail("client: " .. module .. " does not return a class with new")
+      else
+        client_note = "client loads"
+      end
     else
-      client_note = "client loads"
+      client_note = "client not loaded (distilled.client missing)"
     end
-  else
-    client_note = "client not loaded (distilled.client missing)"
+  end
+
+  if service then
+    local registry = service.shapes
+    -- resolve every ref reachable from any registry entry or op descriptor (explicit stack)
+    local seen = {}
+    local stack = {}
+    local function push(node, where)
+      if type(node) == "table" and not seen[node] then
+        stack[#stack + 1] = { node = node, where = where }
+      end
+    end
+    local names = {}
+    for name in pairs(registry) do
+      names[#names + 1] = name
+    end
+    table.sort(names)
+    for _, name in ipairs(names) do
+      shape_count = shape_count + 1
+      push(registry[name], "shape " .. name)
+    end
+    local op_names = {}
+    for name in pairs(service.ops) do
+      op_names[#op_names + 1] = name
+    end
+    table.sort(op_names)
+    for _, name in ipairs(op_names) do
+      local op = service.ops[name]
+      push(op.input, "op " .. name .. " input")
+      push(op.output, "op " .. name .. " output")
+    end
+    while #stack > 0 do
+      local e = stack[#stack]
+      stack[#stack] = nil
+      local node = e.node
+      if not seen[node] then
+        seen[node] = true
+        if node.t == "ref" then
+          ref_count = ref_count + 1
+          if registry[node.name] == nil then
+            fail(e.where .. ": ref " .. tostring(node.name) .. " does not resolve")
+          end
+        elseif node.t == "struct" then
+          for _, m in ipairs(node.members or {}) do
+            push(m.schema, e.where .. "." .. tostring(m.name))
+          end
+        elseif node.t == "list" then
+          push(node.item, e.where .. "[]")
+        elseif node.t == "map" then
+          push(node.value, e.where .. "{}")
+        elseif node.t == "union" then
+          for i, a in ipairs(node.arms or {}) do
+            push(a, e.where .. "|" .. i)
+          end
+        elseif type(node.t) ~= "string" then
+          fail(e.where .. ": not a schema node")
+        end
+      end
+    end
+
+    for _, name in ipairs(op_names) do
+      op_count = op_count + 1
+      local op = service.ops[name]
+      for _, tag in ipairs(op.errors or {}) do
+        if service.errors[tag] == nil then
+          fail("op " .. name .. ": error " .. tag .. " is not in service.errors")
+        end
+      end
+      local input, ierr = synth.input(op, registry)
+      if not input then
+        fail("op " .. name .. ": cannot synthesize an input: " .. ierr)
+      else
+        local req, err = request.build({
+          op = op,
+          input = input,
+          registry = registry,
+          base_url = "https://gen-check.test/v1",
+        })
+        local ct = req and req.headers["content-type"] or ""
+        if not req then
+          fail("op " .. name .. ": request.build failed: " .. tostring(err))
+        elseif req.method ~= op.method then
+          fail("op " .. name .. ": method " .. tostring(req.method) .. " ~= " .. op.method)
+        elseif string.sub(req.url, 1, 25) ~= "https://gen-check.test/v1" then
+          fail("op " .. name .. ": url " .. tostring(req.url))
+        elseif string.find(req.url, "{", 1, true) then
+          fail("op " .. name .. ": unfilled placeholder in " .. req.url)
+        elseif
+          op.content_type == "multipart"
+          and (
+            string.sub(ct, 1, 30) ~= "multipart/form-data; boundary="
+            or type(req.body) ~= "string"
+            or string.sub(req.body, -4) ~= "--\r\n"
+          )
+        then
+          -- multipart (task 08): built like any other op, and the body is a closed form
+          fail("op " .. name .. ": multipart body not built (content-type " .. ct .. ")")
+        else
+          ops_built = ops_built + 1
+        end
+      end
+    end
   end
 end
 
-local shape_count, ref_count, ops_built, ops_skipped, op_count = 0, 0, 0, 0, 0
-
-if service then
-  local registry = service.shapes
-  -- resolve every ref reachable from any registry entry or op descriptor (explicit stack)
-  local seen = {}
-  local stack = {}
-  local function push(node, where)
-    if type(node) == "table" and not seen[node] then
-      stack[#stack + 1] = { node = node, where = where }
-    end
-  end
-  local names = {}
-  for name in pairs(registry) do
-    names[#names + 1] = name
-  end
-  table.sort(names)
-  for _, name in ipairs(names) do
-    shape_count = shape_count + 1
-    push(registry[name], "shape " .. name)
-  end
-  local op_names = {}
-  for name in pairs(service.ops) do
-    op_names[#op_names + 1] = name
-  end
-  table.sort(op_names)
-  for _, name in ipairs(op_names) do
-    local op = service.ops[name]
-    push(op.input, "op " .. name .. " input")
-    push(op.output, "op " .. name .. " output")
-  end
-  while #stack > 0 do
-    local e = stack[#stack]
-    stack[#stack] = nil
-    local node = e.node
-    if not seen[node] then
-      seen[node] = true
-      if node.t == "ref" then
-        ref_count = ref_count + 1
-        if registry[node.name] == nil then
-          fail(e.where .. ": ref " .. tostring(node.name) .. " does not resolve")
-        end
-      elseif node.t == "struct" then
-        for _, m in ipairs(node.members or {}) do
-          push(m.schema, e.where .. "." .. tostring(m.name))
-        end
-      elseif node.t == "list" then
-        push(node.item, e.where .. "[]")
-      elseif node.t == "map" then
-        push(node.value, e.where .. "{}")
-      elseif node.t == "union" then
-        for i, a in ipairs(node.arms or {}) do
-          push(a, e.where .. "|" .. i)
-        end
-      elseif type(node.t) ~= "string" then
-        fail(e.where .. ": not a schema node")
+-- A package with several models (task 10): clients/<pkg>/init.lua is an index and each
+-- service is a module <pkg>.<service>. A single-model package has <pkg>/service.lua.
+local single = io.open(args.dir .. "/" .. args.provider .. "/service.lua", "rb")
+local layout_note
+if single then
+  single:close()
+  check_module(args.provider, fail)
+else
+  local services = {}
+  local ok, index = compat.pcall(require, args.provider)
+  if not ok then
+    fail("index: " .. args.provider .. " does not load: " .. tostring(index))
+  elseif type(index) ~= "table" or type(index.services) ~= "table" then
+    fail("index: " .. args.provider .. " has neither service.lua nor an index with services")
+  else
+    for i, name in ipairs(index.services) do
+      services[i] = name
+      if i > 1 and not (services[i - 1] < name) then
+        fail("index: services are not sorted and unique at " .. name)
       end
     end
-  end
-
-  for _, name in ipairs(op_names) do
-    op_count = op_count + 1
-    local op = service.ops[name]
-    for _, tag in ipairs(op.errors or {}) do
-      if service.errors[tag] == nil then
-        fail("op " .. name .. ": error " .. tag .. " is not in service.errors")
+    if #services == 0 then
+      fail("index: lists no service")
+    end
+    -- lazy: requiring the index loaded no service
+    for _, name in ipairs(services) do
+      if package.loaded[args.provider .. "." .. name] ~= nil then
+        fail("index: requiring it loaded " .. args.provider .. "." .. name)
       end
     end
-    local input, ierr = synth.input(op, registry)
-    if not input then
-      fail("op " .. name .. ": cannot synthesize an input: " .. ierr)
+    if index.no_such_service ~= nil then
+      fail("index: an unknown name is not nil")
+    end
+    for _, name in ipairs(services) do
+      local module = args.provider .. "." .. name
+      check_module(module, function(what)
+        fail(module .. ": " .. what)
+      end)
+      if index[name] ~= package.loaded[module] then
+        fail("index." .. name .. " is not require(" .. module .. ")")
+      end
+    end
+    -- index.new: one client per service, built on first use with the shared options
+    if #services > 0 and type(index.new) == "function" then
+      local clients = index.new({})
+      local first = services[1]
+      if rawget(clients, first) ~= nil then
+        fail("index.new: built a client before it was used")
+      end
+      local client = clients[first]
+      if type(client) ~= "table" or type(client.with) ~= "function" then
+        fail("index.new: clients." .. first .. " is not a client")
+      elseif clients[first] ~= client then
+        fail("index.new: clients." .. first .. " is built again on each use")
+      end
+      if clients.no_such_service ~= nil then
+        fail("index.new: an unknown name is not nil")
+      end
     else
-      local req, err = request.build({
-        op = op,
-        input = input,
-        registry = registry,
-        base_url = "https://gen-check.test/v1",
-      })
-      local ct = req and req.headers["content-type"] or ""
-      if not req then
-        fail("op " .. name .. ": request.build failed: " .. tostring(err))
-      elseif req.method ~= op.method then
-        fail("op " .. name .. ": method " .. tostring(req.method) .. " ~= " .. op.method)
-      elseif string.sub(req.url, 1, 25) ~= "https://gen-check.test/v1" then
-        fail("op " .. name .. ": url " .. tostring(req.url))
-      elseif string.find(req.url, "{", 1, true) then
-        fail("op " .. name .. ": unfilled placeholder in " .. req.url)
-      elseif
-        op.content_type == "multipart"
-        and (
-          string.sub(ct, 1, 30) ~= "multipart/form-data; boundary="
-          or type(req.body) ~= "string"
-          or string.sub(req.body, -4) ~= "--\r\n"
-        )
-      then
-        -- multipart (task 08): built like any other op, and the body is a closed form
-        fail("op " .. name .. ": multipart body not built (content-type " .. ct .. ")")
-      else
-        ops_built = ops_built + 1
-      end
+      fail("index: no new function")
     end
   end
+  layout_note = #services .. " services"
 end
 
 for _, n in ipairs(notes) do
@@ -181,10 +252,11 @@ for _, f in ipairs(failures) do
   print("FAIL " .. f)
 end
 local summary = string.format(
-  "%s gen-check %s: %d shapes, %d refs resolved, %d/%d ops built, %d acknowledged unsupported; "
+  "%s gen-check %s: %s%d shapes, %d refs resolved, %d/%d ops built, %d acknowledged unsupported; "
     .. "service load %.1f ms; %s",
   #failures == 0 and "ok" or "FAIL",
   runtime,
+  layout_note and (layout_note .. ", ") or "",
   shape_count,
   ref_count,
   ops_built,
