@@ -196,3 +196,72 @@ print(n)
   exporter, `kind` default, no `err.trace_id` from the tracer) need the orchestrator's
   decision before `docs/interfaces.md` is updated.
 - `verify/features/README.md` (not mine) should add the tracing row.
+
+## Follow-up (after verification)
+
+What changed:
+
+1. **`compat.pcall` runs on a coroutine** (`lua/distilled/compat.lua`), with the same
+   signature and results. `trace._protect` is gone: `tracer:with` and `tracer:flush` call
+   `compat.pcall`, so there is one implementation. The `ERROR_LEVEL_SHIFT` probe also runs
+   in a coroutine now.
+   - **Yield-transparent:** a yield inside fn is passed to the caller's coroutine and the
+     resume values come back, through any number of nested calls.
+   - **Outside a coroutine** a yield returns `false, "attempt to yield from outside a
+     coroutine"`. When nested, the outermost compat.pcall reports it, where native pcall
+     would have the innermost one catch it.
+   - Accepts C functions and callable tables, and keeps trailing nils.
+2. **`Scope.with`** needed no code change: it already calls `compat.pcall`, so it is fixed
+   by (1) and can now yield.
+   - **Harness:** `t.pcall`, `t.raises` and `t.describe` use compat.pcall.
+   - The traceback handler calls `debug.traceback` directly; through a coroutine it would
+     trace the wrong stack.
+   - `t._run` keeps one outermost `xpcall` for its handler.
+3. **Regression specs** in `spec/compat_spec.lua`, 11 new:
+   - nested protected calls (one that catches after an inner one completed; an inner
+     catch re-raised and caught again);
+   - three levels of nesting, catching at every level;
+   - a protected call inside a Scope finalizer with raises on every path;
+   - harness `t.pcall` nested;
+   - C functions, callable tables and trailing nils;
+   - yields both ways, through three levels, and a raise after a yield;
+   - a yield outside a coroutine;
+   - `Scope.with` yielding;
+   - calls from inside a coroutine.
+
+   The plain-pcall test was already there. Swapping the old xpcall implementation back
+   in makes 9 of the 20 compat specs fail under Rex
+   (`FAIL 9 failed, 11 passed [rex]`). Restored afterwards.
+4. **`lua/distilled/trace/noop.lua`** requires nothing. `distilled.trace` re-exports it:
+   `trace.noop` is the same object, and `trace.NOOP_SPAN` is still available. A spec
+   unloads every `distilled.trace*` module, requires the noop module and checks that
+   `package.loaded` gained only `distilled.trace.noop`.
+5. **`verify/features/README.md`** has the tracing row, both upvalue bugs and the
+   yield-crash fact. `scope.md` and `tracing.md` are updated.
+
+The limit: a yield cannot cross a C/Go call boundary between the caller's coroutine and
+compat.pcall, for example a `table.sort` comparator or a `string.gsub` callback. This is a
+runtime limit, not a compat.pcall one. Measured, both with and without compat.pcall:
+
+| runtime | result |
+| --- | --- |
+| lua 5.5 | raises `attempt to yield across a C-call boundary` |
+| luajit | raises `attempt to yield across C-call boundary` |
+| gopher-lua (Rex) | **the whole `rex do` run dies**: `Error: runtime error: invalid memory address or nil pointer dereference` |
+
+Commands and output:
+
+```
+$ verify/dl doctor              -> doctor: ok
+$ verify/dl test                (full run)
+  lua: ok 371 passed [Lua 5.5]
+  luajit: ok 371 passed [luajit]
+  rex: ok 370 passed, 1 pending [rex]
+$ verify/dl test compat         -> ok 20 passed on lua, luajit, rex
+$ verify/dl test trace_         -> ok 77 passed on lua, luajit, rex
+$ verify/dl expect verify/lib/trace_example.lua --runtime {lua,luajit,rex}  -> expect: ok
+$ stylua --check (every file touched)                                        -> clean
+```
+
+The pending test is task 03's `regex_spec.lua` ("differential against node -e (no io.popen
+or no node here)"): in Rex it is skipped by design. No other spec failed.

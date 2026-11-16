@@ -83,11 +83,7 @@ and `verify/features/tracing.md`.
   `compat.pcall` (xpcall) is **not** safe when nested: `xpcall(function() xpcall(f, h);
   error("y") end, h)` leaves a counter closure writing to a stale copy (measured in Rex,
   `/tmp`-style repros in the done file). A coroutine that catches the error is not
-  affected, so `tracer:with` and `tracer:flush` protect with `coroutine.resume` (about
-  2.6 us per call in Rex; also yield-transparent). Proposal for `compat` (task 01 owns it):
-  build `compat.pcall` on a coroutine the same way (`trace._protect` is the reference),
-  and fix `Scope.with` with it; until then code nested inside `Scope.with` or
-  `compat.pcall` that catches is exposed.
+  affected. **Fixed in the follow-up:** `compat.pcall` is now built on a coroutine.
 - A script for `dl trace`/`dl expect` reaches its tracer with
   `require("verify.lib.trace_env")` (`env.tracer`, `env.host`, `env.spans()`,
   `env.expect()`); `dl expect` calls a function the script returns with `expect(spans)`.
@@ -111,9 +107,41 @@ and `verify/features/tracing.md`.
 - Flush failures are `SdkError` "trace export failed: ...". Exported spans are in start
   order. Extra exports: `trace.NOOP_SPAN`, `trace.parse_traceparent`, `trace.ns_diff_ms`,
   `trace.attribute_value`, `trace.tag_of`.
-- `trace.noop` lives in `distilled.trace` (the plan says the module is never loaded when
-  off; task 04 may want to hold a copy elsewhere if that matters).
-- Not mine, for the orchestrator: `verify/features/README.md` should list `tracing.md`.
+- `trace.noop` is `distilled.trace.noop` (see the follow-up below).
+
+### Follow-up (after verification)
+
+**Done.** `compat.pcall` is rebuilt on a coroutine (same signature, same results); the
+tracer, `Scope` and the harness all go through it; the noop tracer is its own module.
+
+- **`compat.pcall(fn, ...)`** runs fn in a coroutine. It is safe from both gopher-lua
+  upvalue bugs at any nesting depth, and yield-transparent: a yield inside fn goes to the
+  coroutine that called compat.pcall and the resume values come back. Outside any
+  coroutine a yield returns `false, "attempt to yield from outside a coroutine"`. When
+  nested, the yield travels out to the outermost compat.pcall, which reports it (native
+  `pcall(pcall, coroutine.yield)` would have the innermost one catch it instead).
+  It accepts C functions and callable tables. The `ERROR_LEVEL_SHIFT` probe now runs in a
+  coroutine too.
+- **Limit (all runtimes, not caused by compat.pcall):** a yield cannot cross a C/Go call
+  boundary such as a `table.sort` comparator or a `string.gsub` callback. lua/luajit
+  raise "attempt to yield across a C-call boundary". **gopher-lua crashes the whole run**
+  ("invalid memory address or nil pointer dereference"), with or without compat.pcall.
+- **Changed behaviour others may notice:** code under compat.pcall sees a different
+  `coroutine.running()`. A raise keeps its message and position, but a traceback taken
+  later only covers the stack from the re-raise.
+  `debug.traceback` must not be called through compat.pcall (that would trace the
+  coroutine's stack); the harness now calls it directly in its handler.
+- `Scope.with`, `scope:close` and `scope:defer` needed no change (they already call
+  compat.pcall). The harness `t.pcall` / `t.raises` / `t.describe` use compat.pcall.
+  `t._run` keeps one outermost `xpcall` for its traceback handler, which is safe because
+  nothing nested inside it uses xpcall.
+- `lua/distilled/trace/noop.lua` requires nothing. `distilled.trace` re-exports it
+  (`trace.noop` is the same object, `trace.NOOP_SPAN`). A spec checks that requiring it
+  loads only that module.
+- Regression specs in `spec/compat_spec.lua` (11 new). With the old xpcall-based
+  compat.pcall swapped back in, 9 of them fail under Rex.
+- `verify/features/README.md` lists tracing.md and both bugs, plus the yield crash;
+  `verify/features/scope.md` is updated.
 
 ## 03 wire
 
