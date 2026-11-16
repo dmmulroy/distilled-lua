@@ -295,9 +295,10 @@ whenever a response arrived (success or failure): this is how `link` pagination 
 
 ## 05 host
 
-**In progress.** Done: transports, `host/rex.lua`, `otlp_http`, `dl serve`, `dl test
---http`, `dl rex`, `dl canary`, `dl jaeger`, specs, feature docs. Waiting for task 04:
-the end-to-end client runs over HTTP and `examples/rex_action.lua`.
+**Done.** Transports, `host/rex.lua`, `otlp_http`, `dl serve`, `dl test --http`, `dl rex`,
+`dl canary`, `dl jaeger`, specs, feature docs, end-to-end client runs over HTTP under
+all three runtimes, `examples/rex_action.lua`. See `tasks/05-host.done.md`. Jaeger round
+trip skipped: the Docker daemon is not running.
 
 ### APIs others can use now
 
@@ -314,6 +315,8 @@ the end-to-end client runs over HTTP and `examples/rex_action.lua`.
   `t.pending` when it is nil. `verify/dl test --http` runs the whole suite under a private
   server. `serve.client(transport)` scripts it; `serve.popen_exec` is an exec shim.
 - Scripts that need a real host on the current runtime: `require("verify.lib.canary").host()`.
+- `require("verify.lib.serve").fixture_class()`: the task 03 fixture service as a client
+  class (options `api_key`, `base_url`), for HTTP tests and examples.
 
 ### Decisions
 
