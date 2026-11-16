@@ -96,4 +96,9 @@ function exporters.console(opts)
   end
 end
 
+-- exporters.otlp_http{ endpoint, transport, headers, timeout } (task 05)
+exporters.otlp_http = function(opts)
+  return require("distilled.trace.otlp_http")(opts)
+end
+
 return exporters
