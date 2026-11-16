@@ -1,0 +1,4 @@
+trace trace-1
+  Neon.GetProject client ERROR "HTTP 503" distilled.attempts=3 distilled.retry.delay_ms=600 distilled.retry.errors=[TooManyRequests,TooManyRequests] error.type=ServiceUnavailable http.request.method=GET http.response.status_code=503 neon.project_id=proj-quiet-sun rpc.method=Neon/GetProject rpc.system.name=neon-api server.address=console.neon.tech server.port=443 url.template="/projects/{project_id}"
+    @ retry delay_ms=200 reason=TooManyRequests
+    @ retry delay_ms=400 reason=TooManyRequests

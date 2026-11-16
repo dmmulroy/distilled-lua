@@ -1,0 +1,10 @@
+trace trace-1 (parent remote-1)
+  Neon.GetProject client unset distilled.attempts=2 distilled.retry.delay_ms=200 distilled.retry.errors=[TooManyRequests] http.request.method=GET http.response.status_code=200 neon.project_id=proj-quiet-sun rpc.method=Neon/GetProject rpc.system.name=neon-api server.address=console.neon.tech server.port=443 url.template="/projects/{project_id}"
+    distilled.credentials unset credential=<redacted>
+    distilled.request.build unset
+    distilled.attempt ERROR "HTTP 429" distilled.attempt=1 error.type=TooManyRequests http.request.resend_count=0 http.response.status_code=429
+      distilled.transport unset http.response.status_code=429 transport=curl
+    @ retry delay_ms=200 reason=TooManyRequests
+    distilled.retry.backoff unset delay_ms=200 reason=TooManyRequests
+    distilled.attempt unset distilled.attempt=2 http.request.resend_count=1 http.response.status_code=200
+      distilled.transport unset http.response.status_code=200 transport=curl

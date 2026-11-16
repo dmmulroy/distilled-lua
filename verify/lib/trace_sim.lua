@@ -28,6 +28,9 @@ local function attempt(tracer, host, n, status)
       end
     )
     span:set("http.response.status_code", status)
+    if status < 400 then
+      return true
+    end
     return nil, errors.new(errors.STATUS_MAP[status] or "UnknownError", { status = status })
   end)
 end

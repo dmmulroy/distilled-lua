@@ -8,5 +8,9 @@ return {
   "json_spec.lua",
   "scope_spec.lua",
   "secret_spec.lua",
+  "trace_expect_spec.lua",
+  "trace_exporters_spec.lua",
+  "trace_otlp_spec.lua",
   "trace_tracer_spec.lua",
+  "trace_tree_spec.lua",
 }
