@@ -67,10 +67,8 @@ local function is_array(v)
   if getmetatable(v) ~= nil then
     return false
   end
+  -- an unmarked table: a sequence, or empty (hand-built data; decoded data is marked)
   local n = #v
-  if n == 0 then
-    return false
-  end
   local count = 0
   for _ in pairs(v) do
     count = count + 1
@@ -633,6 +631,9 @@ end
 
 --- it() -> the next page (pages) or item (items); nil at the end or on failure
 function Iterator:__call()
+  if self._finished then
+    return nil
+  end
   if self.kind == "pages" then
     local page = self:_next_page()
     if page == nil then

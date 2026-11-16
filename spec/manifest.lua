@@ -8,6 +8,7 @@ return {
   "json_spec.lua",
   "keys_spec.lua",
   "otlp_http_spec.lua",
+  "paginate_spec.lua",
   "redact_spec.lua",
   "regex_spec.lua",
   "request_spec.lua",
