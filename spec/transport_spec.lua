@@ -608,3 +608,147 @@ else
     end)
   end
 end
+
+---------------------------------------------------------------------------------------
+-- end to end: the full client (task 04) over real HTTP, asserting on the trace
+---------------------------------------------------------------------------------------
+
+local have_client = BASE and t.pcall(function()
+  return require("distilled.client")
+end)
+if not BASE then
+  t.describe("client end to end over HTTP", function()
+    t.pending("skipped: DL_SERVE_URL is not set (run verify/dl test --http)")
+  end)
+elseif not have_client then
+  t.describe("client end to end over HTTP", function()
+    t.pending("skipped: distilled.client does not load yet (task 04)")
+  end)
+else
+  local trace = require("distilled.trace")
+  local expect = require("distilled.trace.expect")
+  local fixtures = require("distilled.testing.fixtures")
+  local Fake = serve.fixture_class()
+  -- operation span names as the operation layer derives them (operation.info)
+  local svc = fixtures.service()
+  local function span_name(op)
+    local info = require("distilled.operation").info(svc, svc.ops[op])
+    return info.name
+  end
+  local GET_SPAN, LIST_SPAN = span_name("get_project"), span_name("list_projects")
+
+  for _, entry in ipairs(transports()) do
+    local tr, key = entry.tr, entry.key
+    local s = serve.client(tr)
+    local prefix = "/e2e-" .. key
+
+    local function new_client()
+      local mem = trace.exporters.memory()
+      local sleeps = {}
+      local client = Fake.new({
+        api_key = SECRET,
+        base_url = BASE .. prefix,
+        transport = tr,
+        sleep = function(sec)
+          sleeps[#sleeps + 1] = sec
+        end,
+        tracing = { level = "debug", exporter = mem },
+      })
+      return client, mem, sleeps
+    end
+
+    local function requests_to(path)
+      local out = {}
+      for _, r in ipairs(s.requests()) do
+        if r.path == path then
+          out[#out + 1] = r
+        end
+      end
+      return out
+    end
+
+    t.describe("client end to end over HTTP: " .. entry.name, function()
+      t.it("retries 500, 500, then succeeds", function()
+        s.reset()
+        s.script(prefix .. "/projects/p1", {
+          { status = 500, json = { message = "boom 1" } },
+          { status = 500, json = { message = "boom 2" } },
+          { status = 200, json = fixtures.bodies.project("p1") },
+        })
+        local client, mem, sleeps = new_client()
+        local value = ok(client:get_project({ project_id = "p1" }))
+        t.eq(value.project.id, "p1")
+        t.eq(#sleeps, 2)
+        local e = expect(mem)
+        local op = e:span(GET_SPAN):ok()
+        op:attr("http.response.status_code", 200)
+        op:children("distilled.attempt"):count(3)
+        e:spans("distilled.transport"):count(3)
+        e:no_attr_contains(SECRET)
+        local seen = requests_to(prefix .. "/projects/p1")
+        t.eq(#seen, 3)
+        for _, r in ipairs(seen) do
+          t.eq(r.headers.authorization, "Bearer " .. SECRET)
+          t.eq(r.method, "GET")
+        end
+        client:close()
+      end)
+
+      t.it("walks a cursor-paginated listing", function()
+        s.reset()
+        local page = fixtures.bodies.page
+        s.script(prefix .. "/projects", {
+          { status = 200, json = page({ "a", "b" }, "c1") },
+          { status = 200, json = page({ "c" }, "c2") },
+          { status = 200, json = page({}) },
+        })
+        local client, mem = new_client()
+        local items = ok(client:list_projects_items({ limit = 2 }):collect())
+        t.eq(#items, 3)
+        t.eq(items[3].id, "c")
+        local seen = requests_to(prefix .. "/projects")
+        t.eq(#seen, 3)
+        t.eq(seen[1].query, "limit=2")
+        t.match(seen[2].query, "cursor=c1", true)
+        t.match(seen[3].query, "cursor=c2", true)
+        local e = expect(mem)
+        e:spans(LIST_SPAN):count(3)
+        e:no_attr_contains(SECRET)
+        client:close()
+      end)
+
+      t.it("returns a typed error (404 NotFound) with trace id and status", function()
+        s.reset()
+        s.script(prefix .. "/projects/missing", {
+          { status = 404, json = { code = "", message = "project not found" } },
+        })
+        local client, mem = new_client()
+        local v, err = client:get_project({ project_id = "missing" })
+        t.eq(v, nil)
+        t.eq(err.tag, "NotFound")
+        t.eq(err.status, 404)
+        t.truthy(err.trace_id, "err.trace_id")
+        t.no_match(tostring(err), SECRET, true)
+        local e = expect(mem)
+        e:span(GET_SPAN):failed("NotFound"):attr("http.response.status_code", 404)
+        e:no_attr_contains(SECRET)
+        t.eq(#requests_to(prefix .. "/projects/missing"), 1)
+        client:close()
+      end)
+
+      t.it("a transport failure surfaces as TransportError through the client", function()
+        local client = Fake.new({
+          api_key = SECRET,
+          base_url = "http://127.0.0.1:1",
+          transport = tr,
+          sleep = function() end,
+          retry = "none",
+        })
+        local v, err = client:get_project({ project_id = "p1" })
+        t.eq(v, nil)
+        t.eq(err.tag, "TransportError")
+        t.no_match(tostring(err), SECRET, true)
+      end)
+    end)
+  end
+end

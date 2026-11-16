@@ -8,6 +8,7 @@
 --   s.reset()
 --   serve.popen_exec(argv, opts)     -- rex.exec's contract on stock Lua (io.popen)
 --   serve.pattern_bytes(n)           -- what GET /_dl/bytes?n=N returns
+--   serve.fixture_class()            -- a client class over distilled.testing.fixtures
 local json = require("distilled.json")
 
 local serve = {}
@@ -137,6 +138,29 @@ function serve.popen_exec(argv, opts)
   end
   out = string.sub(out, 1, i - 1)
   return { code = code, ok = code == 0, stdout = out, stderr = stderr, timed_out = false }
+end
+
+--- serve.fixture_class() -> Client class for the task 03 fixture service (Neon-shaped),
+-- with options api_key (secret, env FAKE_API_KEY) and base_url (point it at dl serve).
+function serve.fixture_class()
+  local Client = require("distilled.client")
+  local rest = require("distilled.protocol.rest")
+  local fixtures = require("distilled.testing.fixtures")
+  return Client.define({
+    service = fixtures.service(),
+    protocol = rest.new({
+      base_url = function(creds)
+        return creds.base_url
+      end,
+      headers = rest.bearer("api_key"),
+      unknown_tag = "UnknownFakeError",
+      parse_tag = "FakeParseError",
+    }),
+    options = {
+      api_key = { secret = true, env = "FAKE_API_KEY", required = true },
+      base_url = { default = fixtures.BASE_URL },
+    },
+  })
 end
 
 return serve
