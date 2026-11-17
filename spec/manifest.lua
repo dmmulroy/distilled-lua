@@ -18,6 +18,7 @@ return {
   "gen_output_spec.lua",
   "gen_provider_spec.lua",
   "gen_shapes_spec.lua",
+  "graphql_conform_spec.lua",
   "harness_spec.lua",
   "host_popen_spec.lua",
   "init_spec.lua",

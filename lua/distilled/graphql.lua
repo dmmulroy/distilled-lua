@@ -598,14 +598,19 @@ local function response_key(sel)
 end
 
 -- bind the present arguments as variables, in declaration order (graphql.ts bindArgs)
-local function bind_args(forest, args, arg_types, arg_order, raw_args)
+-- `after_last`: the pagination cursor was added to the caller's arguments, so it is
+-- bound last (TS spreads it after them: `{ ...args, after }`)
+local function bind_args(forest, args, arg_types, arg_order, raw_args, after_last)
   if args == nil then
     return nil
   end
   local names = {}
   local listed = {}
+  if after_last then
+    listed.after = true
+  end
   for _, a in ipairs(arg_order or EMPTY) do
-    if args[a[1]] ~= nil then
+    if args[a[1]] ~= nil and not listed[a[1]] then
       names[#names + 1] = a[1]
     end
     listed[a[1]] = true
@@ -614,6 +619,9 @@ local function bind_args(forest, args, arg_types, arg_order, raw_args)
     if not listed[k] then
       names[#names + 1] = k
     end
+  end
+  if after_last and args.after ~= nil then
+    names[#names + 1] = "after"
   end
   if #names == 0 then
     return nil
@@ -667,7 +675,7 @@ local function ensure_child(forest, parent, field, opts)
   local sel = {
     field = field,
     alias = alias,
-    args = bind_args(forest, args, opts.arg_types, opts.arg_order, raw_args),
+    args = bind_args(forest, args, opts.arg_types, opts.arg_order, raw_args, opts.after_last),
     children = {},
     index = {},
     is_scalar = opts.is_scalar or false,
@@ -714,9 +722,10 @@ local function append(list, ...)
   return out
 end
 
-local function field_opts(field, args)
+local function field_opts(field, args, after_last)
   return {
     args = args,
+    after_last = after_last,
     arg_types = field.arg_types,
     arg_order = field.args,
     is_scalar = field.kind == "scalar",
@@ -745,6 +754,7 @@ paint_abs = function(forest, expr, depth)
       args = expr.args,
       arg_types = expr.arg_types,
       arg_order = expr.arg_order,
+      after_last = expr.after_last,
       -- leaf roots (`projectDelete: Boolean!`) take no sub-selection
       is_scalar = ref.tag == "scalar" or (ref.tag == "list" and ref.of.tag == "scalar"),
       is_list = ref.tag == "list" and not expr.connection,
@@ -761,8 +771,8 @@ paint_abs = function(forest, expr, depth)
   elseif expr.tag == "Prop" then
     local parent_path = paint_abs(forest, expr.parent, depth + 1)
     local parent_sel = sel_at(forest.roots, parent_path)
-    local node =
-      ensure_child(forest, parent_sel, expr.field.name, field_opts(expr.field, expr.args))
+    local opts = field_opts(expr.field, expr.args, expr.after_last)
+    local node = ensure_child(forest, parent_sel, expr.field.name, opts)
     local key = response_key(node)
     forest.root_alias[expr] = key
     local path = append(parent_path, key)
@@ -1633,6 +1643,9 @@ local function with_cursor(expr, connection, after)
     local args = {}
     for k, v in pairs(expr.args or EMPTY) do
       args[k] = v
+    end
+    if args.after == nil then
+      copy.after_last = true
     end
     args.after = after
     copy.args = next(args) ~= nil and args or nil
