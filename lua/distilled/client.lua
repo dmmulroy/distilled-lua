@@ -9,6 +9,8 @@
 --   local neon = Neon.new{ api_key = key, transport = transport }
 --   local project, err = neon:get_project{ project_id = "p1" }
 --   local all, err = neon:list_projects_items{}:collect(50)
+--   local stream, err = boat:execute_sandbox_command_stream{ ... }   -- ops with op.stream
+--   for item, item_err in stream:iter() do ... end                 -- distilled.stream
 --   local patient = neon:with{ retry = { max_retries = 5 } }
 --   neon:close()
 --
@@ -505,6 +507,18 @@ function Client.define(spec)
       end
       add(renamed.pages or (name .. "_pages"), iterate("pages"))
       add(renamed.items or (name .. "_items"), iterate("items"))
+    end
+  end
+
+  -- `<op>_stream` for every operation with op.stream (task 29): stream | nil, err
+  for _, name in ipairs(sorted(service.ops)) do
+    local op = service.ops[name]
+    if type(op.stream) == "table" then
+      local method = op.stream.method or (name .. "_stream")
+      add(method, function(self, input, opts)
+        check_self(self, method)
+        return operation.stream(self._state, name, input, opts)
+      end)
     end
   end
 

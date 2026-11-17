@@ -189,13 +189,10 @@ function connect.stream(protocol, ctx, op, input, opts)
   local transport = host.transport
   if transport == nil then
     return nil,
-      errors.new(
-        "ConfigError",
-        {
-          message = "no transport; " .. require("distilled.host").TRANSPORT_HINT,
-          key = "transport",
-        }
-      )
+      errors.new("ConfigError", {
+        message = "no transport; " .. require("distilled.host").TRANSPORT_HINT,
+        key = "transport",
+      })
   end
   local send = stream_entry(transport)
   if send == nil then
@@ -304,40 +301,9 @@ function connect.stream(protocol, ctx, op, input, opts)
   return { status = res.status, headers = rh, next = next_item, close = close }, nil, meta
 end
 
--- parts as a Stream object (the task 29 contract: stream:next(), stream:iter(),
--- stream:close(), stream.status, stream.headers)
-local Stream = {}
-Stream.__index = Stream
-
-function Stream:next()
-  return self._parts.next()
-end
-
-function Stream:iter()
-  local done = false
-  return function()
-    if done then
-      return nil
-    end
-    local item, err = self._parts.next()
-    if item == nil then
-      done = true
-      if err ~= nil then
-        return false, err
-      end
-      return nil
-    end
-    return item, nil
-  end
-end
-
-function Stream:close()
-  self._parts.close()
-end
-
---- connect.as_stream(parts) -> stream
+--- connect.as_stream(parts) -> stream: task 29's Stream object (distilled.stream)
 function connect.as_stream(parts)
-  return setmetatable({ _parts = parts, status = parts.status, headers = parts.headers }, Stream)
+  return require("distilled.stream").new(parts)
 end
 
 --- connect.stream_method{ op, fail, decode } -> fn(client, input) -> stream | nil, err

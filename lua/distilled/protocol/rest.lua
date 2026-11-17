@@ -1435,6 +1435,15 @@ function rest.new(opts)
           )
       end
     end
+    if op.stream and op.stream.framing == "ndjson" then
+      -- a framed body that a plain call collects: its lines are the output's items
+      -- (ndjson.ts collect; only when the reply is NDJSON)
+      local collected =
+        require("distilled.stream.ndjson").collect(text, headers and headers["content-type"])
+      if collected then
+        return decode_success(ctx, op, status, headers, text, collected.json, collected.non_json)
+      end
+    end
     return decode_success(ctx, op, status, headers, text, value, non_json)
   end
 
@@ -1442,8 +1451,9 @@ function rest.new(opts)
   -- the whole call
   -----------------------------------------------------------------------------------
 
-  --- protocol.call(ctx, op, input) -> value, nil, meta | nil, err, meta
-  function protocol.call(ctx, op, input)
+  -- credentials, the request, the common headers and span facts: what a call and a
+  -- stream share. Returns req, transport | nil, err
+  local function prepare(ctx, op, input, accept)
     local tracer = ctx.tracer or noop
     local span = ctx.span or noop.NOOP_SPAN
     local host = ctx.host or {}
@@ -1477,7 +1487,7 @@ function rest.new(opts)
       h["traceparent"] = traceparent
     end
     if h["accept"] == nil then
-      h["accept"] = "application/json"
+      h["accept"] = accept or "application/json"
     end
     if h["user-agent"] == nil then
       h["user-agent"] = ctx.user_agent or user_agent
@@ -1497,6 +1507,18 @@ function rest.new(opts)
           message = "no transport; " .. TRANSPORT_HINT,
           key = "transport",
         })
+    end
+    return req, transport, server
+  end
+
+  --- protocol.call(ctx, op, input) -> value, nil, meta | nil, err, meta
+  function protocol.call(ctx, op, input)
+    local tracer = ctx.tracer or noop
+    local span = ctx.span or noop.NOOP_SPAN
+    local attempt = ctx.attempt or {}
+    local req, transport, server = prepare(ctx, op, input)
+    if req == nil then
+      return nil, transport
     end
     local res, terr = tracer:with("distilled.transport", {
       debug = true,
@@ -1549,6 +1571,147 @@ function rest.new(opts)
       return nil, derr, meta
     end
     return value, nil, meta
+  end
+
+  -----------------------------------------------------------------------------------
+  -- streams (task 29): protocol-rest.ts `stream` / openFramed
+  -----------------------------------------------------------------------------------
+
+  local STREAM_ACCEPT = {
+    ndjson = "application/x-ndjson, application/json",
+    sse = "text/event-stream, application/json",
+  }
+
+  -- one frame's item decoder: a frame schema of its own (op.stream.item), as a 2xx body
+  -- decodes (keys, validation, redaction)
+  local item_ops = {}
+  local function item_op(op)
+    local o = item_ops[op]
+    if o == nil then
+      o = { name = op.name, output = op.stream.item }
+      item_ops[op] = o
+    end
+    return o
+  end
+
+  --- protocol.stream(ctx, op, input) -> parts, nil, meta | nil, err, meta
+  -- parts = { status, headers, next = fn() -> item | nil, nil | nil, err, close = fn() }.
+  -- A status >= 400 is read whole and decoded as the call's typed error.
+  function protocol.stream(ctx, op, input)
+    ctx = ctx or {}
+    local framing_name = op.stream and op.stream.framing
+    local stream_lib = require("distilled.stream")
+    local framing = framing_name and stream_lib.framing(framing_name)
+    if framing == nil then
+      return nil,
+        errors.new("SdkError", {
+          message = tostring(op.name) .. ": its protocol can't stream " .. tostring(framing_name),
+        })
+    end
+    local span = ctx.span or noop.NOOP_SPAN
+    local attempt = ctx.attempt or {}
+    local req, transport = prepare(ctx, op, input, STREAM_ACCEPT[framing_name])
+    if req == nil then
+      return nil, transport
+    end
+    local open = type(transport) == "table" and rawget(transport, "stream")
+    if type(open) ~= "function" then
+      return nil,
+        errors.new("ConfigError", {
+          message = "the transport cannot stream (it has no transport.stream entry point); "
+            .. "use distilled.host.popen or distilled.host.rex",
+          key = "transport",
+        })
+    end
+    local res, terr = open(req)
+    if type(res) ~= "table" then
+      if not errors.is(terr) then
+        terr = errors.new("TransportError", { message = "transport failed: " .. tostring(terr) })
+      end
+      return nil, terr
+    end
+    local reader = res.body
+    local closed = false
+    local function close()
+      if not closed then
+        closed = true
+        if type(reader) == "table" and reader.close then
+          reader:close()
+        end
+      end
+    end
+    if type(res.status) ~= "number" or type(reader) ~= "table" then
+      close()
+      return nil,
+        errors.new("TransportError", { message = "the stream entry point returned no response" })
+    end
+    local headers = lower_headers(res.headers)
+    local meta = { status = res.status, headers = headers }
+    attempt.status = res.status
+    span:set("http.response.status_code", res.status)
+    if res.status >= 300 then
+      attempt.hint_ms = retry.bounded_hint_ms(headers)
+    end
+    if res.status >= 400 then
+      local body, rerr = reader:read_all()
+      close()
+      if body == nil then
+        return nil, rerr, meta
+      end
+      local value, derr =
+        protocol.decode(ctx, op, { status = res.status, headers = headers, body = body })
+      if value ~= nil then
+        -- an accept_failure glue read the failure as a value: one item
+        local given = false
+        return {
+          status = res.status,
+          headers = headers,
+          next = function()
+            if given then
+              return nil, nil
+            end
+            given = true
+            return value
+          end,
+          close = close,
+        },
+          nil,
+          meta
+      end
+      return nil, derr, meta
+    end
+    local frames = framing(reader)
+    local iop = item_op(op)
+    local registry = (ctx.service or {}).shapes
+    local function next_item()
+      if closed then
+        return nil, nil
+      end
+      local frame, ferr = frames.next()
+      if frame == nil then
+        close()
+        return nil, ferr
+      end
+      local text = type(frame) == "table" and frame.data or frame
+      local value = json.decode(text)
+      local non_json = value == nil
+      if non_json and framing_name == "ndjson" then
+        close()
+        local sensitive = iop.output ~= nil and redact.holds_sensitive(iop.output, registry)
+        return nil,
+          parse_error(
+            op,
+            { body = sensitive and "[REDACTED]" or text, cause = "Invalid JSON frame" }
+          )
+      end
+      local item, derr = decode_success(ctx, iop, res.status, headers, text, value, non_json)
+      if item == nil and derr ~= nil then
+        close()
+        return nil, derr
+      end
+      return item
+    end
+    return { status = res.status, headers = headers, next = next_item, close = close }, nil, meta
   end
 
   return protocol

@@ -338,4 +338,249 @@ function operation.call(client, name, input)
   return r[2], r[3], r[4]
 end
 
+---------------------------------------------------------------------------------------
+-- streams (task 29): api.ts streamCall / makeStreaming
+---------------------------------------------------------------------------------------
+
+local STREAM_OPTS = { timeout = true, idle_timeout = true }
+
+-- a host whose transport's stream/duplex entry points add the stream's own timeouts to
+-- the request (curl_duplex reads max_time and idle_timeout), so no protocol needs to
+-- know about them
+local function stream_host(host, opts)
+  if opts == nil or (opts.timeout == nil and opts.idle_timeout == nil) then
+    return host
+  end
+  local base = host.transport
+  if type(base) ~= "table" then
+    return host
+  end
+  local function wrap(entry)
+    local fn = rawget(base, entry)
+    if fn == nil then
+      return nil
+    end
+    return function(req)
+      local copy = {}
+      for k, v in pairs(req) do
+        copy[k] = v
+      end
+      copy.max_time = opts.timeout
+      copy.idle_timeout = opts.idle_timeout
+      return fn(copy)
+    end
+  end
+  local transport = setmetatable({ stream = wrap("stream"), duplex = wrap("duplex") }, {
+    __call = function(_, req)
+      return base(req)
+    end,
+  })
+  local h = {}
+  for k, v in pairs(host) do
+    h[k] = v
+  end
+  h.transport = transport
+  return h
+end
+
+-- the input `.stream()` sends: op.stream.set_input over the caller's (Distilled's
+-- streamInput: Boat's executeSandboxCommand with stream = true)
+local function stream_input(op, input)
+  local fixed = op.stream.set_input
+  if fixed == nil then
+    return input
+  end
+  local copy = {}
+  if type(input) == "table" then
+    for k, v in pairs(input) do
+      copy[k] = v
+    end
+    setmetatable(copy, getmetatable(input))
+  end
+  for k, v in pairs(fixed) do
+    copy[k] = v
+  end
+  return copy
+end
+
+-- opens the stream under the retry loop. Retry happens only before the first item:
+-- an attempt opens the transfer and reads the first item, so a failure there (a status,
+-- a TransportError before any item) is retried as a call would be; an in-band error
+-- (an error event, a bad frame) is the stream's first result, and after the first item
+-- an error ends the stream. A duplex stream (input events) is not peeked: its server may wait for input.
+local function open_stream(client, name, op, input, span, host)
+  local policy, settings = client.policy_for(name, op)
+  local protocol = client.protocol
+  local ctx_base = client.ctx
+  local peek = not (op.stream.input ~= nil)
+  local function attempt_fn(attempt)
+    local ctx = {
+      service = ctx_base.service,
+      op_name = name,
+      credentials = ctx_base.credentials,
+      host = host,
+      tracer = ctx_base.tracer,
+      validation = ctx_base.validation,
+      user_agent = ctx_base.user_agent,
+      span = span,
+      timeout = attempt.timeout,
+      attempt = attempt,
+    }
+    local parts, err, meta = protocol.stream(ctx, op, input)
+    if parts == nil then
+      return nil, err, meta
+    end
+    local opened = { parts = parts }
+    if peek and not parts.send then
+      local first, ferr = parts.next()
+      if first == nil and ferr ~= nil then
+        if errors.is_tag(ferr, "TransportError") then
+          -- the connection failed before any item: retried like a failed call
+          if parts.close then
+            compat.pcall(parts.close)
+          end
+          return nil, ferr, meta
+        end
+        -- an answer from the server (an error event, a bad frame): the stream's first
+        -- result, not retried
+        opened.first_err = ferr
+        return opened, nil, meta
+      end
+      opened.first = first
+      opened.ended = first == nil
+    end
+    return opened, nil, meta
+  end
+  local opened, err, meta = retry.run(attempt_fn, {
+    policy = policy,
+    host = ctx_base.host,
+    tracer = ctx_base.tracer,
+    span = span,
+    deadline_s = settings.deadline_s,
+    server_hint_cap_s = settings.server_hint_cap_s,
+  })
+  if opened == nil and errors.is_tag(err, "Unauthorized") and client.refresh_credentials() then
+    span:set("distilled.credentials.refreshed", true)
+    opened, err, meta = retry.run(attempt_fn, {
+      policy = policy,
+      host = ctx_base.host,
+      tracer = ctx_base.tracer,
+      span = span,
+      deadline_s = settings.deadline_s,
+      server_hint_cap_s = settings.server_hint_cap_s,
+    })
+  end
+  return opened, err, meta
+end
+
+--- operation.stream(client, name, input [, opts]) -> stream | nil, err
+-- opts = { timeout = seconds (the whole transfer), idle_timeout = seconds (stop when
+-- nothing arrives for that long; at least 1) }. One span covers the stream: it opens
+-- with the call and ends at the last item, an error, or stream:close(); it records
+-- distilled.stream.items and distilled.stream.end ("end" | "error" | "closed").
+function operation.stream(client, name, input, opts)
+  local stream_lib = require("distilled.stream")
+  local op = client.service.ops[name]
+  if op == nil then
+    return nil, errors.new("SdkError", { message = "unknown operation " .. tostring(name) })
+  end
+  if type(op.stream) ~= "table" then
+    return nil, errors.new("SdkError", { message = tostring(op.name) .. " does not stream" })
+  end
+  if opts ~= nil then
+    if type(opts) ~= "table" then
+      compat.raise(tostring(name) .. "_stream: options must be a table", 3)
+    end
+    for k, v in pairs(opts) do
+      if not STREAM_OPTS[k] then
+        compat.raise(
+          tostring(name) .. "_stream: unknown option " .. tostring(k) .. " (timeout, idle_timeout)",
+          3
+        )
+      end
+      if type(v) ~= "number" then
+        compat.raise(tostring(name) .. "_stream: option " .. k .. " must be a number of seconds", 3)
+      end
+    end
+  end
+  local protocol = client.protocol
+  if type(protocol.stream) ~= "function" then
+    -- api.ts cannotStream
+    return nil,
+      errors.new("SdkError", { message = tostring(op.name) .. ": its protocol can't stream" })
+  end
+  local host = stream_host(client.ctx.host, opts)
+  input = stream_input(op, input)
+  local holder = client.trace
+  local tracer = holder.tracer
+  if tracer.level == "off" then
+    local opened, err = open_stream(client, name, op, input, noop.NOOP_SPAN, host)
+    if opened == nil then
+      return nil, err
+    end
+    return stream_lib.new(
+      opened.parts,
+      { first = opened.first, first_err = opened.first_err, ended = opened.ended }
+    )
+  end
+
+  local info = client.info_for(name, op)
+  local attributes = {}
+  for k, v in pairs(info.attributes) do
+    attributes[k] = v
+  end
+  read_rules(info.input, input, function(k, v)
+    attributes[k] = v
+  end)
+  attributes["distilled.stream"] = true
+  local span = tracer:start(info.name, { kind = info.kind, attributes = attributes })
+  holder.depth = holder.depth + 1
+  local r = compat.pack(compat.pcall(open_stream, client, name, op, input, span, host))
+  holder.depth = holder.depth - 1
+  -- the span stays open across pulls, off the tracer's stack (spans the caller starts
+  -- between pulls are not its children)
+  if tracer.detach then
+    tracer:detach(span)
+  end
+  local function flush()
+    if holder.depth == 0 then
+      tracer:flush()
+    end
+  end
+  if not r[1] then
+    span:fail(errors.new("SdkError", { message = tostring(r[2]) }))
+    span:finish()
+    flush()
+    error(r[2], 0)
+  end
+  local opened, err, meta = r[2], r[3], r[4]
+  annotate_response(info, span, meta)
+  if opened == nil then
+    if type(err) == "table" and span.recording then
+      err.trace_id = span.trace_id
+    end
+    span:fail(err)
+    span:finish()
+    flush()
+    return nil, err
+  end
+  return stream_lib.new(opened.parts, {
+    first = opened.first,
+    first_err = opened.first_err,
+    ended = opened.ended, -- an empty stream ends (with its span) at once
+    on_end = function(e, count, reason)
+      span:set("distilled.stream.items", count)
+      span:set("distilled.stream.end", reason)
+      if e ~= nil then
+        if type(e) == "table" and span.recording then
+          e.trace_id = span.trace_id
+        end
+        span:fail(e)
+      end
+      span:finish()
+      flush()
+    end,
+  })
+end
+
 return operation
