@@ -289,7 +289,12 @@ function types.render(plan)
         .. (spec.auth.env and (" Required; default from $" .. spec.auth.env) or " Required")
     )
   end
-  if not spec.runtime then
+  if spec.rpc then
+    -- RPC models: the protocol module's options (gen/rpc.lua, task 22)
+    for _, line in ipairs(require("distilled.gen.rpc").option_fields(spec)) do
+      b:line(line)
+    end
+  elseif not spec.runtime then
     b:line(
       "---@field "
         .. spec.base_url.option
