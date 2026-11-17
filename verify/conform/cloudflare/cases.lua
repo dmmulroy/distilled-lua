@@ -306,6 +306,7 @@ local function flow_replies(op, registry)
 end
 
 local cases = {}
+local dictionaries = {}
 local function add(c)
   cases[#cases + 1] = c
 end
@@ -313,6 +314,7 @@ end
 local ops_total = 0
 for _, model in ipairs(index.services) do
   local service = require("cloudflare." .. model .. ".service")
+  dictionaries[model] = lib.model_rename_table(root, model)
   local registry = service.shapes
   for _, name in ipairs(sample(service)) do
     ops_total = ops_total + 1
@@ -390,6 +392,10 @@ for _, c in ipairs(cases) do
   f:write(assert(json.encode(c)), "\n")
 end
 f:close()
+-- the comparison's key-dictionary renames, so it runs without models/ (not committed)
+local df = assert(io.open(root .. "/verify/conform/cloudflare/dictionaries.json", "wb"))
+df:write(assert(json.encode(dictionaries)), "\n")
+df:close()
 print(
   string.format(
     "cloudflare conform: %d cases over %d operations of %d models -> %s",

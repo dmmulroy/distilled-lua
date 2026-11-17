@@ -370,27 +370,40 @@ local function to_ts(node, value, registry, rename, depth, info_member)
   return value
 end
 
-local renames = {}
---- lib.rename_table(root, model) -> wire -> TS names, from the model's keyDictionary
-function lib.rename_table(root, model)
-  if renames[model] == nil then
-    local f = assert(io.open(root .. "/models/cloudflare/" .. model .. ".json", "rb"))
-    local doc = json.decode(f:read("*a"))
-    f:close()
-    local dict = doc.metadata and doc.metadata.keyDictionary or {}
-    local t = {}
-    for ts, wire in pairs(dict) do
-      if type(wire) == "string" then
-        t[wire] = ts
-      elseif type(wire) == "table" then
-        for _, w in ipairs(wire) do
-          t[w] = ts
-        end
+-- wire -> TS names from a model's metadata keyDictionary
+function lib.rename_from_dictionary(dict)
+  local t = json.object({})
+  for ts, wire in pairs(dict or {}) do
+    if type(wire) == "string" then
+      t[wire] = ts
+    elseif type(wire) == "table" then
+      for _, w in ipairs(wire) do
+        t[w] = ts
       end
     end
-    renames[model] = t
   end
-  return renames[model]
+  return t
+end
+
+--- lib.model_rename_table(root, model) -> the rename table read from models/ (cases.lua
+-- only: models/ is synced, not committed)
+function lib.model_rename_table(root, model)
+  local f = assert(io.open(root .. "/models/cloudflare/" .. model .. ".json", "rb"))
+  local doc = json.decode(f:read("*a"))
+  f:close()
+  return lib.rename_from_dictionary(doc.metadata and doc.metadata.keyDictionary)
+end
+
+local renames
+--- lib.rename_table(root, model) -> wire -> TS names, from the committed
+-- dictionaries.json (written by cases.lua next to cases.jsonl)
+function lib.rename_table(root, model)
+  if renames == nil then
+    local f = assert(io.open(root .. "/verify/conform/cloudflare/dictionaries.json", "rb"))
+    renames = assert(json.decode(f:read("*a")))
+    f:close()
+  end
+  return renames[model] or {}
 end
 
 --- lib.to_ts(op, value, registry, rename) -> the decoded Lua output in TS names
