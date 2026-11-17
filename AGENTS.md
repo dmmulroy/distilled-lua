@@ -62,6 +62,9 @@ printed as JSON. Rex reference: `curl -s https://www.superlogical.com/rex/docs/r
 - Weak tables are never collected: a weak-keyed cache is a plain cache there. Only cache
   on long-lived keys (schema nodes, classes), never on per-call values.
 - `string.format("%s", t)` ignores `__tostring`: call `tostring(t)` first.
+- **A multiple assignment to locals is sequential** (found in task 14): `a, b = b, a`
+  gives `b, b`. Use a temporary (`local tmp = a; a = b; b = tmp`). Table fields
+  (`t[1], t[2] = t[2], t[1]`) are fine.
 
 `STATUS.md` (section 01) has the full list and the `rex do` script facts. Read it.
 
