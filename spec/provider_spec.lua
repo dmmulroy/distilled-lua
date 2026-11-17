@@ -193,7 +193,12 @@ t.describe("providers: every spec loads", function()
     end
     local on_disk = {}
     for file in string.gmatch(listing, "([%w_]+)%.lua") do
-      on_disk[#on_disk + 1] = file
+      -- GraphQL-only packages (task 16: linear, railway, expo_eas) are specs of the
+      -- GraphQL generator, checked in spec/graphql_*_spec.lua
+      local spec = dofile(path_of(file))
+      if not (type(spec) == "table" and spec.graphql ~= nil and spec.base_url == nil) then
+        on_disk[#on_disk + 1] = file
+      end
     end
     t.same(on_disk, NAMES)
   end)
