@@ -529,7 +529,6 @@ neon` ok (177/178 operations build; the multipart one is acknowledged, see below
   copies top-level `*.json`, so gcp is not synced (the GCP task should decide the layout).
 - `verify/features/README.md` should list `parity.md`; `verify/SKILL.md` should mention
   `models sync`, `gen-all`, `parity`.
-||||||| abf4e89
 
 
 ## 11 schema
@@ -579,7 +578,6 @@ all generate now (1,029 of 1,206 with the 939 that already did; none of those re
   `update_live_table_schema` (required members recurse past depth 24), so `gen_check`
   reports 5/6 ops built there. A generation-side non-issue; the synthesizer could stop at
   the first optional or treat a cycle of required members as unbuildable data.
-||||||| abf4e89
 
 
 ## 12 traits
@@ -738,7 +736,6 @@ also hit a task 11 class generate too. Results: `tasks/notes/smoke-results-12.tx
 - Proposed (not done): `verify/features/README.md` row "20 | Crypto and SigV4 |
   [crypto.md](crypto.md) | task 14"; AGENTS.md defect list entry for the
   multiple-assignment bug above.
-||||||| abf4e89
 
 
 ## 15 xml
