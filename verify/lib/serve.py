@@ -41,7 +41,8 @@ import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, urlsplit
 
-import serve_eventstream  # AWS event stream endpoints (task 31), next to this file
+sys.dont_write_bytecode = True  # no __pycache__ in the tree for the module below
+import serve_eventstream  # noqa: E402  AWS event stream endpoints (task 31), next to this file
 
 LOCK = threading.Lock()
 SCRIPTS = {}  # path -> {"responses": [...], "next": 0, "repeat_last": bool}
