@@ -127,12 +127,12 @@ clients/<lua>/[<model>/]
 
 | Limit | lua 5.5 | luajit 2.1 | gopher-lua (Rex) |
 | --- | --- | --- | --- |
-| constants per function | none hit at 65,537 | **65,536** (strings, numbers, table templates each) | 262,143 (`too many constants`) |
+| constants per function | none hit at 65,537 | **65,536** (strings, numbers, table templates each) | 262,143 (`too many constants`; measured once, 107 s to compile) |
 | compile time, 65,536 distinct strings in one function | 19 ms | 13 ms | **7.3 s** (quadratic: 4k 29 ms, 16k 0.4 s, 32k 1.6 s) |
 | one constructor of 100,000 strings (an enum) | 20 ms | 11 ms (template, no limit) | 17 s |
 | locals per function | 200 | 200 | 200 |
-| upvalues per closure | 255 (locals bind first) | **60** | 255 |
-| nesting of tables | ~198 (C stack overflow at 199) | ~190 (syntax levels at 199) | ~200 (register overflow at 250) |
+| upvalues per closure | 199 ok (the 200 locals cap first) | **60** | 199 ok |
+| nesting of tables | 190 ok, 199 C stack overflow | 190 ok, 199 too many syntax levels | 200 ok, 250 register overflow |
 | a 16 MB long string | 55 ms | 36 ms | 52 ms (lexing strings is cheap) |
 
 gopher-lua dedups constants with a linear scan, so one function's compile time is
