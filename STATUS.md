@@ -1426,3 +1426,48 @@ entry point.
 - `clients/gcp` is 187 MB; `dl gen-diff gcp` takes ~2.5 min.
 - Contract additions for `docs/interfaces.md`: provider spec keys `discovery` and option
   `type = "table"`; error field `rpc_status` (envelope status; Distilled `status`).
+
+## 28 signed-rest
+
+**Done.** See `tasks/28-signed-rest.done.md` and `verify/features/signed-rest.md`.
+clients/coinbase 178/178, clients/polymarket 223/223 (7 models), both `verify/dl gen-diff` ok.
+
+### What others can use
+
+- `rest.new` glue hooks: `sign(request, settings, { host, op, base_url }) -> request |
+  nil, err` (last step of `protocol.encode`, so every retry attempt is signed afresh) and
+  `accept_failure{ status, headers, body, non_json, op } -> true` (decode a >= 400 answer
+  as the value). Both are in `ext.HOOKS`.
+- A glue module may carry helpers that are not hooks through its metatable
+  (`setmetatable(glue, { __index = helpers })`): the generator only checks `pairs`.
+  `polymarket.clob.glue.sign_l2{...}` and `.l1_headers{...}` are reachable that way.
+- Provider-spec header names may contain `_` and `.` (`gen/provider_ext.lua`).
+- `verify/dl signed-rest-vectors`: regenerates `spec/golden/signed_rest/`.
+
+### Decisions
+
+- Polymarket L1 (which Distilled does not produce) follows `@polymarket/clob-client`
+  `createL1Headers`, byte-exact on 40 vectors. Applied to CreateApiKey/DeriveApiKey when
+  `l1_private_key` is set; without it those ops get L2 headers, as in Distilled.
+- Coinbase errorType classes are defined in the glue, not declared in the spec's
+  `error_classes` (the glue owns the dispatch; declaring them twice would drift).
+- posthog (-10), whop (-14), coinflow (+6) are spec drift, per operation in
+  `tasks/notes/28-parity-gaps.md`: the Lua clients hold every operation of the current
+  models; the TS services were generated from older spec snapshots. Nothing regenerated.
+
+### Edits outside my file list
+
+- `lua/distilled/gen/provider_ext.lua`: the two HOOKS entries and the header-name pattern.
+- `spec/provider_spec.lua`: NAMES lists coinbase and polymarket.
+- `verify/dl`: the `signed-rest-vectors` command and help lines.
+- New: `verify/lib/signed_rest_conform.mjs`, `verify/lib/polymarket_l1_vectors.mjs`,
+  `verify/features/signed-rest.md`, `tasks/notes/28-parity-gaps.md`, `28-gapcheck.mjs`.
+
+### Proposed (files I do not own)
+
+- `docs/interfaces.md`: the two glue hooks; `verify/features/README.md`: a row for
+  `signed-rest.md`; `verify/features/parity.md`: regenerate (`dl parity` shows coinbase
+  178/178 and polymarket 223/223; not committed here to avoid a shared-file conflict).
+- The default host's `random` is a 31-bit Park-Miller generator: fine for multipart
+  boundaries, weak for Coinbase's JWT nonce. A host field for random bytes (Rex:
+  `/dev/urandom` via `rex.exec`) would make nonces unpredictable.
