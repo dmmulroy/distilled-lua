@@ -302,8 +302,19 @@ local function check_option(where, name, o, p)
   if o.doc ~= nil and type(o.doc) ~= "string" then
     p[#p + 1] = where .. "." .. name .. ".doc must be a string"
   end
-  if n.type ~= "string" and n.type ~= "number" and n.type ~= "boolean" then
-    p[#p + 1] = where .. "." .. name .. ".type must be string, number or boolean"
+  -- "table": an object the hand-written protocol reads (task 21: a GCP credentials
+  -- provider); it has no env, default or choices
+  if n.type == "table" then
+    for _, k in ipairs({ "secret", "default", "choices" }) do
+      if o[k] ~= nil then
+        p[#p + 1] = where .. "." .. name .. ": a table option takes no " .. k
+      end
+    end
+    if #n.env > 0 then
+      p[#p + 1] = where .. "." .. name .. ": a table option takes no env"
+    end
+  elseif n.type ~= "string" and n.type ~= "number" and n.type ~= "boolean" then
+    p[#p + 1] = where .. "." .. name .. ".type must be string, number, boolean or table"
   end
   if n.secret and n.type ~= "string" then
     p[#p + 1] = where .. "." .. name .. ": a secret is a string"

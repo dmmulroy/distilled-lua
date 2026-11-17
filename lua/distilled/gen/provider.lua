@@ -139,6 +139,8 @@ local TOP = {
   pagination = true,
   allow_unsupported = true,
   models = true,
+  -- Google discovery models (gcp, google-workspace): gen/discovery.lua (task 21)
+  discovery = true,
 }
 for k in pairs(ext.TOP) do
   TOP[k] = true
@@ -262,7 +264,10 @@ function provider.validate(spec, opts)
       and (string.upper(string.sub(spec.name, 1, 1)) .. string.sub(spec.name, 2))
     )
 
-  -- base_url
+  -- base_url (a discovery model has its own: gen/discovery.lua replaces this placeholder)
+  if spec.discovery ~= nil and spec.base_url == nil then
+    spec.base_url = "https://discovery.googleapis.invalid"
+  end
   local base = normalize_base_url("provider spec base_url", spec.base_url, p)
   out.base_url = { default = base.default, option = base.option or "base_url", env = base.env }
 
@@ -499,6 +504,11 @@ function provider.validate(spec, opts)
         end
       end
     end
+  end
+
+  if spec.discovery ~= nil then
+    require("distilled.gen.discovery").check_spec(spec.discovery, p)
+    out.discovery = spec.discovery
   end
 
   ext.validate(raw, out, p, opts)
