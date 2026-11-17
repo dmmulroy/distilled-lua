@@ -47,7 +47,7 @@ xml.wrap_tag("Tagging", "<TagSet>" .. xml.escape(v) .. "</TagSet>", "http://s3.a
 
 - `verify/dl test xml` runs `spec/xml_spec.lua` under lua, luajit and rex: the upstream
   fast-xml-parser corpus (77 documents), every case of Distilled's `xml.test.ts`, the
-  63 malformed inputs with Distilled's exact messages, invalid UTF-8, 400 random
+  65 malformed inputs with Distilled's exact messages, invalid UTF-8, 400 random
   corruptions (never raises), 10,000-level nesting, a 5 MB document, and five real AWS
   bodies (`spec/fixtures/xml/*.xml`) compared with what xml.ts produces
   (`*.expected.json`, written by `verify/lib/xml_fixtures.mjs`; rerun it after changing
