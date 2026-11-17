@@ -926,6 +926,12 @@ Decisions others should know:
 - **Proposed contract addition (`docs/interfaces.md`, transport):**
   - `request.http2?: boolean`;
   - `response.trailers?: { [lowercase name] = value }`.
+- **Fixed a race in exec_curl bodies** (`transport/curl_common.lua`).
+  - curl reads a `data-binary = "@/dev/fd/3"` file as soon as it parses that config line.
+  - fd 3 shares its file offset with the stdin that `dd` copies the config from. So any config line after `data-binary` could be taken as body.
+  - Seen as "curl output has no write-out trailer" and a body 8 bytes long instead of 1, in about one full `dl test --http` run in three. My longer write-out line made it visible.
+  - `data-binary` is now always the last config line; `spec/grpc_spec.lua` checks this.
+- **`clients/hetzner` is stale on main.** It differs from a fresh generation on main's own tree (task 13's error-envelope emission), so `dl gen-diff hetzner` fails. This is not from task 23: main's tree and task-23 give byte-identical hetzner output.
 
 
 ## 18 big-models

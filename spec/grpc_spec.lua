@@ -1057,3 +1057,37 @@ t.describe("gen.proto", function()
     t.match(files["service.lua"], 'unsupported = "streaming"', true)
   end)
 end)
+
+t.describe("curl config for gRPC requests", function()
+  local common = require("distilled.transport.curl_common")
+
+  t.it("data-binary is the last line (curl reads the body file when it parses it)", function()
+    local text = common.config({
+      method = "POST",
+      url = "http://h.test/t.S/M",
+      headers = { ["content-type"] = "application/grpc", te = "trailers" },
+      body = "\0\0\0\0\0",
+      timeout = 5,
+      http2 = true,
+    }, { body_path = "/dev/fd/3", follow_redirects = true })
+    local last
+    for line in string.gmatch(text, "[^\n]+") do
+      last = line
+    end
+    t.eq(last, 'data-binary = "@/dev/fd/3"')
+    t.eq(string.sub(text, -1), "\n")
+    t.match(text, "\nhttp2-prior-knowledge\n", true)
+    t.match(text, "%{size_header}", true)
+  end)
+
+  t.it("http2 must be a boolean; https asks for http2, not prior knowledge", function()
+    local text =
+      common.config({ method = "POST", url = "https://h.test/x", headers = {}, http2 = true })
+    t.match(text, "\nhttp2\n", true)
+    t.no_match(text, "prior-knowledge", true)
+    local ok, err =
+      common.check({ method = "POST", url = "https://h.test/x", headers = {}, http2 = "yes" })
+    t.falsy(ok)
+    t.eq(err.tag, "InvalidInput")
+  end)
+end)

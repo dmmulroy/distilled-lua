@@ -178,7 +178,6 @@ function M.config(req, opts)
     if type(opts.body_path) ~= "string" then
       compat.raise("curl_common.config: a request with a body needs opts.body_path", 2)
     end
-    add("data-binary = " .. quote("@" .. opts.body_path))
   end
   if req.timeout then
     add("max-time = " .. max_time(req.timeout))
@@ -190,6 +189,14 @@ function M.config(req, opts)
   add(
     "write-out = " .. quote("\\n" .. M.TRAILER .. " %{http_code} %{size_download} %{size_header}")
   )
+  if req.body ~= nil then
+    -- Last, always: curl reads a `data-binary = "@file"` file when it parses that line.
+    -- exec_curl's body file is /dev/fd/3, which shares its offset with the stdin `dd`
+    -- copies the config from; a config line after this one could still be in flight, and
+    -- curl would take its bytes as body (found in task 23: a cut write-out, a body 8
+    -- bytes long instead of 1, about one full test run in three).
+    add("data-binary = " .. quote("@" .. opts.body_path))
+  end
   return compat.concat(lines, "\n") .. "\n"
 end
 
