@@ -24,6 +24,7 @@
 --   unknown_fields = { reason = "/reason" },
 --   transform_response = { "strip_nulls", { unwrap = "result", skip_paginated = true } },
 --   empty_json_body = true,    -- send {} for a bodied operation without body members
+--   query_style = "brackets",  -- nested query values as a[b]=v (Stripe); default dotted
 --   glue = "glue/<name>.lua",   -- hand-written Lua copied next to the client (glue.lua)
 --
 -- A template's `{name}` is an option's value. provider.validate calls ext.reduce first
@@ -44,6 +45,7 @@ ext.TOP = {
   unknown_fields = true,
   transform_response = true,
   empty_json_body = true,
+  query_style = true,
   glue = true,
 }
 
@@ -591,6 +593,13 @@ function ext.validate(raw, out, p, opts)
       p[#p + 1] = "provider spec: empty_json_body must be a boolean"
     end
     out.empty_json_body = raw.empty_json_body == true or nil
+  end
+
+  if raw.query_style ~= nil then
+    if raw.query_style ~= "dotted" and raw.query_style ~= "brackets" then
+      p[#p + 1] = 'provider spec: query_style must be "dotted" or "brackets"'
+    end
+    out.query_style = raw.query_style
   end
 
   if raw.glue ~= nil then

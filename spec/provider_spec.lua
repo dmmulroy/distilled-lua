@@ -159,6 +159,7 @@ local NAMES = {
   "stackit",
   "starburst_galaxy",
   "steel",
+  "stripe",
   "supabase",
   "surrealdb",
   "tailscale",
@@ -860,5 +861,205 @@ t.describe("providers: OAuth client credentials through a generated client", fun
     t.eq(err.message, "OAuth2 token exchange failed with 401 invalid_client")
     t.no_match(t.show(err), "s3cr3t", true)
     t.eq(host.requests[1].url, "https://cloud.mongodb.com/api/oauth/token")
+  end)
+end)
+
+t.describe("providers: Stripe's error.type reading", function()
+  local function fail(body, status)
+    local c = client(
+      "stripe",
+      { env = { STRIPE_API_KEY = "sk_test" }, responses = { json_response(body, status) } }
+    )
+    local v, err = c:get_thing({ thing_id = "x" })
+    t.eq(v, nil)
+    return err
+  end
+
+  t.it("card_error, invalid_request_error, api_error and idempotency_error have classes", function()
+    local card = fail({
+      error = {
+        type = "card_error",
+        code = "card_declined",
+        decline_code = "insufficient_funds",
+        message = "Declined",
+      },
+    }, 402)
+    t.eq(card.tag, "CardError")
+    t.eq(card.decline_code, "insufficient_funds")
+    t.eq(card.code, "card_declined")
+    t.truthy(errors.has_category(card, "BadRequestError"))
+    local inv = fail(
+      { error = { type = "invalid_request_error", param = "amount", message = "Missing" } },
+      400
+    )
+    t.eq(inv.tag, "InvalidRequestError")
+    t.eq(inv.param, "amount")
+    t.eq(inv.status, 400)
+    local api = fail({ error = { type = "api_error", message = "Oops" } }, 500)
+    t.eq(api.tag, "ApiError")
+    t.truthy(api.retryable)
+    t.eq(fail({ error = { type = "idempotency_error" } }, 409).tag, "IdempotencyError")
+  end)
+
+  t.it(
+    "another type: 402 PaymentError, 424 ExternalDependencyFailed, else the shared map",
+    function()
+      t.eq(fail({ error = { type = "invalid_grant", charge = "ch_1" } }, 402).tag, "PaymentError")
+      t.eq(fail({ error = { type = "x" } }, 424).tag, "ExternalDependencyFailed")
+      local nf = fail({ error = { type = "x", message = "No such" } }, 404)
+      t.eq(nf.tag, "NotFound")
+      local unk = fail({ error = { type = "temporary_hold", param = "p", message = "Held" } }, 418)
+      t.eq(unk.tag, "UnknownStripeError")
+      t.eq(unk.type, "temporary_hold")
+      t.eq(unk.param, "p")
+    end
+  )
+
+  t.it("no error.type: UnknownStripeError below 500, InternalServerError at 500", function()
+    local unk = fail({ message = "?" }, 400)
+    t.eq(unk.tag, "UnknownStripeError")
+    t.eq(unk.status, 400)
+    local ise = fail("<html>bad gateway</html>", 502)
+    t.eq(ise.tag, "BadGateway")
+  end)
+
+  t.it("Stripe-Version and the bracket query style reach the request", function()
+    local c, host =
+      client("stripe", { env = { STRIPE_API_KEY = "sk_test" }, options = { context = "acct_1" } })
+    must(c:get_thing({ thing_id = "x" }))
+    t.eq(host.requests[1].headers["stripe-version"], "2026-10-28.endive")
+    t.eq(host.requests[1].headers["stripe-context"], "acct_1")
+    t.match(class_of("stripe").files["init.lua"], 'query_style = "brackets"', true)
+  end)
+end)
+
+t.describe("providers: the new keys are validated strictly", function()
+  local function bad(overrides, pattern)
+    local spec, err = provider.validate(fx.provider(overrides))
+    t.eq(spec, nil, pattern)
+    t.match(tostring(err), pattern, true)
+  end
+
+  t.it("options", function()
+    bad({ options = { region = { envv = "X" } } }, "options.region: unknown key envv")
+    bad(
+      { options = { region = { env = "not a var" } } },
+      "options.region.env must be an environment variable name"
+    )
+    bad(
+      { options = { region = { env = {} } } },
+      "options.region.env must be an environment variable name"
+    )
+    bad({ options = { k = { secret = true, default = "x" } } }, "a secret has no default")
+    bad(
+      { options = { k = { secret = true, choices = { "a" } } } },
+      "a secret option cannot have choices"
+    )
+    bad(
+      { options = { k = { choices = { "a", "b" }, default = "c" } } },
+      "default c is not one of its choices"
+    )
+    bad(
+      { options = { k = { invalid = "default", choices = { "a" } } } },
+      'invalid = "default" needs a default'
+    )
+    bad({ options = { k = { invalid = "error" } } }, "invalid needs choices")
+    bad({ options = { retry = {} } }, "retry is a common client option")
+    bad({ options = { api_key = {} } }, "auth.from api_key is also declared in options")
+    bad({ options = { ["bad-name"] = {} } }, "option names must be Lua identifiers")
+  end)
+
+  t.it("auth", function()
+    bad(
+      { auth = { kind = "basic", username = "u", password = "p" } },
+      "auth.username: u is not declared in options"
+    )
+    bad({
+      auth = { kind = "basic", username = "u", password = "p" },
+      options = { u = {}, p = {} },
+    }, "option p must be secret")
+    bad(
+      { auth = { kind = "bearer", from = "api_key", prefix = "Token " } },
+      'auth.prefix is for kind = "header"'
+    )
+    bad(
+      { auth = { kind = "bearer", from = "api_key", env = { "A", 3 } } },
+      "auth.env must be an environment variable name"
+    )
+    bad({ auth = { kind = "digest" } }, "auth.kind must be bearer, header, basic or none")
+  end)
+
+  t.it("headers and templates", function()
+    bad({ headers = { ["X-V"] = "{version}" } }, "headers[x-v]: {version} is not an option")
+    bad({ headers = { ["X-V"] = "{oops" } }, "a { or } that is not an {option} reference")
+    bad({ headers = { Authorization = "x" } }, "the header is already set")
+    bad({ headers = { ["User-Agent"] = "x" } }, "use the user_agent key")
+    bad({ headers = { ["bad header"] = "x" } }, "not a header name")
+    bad({ headers = { ["X-A"] = { basic = 3 } } }, "basic must be a template")
+    bad({ base_url = { default = "https://{site}" } }, "base_url.default: {site} is not an option")
+    bad({
+      base_url = { default = "https://{base_url}", option = "base_url" },
+    }, "cannot use its own option")
+    bad(
+      { options = { k = { secret = true } }, base_url = { default = "https://{k}" } },
+      "{k} is a secret"
+    )
+    bad(
+      { base_url = { default = "https://x.test", ensure_suffix = "api" } },
+      "ensure_suffix must be a path"
+    )
+    bad(
+      { base_url = { default = "https://x.test", origin = { lable = "x" } } },
+      "base_url.origin: unknown key lable"
+    )
+  end)
+
+  t.it("oauth, require_one_of, error classes, transforms, glue", function()
+    bad({
+      oauth = {
+        token_url = "{base_url}/t",
+        client_id = "id",
+        client_secret = "s",
+        into = "api_key",
+      },
+    }, "oauth.client_id must name an option")
+    bad({
+      options = { id = {}, s = {} },
+      oauth = {
+        token_url = "{base_url}/t",
+        client_id = "id",
+        client_secret = "s",
+        into = "api_key",
+      },
+    }, "oauth.client_secret: option s must be secret")
+    bad({ require_one_of = { "api_key" } }, "require_one_of must list two or more options")
+    bad({ error_classes = { Gone = { categories = { "Nope" } } } }, "unknown category Nope")
+    bad({ error_classes = { ["bad tag"] = {} } }, "is not an error tag")
+    bad({ unknown_fields = { status = "/x" } }, "status is not a free field name")
+    bad({ unknown_fields = { reason = "reason" } }, "unknown_fields.reason must be a JSON pointer")
+    bad({ transform_response = { "unwrap" } }, 'must be "strip_nulls" or { unwrap = key')
+    bad(
+      { error_envelope = { message = { "/a", "b" } } },
+      "error_envelope.message must be a JSON pointer"
+    )
+    bad({ glue = "glue/none.lua" }, "cannot read glue/none.lua")
+    bad({ query_style = "commas" }, 'query_style must be "dotted" or "brackets"')
+    bad({ user_agent = { default = "" } }, "user_agent.default must be a string")
+  end)
+
+  t.it("a glue function that is not a hook, and the generator's model checks", function()
+    local spec, err = provider.load(t.root .. "/providers/stackit.lua")
+    t.truthy(spec, err)
+    local files, gerr = fx.generate({
+      provider = fx.provider({
+        error_classes = { NotFound = {} },
+      }),
+    })
+    t.eq(files, nil)
+    t.match(gerr, "error_classes.NotFound has the tag of", true)
+    local files2, gerr2 =
+      fx.generate({ provider = fx.provider({ public_operations = { "Nope" } }) })
+    t.eq(files2, nil)
+    t.match(gerr2, "public_operations names an unknown operation Nope", true)
   end)
 end)

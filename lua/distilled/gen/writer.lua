@@ -170,6 +170,9 @@ function writer.client(plan)
   if spec.unknown_fields then
     protocol_args.unknown_fields = spec.unknown_fields
   end
+  if spec.query_style then
+    protocol_args.query_style = spec.query_style
+  end
   if spec.empty_json_body then
     protocol_args.empty_json_body = true
   end
