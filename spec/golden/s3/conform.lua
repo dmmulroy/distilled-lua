@@ -173,6 +173,226 @@ return {
       },
     },
   },
+  ["presign_requests"] = {
+    {
+      ["expected"] = {
+        ["ok"] = true,
+        ["value"] = {
+          ["headers"] = {
+            ["content-length"] = "1024",
+            ["content-type"] = "image/png",
+            ["if-none-match"] = "*",
+            ["x-amz-server-side-encryption"] = "AES256",
+          },
+          ["method"] = "PUT",
+          ["url"] = "https://uploads.s3.us-east-1.amazonaws.com/avatar.png?x-id=PutObject&x-amz-meta-user=u1&x-amz-tagging=a%3D1&X-Amz-Expires=300&X-Amz-Date=20231114T221320Z&X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=AKIAIOSFODNN7EXAMPLE%2F20231114%2Fus-east-1%2Fs3%2Faws4_request&X-Amz-SignedHeaders=content-length%3Bcontent-type%3Bhost%3Bif-none-match%3Bx-amz-server-side-encryption&X-Amz-Signature=da7329e7bc26dd4dc9853cff2b36d764d0ff5ddbcb83c546ad26828451c79b9c",
+        },
+      },
+      ["expires_in"] = 300,
+      ["id"] = "presign-put-object",
+      ["input"] = {
+        ["Bucket"] = "uploads",
+        ["ContentLength"] = 1024,
+        ["ContentType"] = "image/png",
+        ["IfNoneMatch"] = "*",
+        ["Key"] = "avatar.png",
+        ["Metadata"] = {
+          ["user"] = "u1",
+        },
+        ["ServerSideEncryption"] = "AES256",
+        ["Tagging"] = "a=1",
+      },
+      ["op"] = "put_object",
+    },
+    {
+      ["expected"] = {
+        ["ok"] = true,
+        ["value"] = {
+          ["headers"] = {
+            ["range"] = "bytes=0-9",
+          },
+          ["method"] = "GET",
+          ["url"] = "https://my-bucket.s3.us-east-1.amazonaws.com/a%20b/c.txt?response-content-type=text%2Fplain&versionId=v%2B1&x-id=GetObject&X-Amz-Expires=900&X-Amz-Date=20231114T221320Z&X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=AKIAIOSFODNN7EXAMPLE%2F20231114%2Fus-east-1%2Fs3%2Faws4_request&X-Amz-SignedHeaders=host%3Brange&X-Amz-Signature=d014066b589e7753f593174d7f0d9045bf14d5ca141362e8632001150fb45e9d",
+        },
+      },
+      ["id"] = "presign-get-object",
+      ["input"] = {
+        ["Bucket"] = "my-bucket",
+        ["Key"] = "a b/c.txt",
+        ["Range"] = "bytes=0-9",
+        ["ResponseContentType"] = "text/plain",
+        ["VersionId"] = "v+1",
+      },
+      ["op"] = "get_object",
+    },
+    {
+      ["expected"] = {
+        ["ok"] = true,
+        ["value"] = {
+          ["headers"] = {},
+          ["method"] = "GET",
+          ["url"] = "https://my-bucket.s3.us-east-1.amazonaws.com/k?x-id=GetObject&X-Amz-Expires=900&X-Amz-Date=20231114T221320Z&X-Amz-Security-Token=FwoGZXIvYXdzEJr%2F%2F%2F%2F%2F%2F%2F%2F%2F%2FwEaDH%2Bsession&X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=AKIAIOSFODNN7EXAMPLE%2F20231114%2Fus-east-1%2Fs3%2Faws4_request&X-Amz-SignedHeaders=host&X-Amz-Signature=2ae10d340d1518e59079947646327e23938be53d20bbda6b2d1c9e99a2e3d05c",
+        },
+      },
+      ["id"] = "presign-get-object-token",
+      ["input"] = {
+        ["Bucket"] = "my-bucket",
+        ["Key"] = "k",
+      },
+      ["op"] = "get_object",
+      ["session_token"] = true,
+    },
+    {
+      ["endpoint"] = "http://localhost:9000",
+      ["expected"] = {
+        ["ok"] = true,
+        ["value"] = {
+          ["headers"] = {},
+          ["method"] = "GET",
+          ["url"] = "http://localhost:9000/b/k?x-id=GetObject&X-Amz-Expires=900&X-Amz-Date=20231114T221320Z&X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=AKIAIOSFODNN7EXAMPLE%2F20231114%2Fus-east-1%2Fs3%2Faws4_request&X-Amz-SignedHeaders=host&X-Amz-Signature=66cae402ab51728e26a24dca00e6041ca9da81263da572f11bc3cad3717f0e39",
+        },
+      },
+      ["id"] = "presign-get-object-endpoint",
+      ["input"] = {
+        ["Bucket"] = "b",
+        ["Key"] = "k",
+      },
+      ["op"] = "get_object",
+    },
+    {
+      ["expected"] = {
+        ["ok"] = true,
+        ["value"] = {
+          ["headers"] = {},
+          ["method"] = "GET",
+          ["url"] = "https://my-bucket.s3.eu-west-1.amazonaws.com/k?x-id=GetObject&X-Amz-Expires=900&X-Amz-Date=20231114T221320Z&X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=AKIAIOSFODNN7EXAMPLE%2F20231114%2Feu-west-1%2Fs3%2Faws4_request&X-Amz-SignedHeaders=host&X-Amz-Signature=be61dd1e4e37cca82491308c208eb9ac05b0ba80ab6f1b296d3fb1f1746b2029",
+        },
+      },
+      ["id"] = "presign-get-object-region",
+      ["input"] = {
+        ["Bucket"] = "my-bucket",
+        ["Key"] = "k",
+        ["region"] = "eu-west-1",
+      },
+      ["op"] = "get_object",
+    },
+    {
+      ["expected"] = {
+        ["ok"] = true,
+        ["value"] = {
+          ["headers"] = {},
+          ["method"] = "HEAD",
+          ["url"] = "https://my-bucket.s3.us-east-1.amazonaws.com/k?X-Amz-Expires=60&X-Amz-Date=20231114T221320Z&X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=AKIAIOSFODNN7EXAMPLE%2F20231114%2Fus-east-1%2Fs3%2Faws4_request&X-Amz-SignedHeaders=host&X-Amz-Signature=6217677215693173124c5f66938336c2e8721de8bfadc1dc5217dc75c0f6d958",
+        },
+      },
+      ["expires_in"] = 60,
+      ["id"] = "presign-head-object",
+      ["input"] = {
+        ["Bucket"] = "my-bucket",
+        ["Key"] = "k",
+      },
+      ["op"] = "head_object",
+    },
+    {
+      ["expected"] = {
+        ["ok"] = true,
+        ["value"] = {
+          ["headers"] = {
+            ["content-length"] = "5",
+            ["x-amz-checksum-crc32"] = "AAAAAA==",
+          },
+          ["method"] = "PUT",
+          ["url"] = "https://my-bucket.s3.us-east-1.amazonaws.com/big?partNumber=2&uploadId=u%2F1&x-id=UploadPart&X-Amz-Expires=900&X-Amz-Date=20231114T221320Z&X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=AKIAIOSFODNN7EXAMPLE%2F20231114%2Fus-east-1%2Fs3%2Faws4_request&X-Amz-SignedHeaders=content-length%3Bhost%3Bx-amz-checksum-crc32&X-Amz-Signature=767fd828faddf03c30cb8be53888aeb3da50b01c19f195371d6452c4f45bac0f",
+        },
+      },
+      ["id"] = "presign-upload-part",
+      ["input"] = {
+        ["Bucket"] = "my-bucket",
+        ["ChecksumCRC32"] = "AAAAAA==",
+        ["ContentLength"] = 5,
+        ["Key"] = "big",
+        ["PartNumber"] = 2,
+        ["UploadId"] = "u/1",
+      },
+      ["op"] = "upload_part",
+    },
+    {
+      ["expected"] = {
+        ["error"] = {
+          ["categories"] = {
+            "BadRequestError",
+          },
+          ["fields"] = {
+            ["member"] = "PutObjectTagging",
+          },
+          ["member"] = "PutObjectTagging",
+          ["message"] = "The input serializes into a request body, which a presigned URL cannot carry.",
+          ["retryable"] = false,
+          ["tag"] = "InvalidInput",
+          ["throttling"] = false,
+        },
+        ["ok"] = false,
+      },
+      ["id"] = "presign-put-object-tagging-body",
+      ["input"] = {
+        ["Bucket"] = "b",
+        ["Key"] = "k",
+        ["Tagging"] = {
+          ["TagSet"] = { n = 0 },
+        },
+      },
+      ["op"] = "put_object_tagging",
+    },
+    {
+      ["expected"] = {
+        ["error"] = {
+          ["categories"] = {
+            "BadRequestError",
+          },
+          ["fields"] = {
+            ["member"] = "PutObject",
+          },
+          ["member"] = "PutObject",
+          ["message"] = "The input serializes into a request body, which a presigned URL cannot carry.",
+          ["retryable"] = false,
+          ["tag"] = "InvalidInput",
+          ["throttling"] = false,
+        },
+        ["ok"] = false,
+      },
+      ["id"] = "presign-put-object-body",
+      ["input"] = {
+        ["Body"] = "data",
+        ["Bucket"] = "b",
+        ["Key"] = "k",
+      },
+      ["op"] = "put_object",
+    },
+    {
+      ["expected"] = {
+        ["error"] = {
+          ["categories"] = {
+            "BadRequestError",
+          },
+          ["fields"] = {
+            ["member"] = "Key",
+          },
+          ["member"] = "Key",
+          ["message"] = "Input member Key cannot be \"\": as a path label it would address another resource",
+          ["retryable"] = false,
+          ["tag"] = "InvalidInput",
+          ["throttling"] = false,
+        },
+        ["ok"] = false,
+      },
+      ["id"] = "presign-empty-key",
+      ["input"] = {
+        ["Bucket"] = "b",
+        ["Key"] = "",
+      },
+      ["op"] = "get_object",
+    },
+  },
   ["requests"] = {
     {
       ["expected"] = {

@@ -229,3 +229,28 @@ t.describe("s3 conformance: ListObjectsV2 pages", function()
     end)
   end
 end)
+
+t.describe("s3 conformance: presign_request (Presign.presignRequest)", function()
+  local s3 = require("distilled.s3")
+  for _, c in ipairs(V.presign_requests) do
+    t.it(c.id, function()
+      local client = client_for(c, {})
+      local got, err = s3.presign_request(
+        client,
+        c.op,
+        normalize(c.input),
+        { expires_in = c.expires_in, datetime = "20231114T221320Z" }
+      )
+      local want = c.expected
+      if want.ok then
+        t.eq(err, nil, c.id .. ": " .. tostring(err and err.message))
+        t.eq(got and got.method, want.value.method, "method")
+        t.eq(got and got.url, want.value.url, "url")
+        t.same(got and got.headers, normalize(want.value.headers), "headers")
+      else
+        t.eq(got, nil)
+        check_error(err, want.error, c.id)
+      end
+    end)
+  end
+end)

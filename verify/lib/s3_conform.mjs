@@ -26,6 +26,7 @@ const Category = await import(path.join(P, "core/src/category.ts"));
 const Credentials = await import(path.join(P, "s3/src/credentials.ts"));
 const Endpoint = await import(path.join(P, "s3/src/endpoint.ts"));
 const Retry = await import(path.join(P, "s3/src/retry.ts"));
+const Presign = await import(path.join(P, "s3/src/presign.ts"));
 const Effect = await import(E + "Effect.js");
 const Layer = await import(E + "Layer.js");
 const Redacted = await import(E + "Redacted.js");
@@ -642,6 +643,42 @@ const flows = [
   },
 ];
 
+// Presign.presignRequest (getSignedUrl)
+const presigns = [
+  {
+    id: "presign-put-object",
+    op: "PutObject",
+    input: {
+      Bucket: "uploads",
+      Key: "avatar.png",
+      ContentType: "image/png",
+      ContentLength: 1024,
+      IfNoneMatch: "*",
+      Metadata: { user: "u1" },
+      ServerSideEncryption: "AES256",
+      Tagging: "a=1",
+    },
+    options: { expiresIn: 300 },
+  },
+  {
+    id: "presign-get-object",
+    op: "GetObject",
+    input: { Bucket: "my-bucket", Key: "a b/c.txt", VersionId: "v+1", ResponseContentType: "text/plain", Range: "bytes=0-9" },
+  },
+  { id: "presign-get-object-token", op: "GetObject", input: { Bucket: "my-bucket", Key: "k" }, session_token: true },
+  { id: "presign-get-object-endpoint", op: "GetObject", input: { Bucket: "b", Key: "k" }, endpoint: "http://localhost:9000" },
+  { id: "presign-get-object-region", op: "GetObject", input: { Bucket: "my-bucket", Key: "k", region: "eu-west-1" } },
+  { id: "presign-head-object", op: "HeadObject", input: { Bucket: "my-bucket", Key: "k" }, options: { expiresIn: 60 } },
+  {
+    id: "presign-upload-part",
+    op: "UploadPart",
+    input: { Bucket: "my-bucket", Key: "big", PartNumber: 2, UploadId: "u/1", ContentLength: 5, ChecksumCRC32: "AAAAAA==" },
+  },
+  { id: "presign-put-object-tagging-body", op: "PutObjectTagging", input: { Bucket: "b", Key: "k", Tagging: { TagSet: [] } } },
+  { id: "presign-put-object-body", op: "PutObject", input: { Bucket: "b", Key: "k", Body: "data" } },
+  { id: "presign-empty-key", op: "GetObject", input: { Bucket: "b", Key: "" } },
+];
+
 // ---------------------------------------------------------------------------------------
 // running them
 // ---------------------------------------------------------------------------------------
@@ -750,6 +787,23 @@ for (const c of flows) {
   });
 }
 
+result.presign_requests = [];
+for (const c of presigns) {
+  const r = await runAt(
+    Presign.presignRequest(opOf(c.op), c.input, { datetime: "20231114T221320Z", ...(c.options ?? {}) }),
+    layersOf(c),
+  );
+  result.presign_requests.push({
+    id: c.id,
+    op: snake(c.op),
+    input: inputView(c.input),
+    session_token: c.session_token,
+    endpoint: c.endpoint,
+    expires_in: c.options?.expiresIn,
+    expected: r._tag === "Success" ? { ok: true, value: r.success } : { ok: false, error: await errorView(r.failure) },
+  });
+}
+
 const lua = (v, indent = "") => {
   if (v === undefined || v === null) return "nil";
   if (typeof v === "boolean" || typeof v === "number") return String(v);
@@ -782,5 +836,5 @@ writeFileSync(
     "\n",
 );
 console.log(
-  `wrote ${out}: ${result.requests.length} requests, ${result.responses.length} responses, ${result.flows.length} flows`,
+  `wrote ${out}: ${result.requests.length} requests, ${result.responses.length} responses, ${result.flows.length} flows, ${result.presign_requests.length} presigned requests`,
 );
