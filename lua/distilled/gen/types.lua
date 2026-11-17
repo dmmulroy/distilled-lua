@@ -248,7 +248,30 @@ function types.render(plan)
 
   -- options and the client
   b:line("---@class " .. prefix .. ".Options")
-  if spec.auth.kind ~= "none" then
+  if spec.runtime then
+    -- provider specs with options (task 13): one field per declared option
+    local SECRET =
+      "string|distilled.Secret|fun(host: table): (string|distilled.Secret|nil, distilled.Error?)"
+    for _, d in ipairs(spec.option_docs) do
+      local note = {}
+      if d.required then
+        note[#note + 1] = "Required"
+      end
+      if #d.env > 0 then
+        note[#note + 1] = "from $" .. compat.concat(d.env, " or $")
+      end
+      if d.default ~= nil and d.default ~= "" then
+        note[#note + 1] = "default " .. d.default
+      end
+      b:line(
+        "---@field "
+          .. d.name
+          .. "? "
+          .. (d.secret and SECRET or "string")
+          .. (#note > 0 and (" " .. compat.concat(note, "; ")) or "")
+      )
+    end
+  elseif spec.auth.kind ~= "none" then
     b:line(
       "---@field "
         .. spec.auth.from
@@ -261,7 +284,7 @@ function types.render(plan)
     for _, line in ipairs(require("distilled.gen.rpc").option_fields(spec)) do
       b:line(line)
     end
-  else
+  elseif not spec.runtime then
     b:line(
       "---@field "
         .. spec.base_url.option

@@ -829,8 +829,59 @@ See `tasks/15-xml.done.md`.
 
 - `verify/features/README.md` should list `graphql.md` (area "GraphQL clients", task 16),
   after the generator row.
-- STATUS.md itself has leftover merge markers (`||||||| abf4e89`, three of them) from
-  earlier merges into main. They are not mine; I left them as they are.
+- STATUS.md itself has leftover merge markers (`
+
+## 13 providers
+
+Done (see `tasks/13-providers.done.md`).
+
+- Survey: `docs/providers-survey.md`, 106 packages: 18 A, 83 B, 5 C. 98 specs in
+  `providers/` (neon, hetzner (task 10) and 96 new; 23 with a glue module in `providers/glue/`). Not
+  written: hetzner (task 10 owns it), questrade (refresh token in a URL query), scaleway
+  and slack (reasons in the survey).
+- New spec keys (`lua/distilled/gen/provider_ext.lua`, called from `provider.validate`):
+  `options`, env lists, `headers`, `auth.kind = "basic"`, `auth.prefix`,
+  `auth.optional`, templated or required `base_url` with `trim_slash`, `ensure_suffix`,
+  `origin`; `require_one_of`, `public_operations`, `user_agent`, `oauth`,
+  `error_classes`, `unknown_fields`, `transform_response`, `empty_json_body`,
+  `query_style`, pointer lists in `error_envelope`, `glue`. A spec with none of them
+  generates exactly as before.
+- Runtime: `rest.new{ provider = ..., glue = ..., unknown_fields, transform_input,
+  classify_success }`, `rest.envelope`, `rest.transforms`, `rest.strip_nulls`,
+  `rest.compile_provider`. `credentials.from_env` takes a list of names.
+  `classify_error`'s info gained `now`; `classify_success` may return `true` (read the
+  2xx answer as a failure).
+
+Files outside my list that I had to change (orchestrator, please check on merge):
+
+- `lua/distilled/gen/writer.lua`: the protocol and options of `init.lua` are emitted
+  there, not in `gen/init.lua`; `writer.client` now emits `provider = ...` for task-13
+  specs (classic specs unchanged), `error_classes`, pointer-list envelopes, `glue`;
+  the README options table (`writer.option_rows`). Task 12 also edits this file.
+- `lua/distilled/gen/types.lua`: the `Options` fields of task-13 specs.
+- `spec/gen_provider_spec.lua`: one line, `kind = "basic"` is now valid (the case uses
+  `"digest"`).
+
+For task 10 (merge): `models.override` should be able to carry `auth`, `options` and
+`headers` (clerk, convex, digitalocean, e2b, exa, fly-io, mailchimp, onepassword have
+models with different auth; their spec comments say what). Apply an override to the raw
+spec *before* `provider.validate`: the runtime data (`spec.runtime`) is computed there,
+so changing `spec.base_url` after validation does not reach it. entire's Core models
+need only `base_url = { option = "core_base_url", env = "ENTIRE_CORE_BASE_URL",
+default = "https://us.console.entire.io" }`.
+
+Task 12 merged: a task-13 spec's base URL follows `rest.route_base_url`'s rule for an
+operation with `route.server` or its own `route.base_url` (`compile_provider`), and the
+writer declares task 12's `<server>_base_url` / template options for it too. stackit's
+glue reads `route.base_url` (the http trait's baseUrl), digitalocean's `route.server`.
+For task 10 (merged): `provider.for_model` passes a `models.override.<m>.base_url` on to
+the runtime data (`ext.override_base_url`).
+After the merge of main every package generates whole: `bin/distilled-lua package
+--models models/<pkg> --provider providers/<lua>.lua --out /tmp/...` for all 98 specs
+gives 1016 models ok, 0 failed, 2 skipped (models.skip). Two generator changes made that
+possible: an `error_classes` tag that a model also declares uses the model's class (Vercel,
+Whop, Starburst, Atlas declare PaymentRequired / PreconditionFailed in some models only),
+and `naming.operations` is not checked against a single model of a multi-model package (exa).
 
 ## 22 tencentcloud
 
