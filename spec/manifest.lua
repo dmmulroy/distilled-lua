@@ -18,6 +18,7 @@ return {
   "gen_output_spec.lua",
   "gen_provider_spec.lua",
   "gen_shapes_spec.lua",
+  "gen_traits_spec.lua",
   "graphql_client_spec.lua",
   "graphql_conform_spec.lua",
   "graphql_runtime_spec.lua",

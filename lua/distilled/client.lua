@@ -478,9 +478,12 @@ function Client.define(spec)
     local op = service.ops[name]
     if op.pagination then
       local trait = op.pagination
+      -- op.pagination_methods renames a sibling that would take a real operation's name
+      -- (the generator's naming.operation_names: Exa's list_websets_all_items)
+      local renamed = op.pagination_methods or {}
       local function iterate(kind)
+        local method = renamed[kind] or (name .. "_" .. kind)
         return function(self, input)
-          local method = name .. "_" .. kind
           check_self(self, method)
           local state = self._state
           local holder = state.trace
@@ -500,8 +503,8 @@ function Client.define(spec)
           })
         end
       end
-      add(name .. "_pages", iterate("pages"))
-      add(name .. "_items", iterate("items"))
+      add(renamed.pages or (name .. "_pages"), iterate("pages"))
+      add(renamed.items or (name .. "_items"), iterate("items"))
     end
   end
 

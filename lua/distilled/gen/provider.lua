@@ -30,9 +30,9 @@
 --       operations = { GetThing = "fetch_thing" },   -- per-operation method names
 --     },
 --     pagination = { items_fallback = "items" },     -- items path when the trait has none
---     allow_unsupported = { "<gap>" },       -- emit operations the runtime refuses at
+--     allow_unsupported = { "streaming" },   -- emit operations the runtime refuses at
 --                                            -- call time (SdkError) instead of failing
---                                            -- (provider.UNSUPPORTED; empty today)
+--                                            -- (provider.UNSUPPORTED)
 --     models = {                             -- packages with several models (one module
 --                                            -- each, `require("hetzner.servers")`)
 --       skip = { "pricing" },                -- models not generated (Lua model names)
@@ -136,10 +136,15 @@ local TOP = {
   models = true,
 }
 
--- Runtime gaps a provider may acknowledge (see allow_unsupported above). None today:
--- multipart bodies were the only one, and request.build encodes them since task 08. The
--- mechanism stays for the next gap; a spec may add an entry to exercise it.
-provider.UNSUPPORTED = {}
+-- Runtime gaps a provider may acknowledge (see allow_unsupported above). Multipart bodies
+-- were the first; request.build encodes them since task 08 (CLOSED_GAPS below).
+provider.UNSUPPORTED = {
+  -- Operations with a streaming trait (gen/traits.lua traits.STREAMING: gRPC server or
+  -- client streaming, com.distilled.openapi#streamWhen). Server/client streaming ones
+  -- are emitted with op.unsupported = "streaming" and fail with SdkError at call time;
+  -- a streamWhen one is emitted as its plain (non-streaming) call.
+  streaming = "streaming operations (no streaming in the runtime yet)",
+}
 
 -- Gaps that were closed: listing one is a stale provider spec, reported as such.
 provider.CLOSED_GAPS = {

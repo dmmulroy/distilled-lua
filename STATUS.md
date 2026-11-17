@@ -529,7 +529,6 @@ neon` ok (177/178 operations build; the multipart one is acknowledged, see below
   copies top-level `*.json`, so gcp is not synced (the GCP task should decide the layout).
 - `verify/features/README.md` should list `parity.md`; `verify/SKILL.md` should mention
   `models sync`, `gen-all`, `parity`.
-||||||| abf4e89
 
 
 ## 11 schema
@@ -579,8 +578,92 @@ all generate now (1,029 of 1,206 with the 939 that already did; none of those re
   `update_live_table_schema` (required members recurse past depth 24), so `gen_check`
   reports 5/6 ops built there. A generation-side non-issue; the synthesizer could stop at
   the first optional or treat a cycle of required members as unbuildable data.
-||||||| abf4e89
 
+
+## 12 traits
+
+**Done.** See `tasks/12-traits.done.md`. Smoke (dummy provider spec; `allow_unsupported =
+{ "streaming" }` for modal, boxd, boat-dev): 939 → **1,089** of 1,206 models generate, no
+model that generated before fails now; the 117 left are all task 11 classes (nullable
+items/values, nullable rawResponse, type names), models with no operations, or GraphQL.
+With task 11's checks switched off in a scratch copy, the 22 models of my classes that
+also hit a task 11 class generate too. Results: `tasks/notes/smoke-results-12.txt`.
+
+### What others can use
+
+- Op descriptor fields (all optional, omitted when unset, so Neon is byte-identical):
+  `accept` (Accept header), `base_url` (the op's own base URL, may hold `{variables}`),
+  `server` (a host NAME, e.g. `"inference"`), `raw_download = true` (Scaleway),
+  `unsupported = "streaming"`, `pagination_methods = { pages?, items? }` (renamed siblings).
+- `rest.route_base_url(option, { default, servers })`: the generated base_url function
+  when any op names its own host. `route.server` → `creds[servers[s] or s .. "_base_url"]`
+  (unset: ConfigError, never the main host); `route.base_url` → `creds[option]` when it
+  equals `default` (Scaleway's SCW_API_URL rule), else `{name}` filled from `creds[name]`
+  (letters, digits, `.`, `-`, `_` only; else ConfigError naming the option); else
+  `creds[option]`. The REST protocol now passes `base_url = op.base_url` in the route.
+- The generated client declares an option per server (`inference_base_url = {}`) and per
+  base-URL variable (`region = {}`); no default, no env. **Task 13**: provider-spec keys to
+  give them defaults/env (DigitalOcean `inference` → `https://inference.do-ai.run`,
+  `actions`; STACKIT region default `eu01` and its `applyRegion` rewrite of
+  `https://<svc>.api.stackit.cloud`, which no generic rule covers; Scaleway's default
+  `{region}`/`{zone}` labels from options; Scaleway's `dl=1` for `raw_download` ops, which
+  nothing does yet: a raw download returns what the API sends without it).
+- `request.build`: `op.accept` sets Accept over the protocol's headers (a member bound to
+  Accept still wins); `op.unsupported` fails with SdkError before anything is read; a path
+  placeholder no label member fills is filled from the input key of that name (encoded
+  and `.`/`..`-checked like a label, not sent in the body), else InvalidInput.
+- `provider.UNSUPPORTED.streaming`: with `allow_unsupported = { "streaming" }`, gRPC
+  server/client-streaming ops are emitted with `unsupported = "streaming"`; a `streamWhen`
+  op is emitted as its plain call (Distilled's plain call keeps the output too). Without
+  it, generation fails naming the key (Distilled needs `streams: true`). modal and boxd
+  then generate, but are not callable: they need a gRPC protocol.
+
+### Decisions
+
+- Exa: real operations claim their method names first; a `_pages`/`_items` sibling that
+  would take one becomes `<method>_all_pages`/`<method>_all_items` (`list_websets_items`
+  stays Distilled's `listWebsetsItems`; ListWebsets's items are `list_websets_all_items`).
+  Still colliding: generation fails. `naming.operation_names` returns
+  `names, nil, page_methods`.
+- Resend: a cursor trait with `hasNextPage` and no `outputToken` is emitted unpaginated
+  with a CLI warning (Distilled pages it with resend's own `paginateResend`, last item's
+  `id`; Lua has no provider strategies). Any other missing field still fails.
+  Full support needs a runtime mode (paginate.lua) plus a provider-spec key.
+- `distilled.errors#bodies` with a prelude target is skipped (as Distilled skips non-shape
+  targets); a dangling non-prelude target still fails.
+- A placeholder with no member (proxmox `{url_seq}`, `{rule}`): emitted with a warning.
+  Distilled sends the placeholder literally; we fill it from the input or refuse.
+- Found on the way: a prelude output other than Unit (Stripe's `smithy.api#Document`)
+  crashed `ops.output`; it is now the value (`output_raw`). A Unit output whose synthesized
+  name is an operation (Mailchimp `GetSurvey` → `GetSurveyResponse`) produced an
+  unresolvable ref (gen-check failed on main); the map entry is now replaced as Distilled
+  does; a non-empty shape under that name fails generation.
+- `smithy.api#http` `apiVersion` (azure) is still refused; `smithy.api#streaming` (AWS
+  event streams, on shapes) is not in a guarded namespace and only warns: the AWS task
+  should map it to `streaming`.
+
+### Edits outside my file list (all small, for requirements of this brief)
+
+- `gen/init.lua` (10/13): `page_methods` plumbing, label placeholders → warning, the
+  streaming check (`ops.streaming`), the errors#bodies prelude skip, a `warn` helper.
+- `gen/naming.lua` (11): `operation_names` two-pass sibling rule.
+- `gen/types.lua` (11), `gen/writer.lua`: sibling names via `ops.page_method`; writer emits
+  `rest.route_base_url` and the host options only when an op names its own host.
+- `client.lua`: reads `op.pagination_methods`.
+- `request.lua`: op.unsupported, unbound placeholders (beyond base URL / accept).
+- `verify/lib/gen_check.lua` (10): `op.unsupported` ops must be refused with SdkError and
+  count as acknowledged; every path placeholder gets a value (scaleway/proxmox label
+  members not marked required used to fail it).
+- Specs: one case each in `gen_shapes_spec`, `gen_ops_spec`, `gen_naming_spec`,
+  `gen_provider_spec` asserted the old refusals.
+
+### Proposed (orchestrator)
+
+- `docs/interfaces.md`: the op fields above, `rest.route_base_url`, the route's
+  `base_url`, request.build rules 12-14, `naming.operation_names`' third result.
+- `verify/features/generator.md`: streaming via allow_unsupported; warnings.
+- Not mine, found by gen-check over all smoke outputs: `infisical/infisical`'s
+  service.lua has more than 65,536 constants in one function (LuaJIT refuses to load it).
 
 ## 14 crypto
 
@@ -653,7 +736,6 @@ all generate now (1,029 of 1,206 with the 939 that already did; none of those re
 - Proposed (not done): `verify/features/README.md` row "20 | Crypto and SigV4 |
   [crypto.md](crypto.md) | task 14"; AGENTS.md defect list entry for the
   multiple-assignment bug above.
-||||||| abf4e89
 
 
 ## 15 xml

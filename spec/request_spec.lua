@@ -731,3 +731,81 @@ t.describe("request: the fixture service", function()
     )
   end)
 end)
+
+-- task 12: smithy.api#http accept, runtime gaps, placeholders without a label member
+t.describe("request: op.accept, op.unsupported, unbound placeholders (task 12)", function()
+  local ACCEPT = op({
+    method = "GET",
+    uri = "/groups",
+    accept = "application/vnd.atlas.2024-05-30+json",
+    input = S.struct({
+      members = {
+        m({ name = "accept_override", wire = "Accept", bind = "header", schema = S.string }),
+      },
+    }),
+  })
+
+  t.it("op.accept is the Accept header, over the protocol's headers", function()
+    local r = build(ACCEPT, {}, { headers = { Accept = "application/json", authorization = "x" } })
+    t.eq(r.headers["accept"], "application/vnd.atlas.2024-05-30+json")
+    t.eq(r.headers["authorization"], "x")
+  end)
+
+  t.it("a member bound to the Accept header still wins", function()
+    local r = build(ACCEPT, { accept_override = "text/csv" })
+    t.eq(r.headers["accept"], "text/csv")
+  end)
+
+  t.it("no op.accept: no Accept header from request.build (the protocol defaults it)", function()
+    local r = build(op({ method = "GET", uri = "/x" }), {})
+    t.eq(r.headers["accept"], nil)
+  end)
+
+  t.it("op.unsupported fails with SdkError naming the gap, before reading the input", function()
+    local o = op({ method = "POST", uri = "/logs/{id}", unsupported = "streaming" })
+    t.fails_with("SdkError", build(o, { id = "a" }))
+    local _, err = build(o, "not even a table")
+    t.match(err.message, "cannot perform streaming operations", true)
+  end)
+
+  local UNBOUND = op({
+    method = "DELETE",
+    uri = "/lists/{id}/entries/{url_seq}",
+    input = S.struct({
+      members = {
+        m({ name = "id", bind = "label", schema = S.string, required = true }),
+        m({ name = "lock_token", wire = "lock-token", bind = "query", schema = S.string }),
+      },
+    }),
+  })
+
+  t.it("a placeholder with no member is filled from the input key of its name", function()
+    local r = build(UNBOUND, { id = "a", url_seq = "1 0", lock_token = "t" })
+    t.eq(r.url, BASE .. "/lists/a/entries/1%200?lock-token=t")
+    t.eq(r.body, nil)
+  end)
+
+  t.it("that key is not also sent as a body field", function()
+    local o = op({ method = "PUT", uri = UNBOUND.uri, input = UNBOUND.input })
+    local r = build(o, { id = "a", url_seq = 3, extra = true })
+    t.eq(r.url, BASE .. "/lists/a/entries/3")
+    t.eq(r.body, '{"extra":true}')
+  end)
+
+  t.it("without the key the call fails with InvalidInput naming it", function()
+    local _, err = build(UNBOUND, { id = "a" })
+    t.eq(err.tag, "InvalidInput")
+    t.eq(err.member, "url_seq")
+    t.match(err.message, "pass it as input.url_seq", true)
+  end)
+
+  t.it("its value is checked like a label: . and .. are refused", function()
+    t.fails_with("InvalidInput", build(UNBOUND, { id = "a", url_seq = ".." }))
+    t.fails_with("InvalidInput", build(UNBOUND, { id = "a", url_seq = "." }))
+  end)
+
+  t.it("a greedy placeholder with no member keeps its slashes", function()
+    local o = op({ method = "GET", uri = "/files/{path+}" })
+    t.eq(build(o, { path = "a/b c" }).url, BASE .. "/files/a/b%20c")
+  end)
+end)
