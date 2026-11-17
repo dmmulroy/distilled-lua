@@ -572,6 +572,9 @@ function writer.client(plan)
     return require("distilled.gen.cloudflare").client(plan)
   end
   local spec = plan.provider
+  if spec.rpc then
+    return require("distilled.gen.rpc").client(plan) -- RPC models (task 22)
+  end
   local b = emit.buffer()
   b:lines_of(
     writer.header(plan, spec.title .. ' client: what require("' .. spec.name .. '") returns.')
@@ -871,6 +874,9 @@ end
 --- writer.readme(plan) -> markdown
 function writer.readme(plan)
   local spec, m = plan.provider, plan.model
+  if spec.rpc then
+    return require("distilled.gen.rpc").readme(plan) -- RPC models (task 22)
+  end
   local out = {}
   local function add(s)
     out[#out + 1] = s or ""
