@@ -468,7 +468,11 @@
 
 ---@class azure.authorization.Options
 ---@field api_base_url? string from $AZURE_API_BASE_URL; default https://management.azure.com
----@field bearer_token? string|distilled.Secret|fun(host: table): (string|distilled.Secret|nil, distilled.Error?) Required; from $AZURE_BEARER_TOKEN
+---@field authority_host? string from $AZURE_AUTHORITY_HOST; default https://login.microsoftonline.com
+---@field bearer_token? string|distilled.Secret|fun(host: table): (string|distilled.Secret|nil, distilled.Error?) from $AZURE_BEARER_TOKEN
+---@field client_id? string from $AZURE_CLIENT_ID
+---@field client_secret? string|distilled.Secret|fun(host: table): (string|distilled.Secret|nil, distilled.Error?) from $AZURE_CLIENT_SECRET
+---@field scope? string default https://management.azure.com/.default
 ---@field subscription_id? string from $AZURE_SUBSCRIPTION_ID
 ---@field tenant_id? string from $AZURE_TENANT_ID
 ---@field host? table The host seams: transport, sleep, now, exec, random, getenv, epoch

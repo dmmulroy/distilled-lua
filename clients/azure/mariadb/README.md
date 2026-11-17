@@ -23,7 +23,11 @@ local client = AzureMariadb.new({
 | Option | Meaning |
 | --- | --- |
 | `api_base_url` | base URL; from `AZURE_API_BASE_URL`; default `https://management.azure.com` |
-| `bearer_token` | required secret: a string, a secret, or `fn(host) -> value, err`; from `AZURE_BEARER_TOKEN` |
+| `authority_host` | text; from `AZURE_AUTHORITY_HOST`; default `https://login.microsoftonline.com`; the Entra ID host of the cloud |
+| `bearer_token` | secret: a string, a secret, or `fn(host) -> value, err`; from `AZURE_BEARER_TOKEN` |
+| `client_id` | text; from `AZURE_CLIENT_ID`; service principal (app) id, with client_secret |
+| `client_secret` | secret: a string, a secret, or `fn(host) -> value, err`; from `AZURE_CLIENT_SECRET`; service principal secret: a token is requested from Entra ID and reused |
+| `scope` | text; default `https://management.azure.com/.default`; the token scope (another cloud: its ARM host + /.default) |
 | `subscription_id` | text; from `AZURE_SUBSCRIPTION_ID`; fills `{subscriptionId}` when an operation's input leaves it out |
 | `tenant_id` | text; from `AZURE_TENANT_ID`; Azure tenant (directory) ID |
 | `host`, `transport`, `sleep`, ... | the host seams (see distilled's docs/interfaces.md) |

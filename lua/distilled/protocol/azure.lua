@@ -12,7 +12,9 @@
 --             Management returns policies as raw XML), base URL `api_base_url` (default
 --             https://management.azure.com). Options are resolved on every request (the
 --             provider-spec runtime: AZURE_BEARER_TOKEN, AZURE_SUBSCRIPTION_ID,
---             AZURE_TENANT_ID, AZURE_API_BASE_URL). A `{subscriptionId}` the caller left
+--             AZURE_TENANT_ID, AZURE_API_BASE_URL; without a token, Entra ID client
+--             credentials AZURE_CLIENT_ID / AZURE_CLIENT_SECRET, cached per client class
+--             until 5 minutes before expiry). A `{subscriptionId}` the caller left
 --             out is filled from `subscription_id` (users set AZURE_SUBSCRIPTION_ID once);
 --             an explicit one wins. The operation's `api_version` is appended as
 --             `?api-version=` (`&` after other query parameters) unless the URL has one.
@@ -25,8 +27,8 @@
 --
 -- Distilled's v0 parity choices kept: no pagination (list operations return
 -- `{ value, nextLink }`), no long-running-operation polling (the 202's headers are in
--- the output), no token acquisition in the protocol (distilled.azure.credentials has
--- token sources for the bearer_token option).
+-- the output). Added: the Entra ID client-credentials exchange (rest's provider oauth);
+-- distilled.azure.credentials has Azure CLI and managed-identity token sources.
 local azure_errors = require("distilled.azure.errors")
 local compat = require("distilled.compat")
 local errors = require("distilled.errors")
@@ -47,9 +49,29 @@ azure.PROVIDER = {
     { name = "authorization", values = { { template = "Bearer {bearer_token}" } }, secret = true },
   },
   base_url = { default = azure.DEFAULT_API_BASE_URL, option = "api_base_url" },
+  -- Entra ID client credentials when no bearer_token is given (not in Distilled)
+  oauth = {
+    required = true,
+    auth = "form",
+    client_id = "client_id",
+    client_secret = "client_secret",
+    into = "bearer_token",
+    label = "Entra ID token request",
+    refresh_window_s = 300,
+    scope = "scope",
+    token_url = "{authority_host}/{tenant_id}/oauth2/v2.0/token",
+  },
   options = {
     api_base_url = { env = { "AZURE_API_BASE_URL" } },
-    bearer_token = { required = true, secret = true, env = { "AZURE_BEARER_TOKEN" } },
+    authority_host = {
+      default = "https://login.microsoftonline.com",
+      env = { "AZURE_AUTHORITY_HOST" },
+      trim_slash = true,
+    },
+    bearer_token = { secret = true, env = { "AZURE_BEARER_TOKEN" } },
+    client_id = { env = { "AZURE_CLIENT_ID" } },
+    client_secret = { secret = true, env = { "AZURE_CLIENT_SECRET" } },
+    scope = { default = "https://management.azure.com/.default" },
     subscription_id = { env = { "AZURE_SUBSCRIPTION_ID" } },
     tenant_id = { env = { "AZURE_TENANT_ID" } },
   },
