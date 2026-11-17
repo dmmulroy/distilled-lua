@@ -42,23 +42,7 @@ local INTENDED = {
 -- STATUS.md (25 s3, "For task 17"). Each is reported as pending, and also run: while it
 -- still differs from Distilled the run passes; once fixed it fails, saying to remove the
 -- entry here.
-local CATEGORIES = "error categories from the status (spec.ts errorCategories) not emitted"
-local KNOWN = {
-  ["get-object-missing-key"] = "a missing required label is sent; Distilled fails with ParseError",
-  ["put-object-empty-body"] = "Body = '' sends no body; Distilled sends an empty one",
-  ["get-object-base64-text"] = "a blob payload read by name is base64-decoded (protocol.lua decode_success ignores read.raw)",
-  ["get-object-empty"] = "an empty streaming payload is absent; Distilled's Body is ''",
-  ["get-bucket-location-eu"] = "aws.customizations#s3UnwrappedXmlOutput not read",
-  ["error-no-such-key"] = CATEGORIES,
-  ["error-no-such-bucket"] = CATEGORIES,
-  ["error-no-such-upload"] = CATEGORIES,
-  ["error-bucket-exists"] = CATEGORIES,
-  ["error-invalid-object-state"] = CATEGORIES,
-  ["list-objects-v2-pages-error"] = CATEGORIES,
-  ["error-internal"] = "InternalError has RetryableError besides ServerError",
-  ["error-500-garbage"] = "InternalError has RetryableError besides ServerError",
-  ["error-400-garbage"] = "the client-side ParseError has the ParseError category; Distilled's none",
-}
+local KNOWN = {}
 
 local function case(id, fn)
   local gap = KNOWN[id]
@@ -214,11 +198,16 @@ t.describe("s3 conformance: requests", function()
         got.authorization = nil
       end
       t.same(got, e.headers, "headers")
+      -- an empty body and no body are the same request on the wire
       local body = req.body
       if body == "" then
         body = nil
       end
-      t.eq(body, e.body, "body")
+      local want_body = e.body
+      if want_body == "" then
+        want_body = nil
+      end
+      t.eq(body, want_body, "body")
     end)
   end
 end)

@@ -459,7 +459,7 @@ function M.read(p, op, res)
       return { unreadable = err, as_read = text }
     end
     local content = tree[root_name(node)]
-    if node.unwrapped_output then
+    if node.unwrapped_output or (op and op.aws and op.aws.unwrapped_output) then
       -- aws.customizations#s3UnwrappedXmlOutput: the root element's text is the member
       local member
       for _, m in ipairs(node.members or {}) do

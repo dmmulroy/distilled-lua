@@ -766,11 +766,31 @@ function M.run(opts)
                   "failed: " .. tostring(err and err.tag) .. ": " .. tostring(err and err.message),
                 })
               else
+                local want = to_runtime(sub, output_id, c.params or json.object({}))
+                -- a streaming member the case leaves out is an empty stream: "" (as
+                -- Distilled's runner expects, then drops it)
+                local problems = {}
+                for name, mem in pairs(type_of(sub, output_id).members or {}) do
+                  local ms = type_of(sub, mem.target)
+                  if
+                    ms.traits
+                    and ms.traits["smithy.api#streaming"] ~= nil
+                    and want[name] == nil
+                  then
+                    if value[name] ~= "" then
+                      problems[#problems + 1] = name
+                        .. ": an empty stream, got "
+                        .. canonical(value[name])
+                    end
+                    value[name] = nil
+                  end
+                end
                 local actual = canonical(value)
-                local expected = canonical(to_runtime(sub, output_id, c.params or json.object({})))
-                record(c.id .. " (response)", actual == expected and {} or {
-                  "value\n  got:  " .. actual .. "\n  want: " .. expected,
-                })
+                local expected = canonical(want)
+                if actual ~= expected then
+                  problems[#problems + 1] = "value\n  got:  " .. actual .. "\n  want: " .. expected
+                end
+                record(c.id .. " (response)", problems)
               end
             end
           end

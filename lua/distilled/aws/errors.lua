@@ -18,12 +18,14 @@ local function class(tag, categories, retryable, fields)
 end
 
 -- COMMON_ERRORS, in Distilled's order
+-- s3/src/errors.ts COMMON_ERRORS, same categories; `withRetryable()` is the class's
+-- retryable flag, not the RetryableError category
 M.COMMON = {
   class("AccessDeniedException", { "AuthError" }),
   class("ExpiredTokenException", { "AuthError" }),
   class("IncompleteSignature", { "AuthError" }),
-  class("InternalError", { "ServerError", "RetryableError" }, true),
-  class("InternalFailure", { "ServerError", "RetryableError" }, true),
+  class("InternalError", { "ServerError" }, true),
+  class("InternalFailure", { "ServerError" }, true),
   class("MalformedHttpRequestException", { "BadRequestError" }),
   class("NotAuthorized", { "AuthError" }),
   class("OperationAborted", { "AbortedError" }),
@@ -31,8 +33,8 @@ M.COMMON = {
   class("RequestAbortedException", { "AbortedError" }),
   class("RequestEntityTooLargeException", { "BadRequestError" }),
   class("RequestExpired", { "BadRequestError", "TimeoutError" }),
-  class("RequestTimeoutException", { "TimeoutError", "RetryableError" }, true),
-  class("ServiceUnavailable", { "ServerError", "RetryableError" }, true),
+  class("RequestTimeoutException", { "TimeoutError" }, true),
+  class("ServiceUnavailable", { "ServerError" }, true),
   class("ThrottlingException", { "ThrottlingError" }),
   class("UnknownOperationException", { "BadRequestError" }),
   class("UnrecognizedClientException", { "AuthError" }),

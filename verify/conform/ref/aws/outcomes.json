@@ -918,5 +918,25 @@
     }
    }
   }
+ },
+ {
+  "id": "dynamodb.missing_required",
+  "outcome": {
+   "error": {
+    "tag": "ParseError",
+    "message": "Expected a value, got undefined at [\"TableName\"]",
+    "fields": {}
+   }
+  }
+ },
+ {
+  "id": "lambda.missing_label",
+  "outcome": {
+   "error": {
+    "tag": "ParseError",
+    "message": "Expected a value, got undefined at [\"FunctionName\"]",
+    "fields": {}
+   }
+  }
  }
 ]

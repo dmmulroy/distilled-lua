@@ -667,5 +667,37 @@
       },
       "body": "<Response><Errors><Error><Code>NoSuchDomain</Code><Message>The specified domain does not exist.</Message><BoxUsage>0.0000071759</BoxUsage></Error></Errors><RequestID>r</RequestID></Response>"
     }
+  },
+  {
+    "id": "dynamodb.missing_required",
+    "service": "dynamodb",
+    "op": "PutItem",
+    "input": {
+      "Item": {
+        "id": {
+          "S": "1"
+        }
+      }
+    },
+    "response": {
+      "status": 200,
+      "headers": {
+        "content-type": "application/x-amz-json-1.0"
+      },
+      "body": "{}"
+    }
+  },
+  {
+    "id": "lambda.missing_label",
+    "service": "lambda",
+    "op": "GetFunction",
+    "input": {},
+    "response": {
+      "status": 200,
+      "headers": {
+        "content-type": "application/json"
+      },
+      "body": "{}"
+    }
   }
 ]

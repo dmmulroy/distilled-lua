@@ -152,54 +152,54 @@ an AWS common error (`ThrottlingException`, `AccessDeniedException`, ...),
 | Tag | Categories |
 | --- | --- |
 | `AccessDenied` | AuthError |
-| `AnnotationLimitExceeded` | ThrottlingError |
-| `AnnotationNameTooLong` |  |
-| `BucketAlreadyExists` | AlreadyExistsError |
-| `BucketAlreadyOwnedByYou` |  |
-| `BucketHasAccessPointsAttached` |  |
-| `BucketNotEmpty` |  |
-| `ConditionalRequestConflict` |  |
-| `EncryptionTypeMismatch` |  |
-| `IdempotencyParameterMismatch` |  |
-| `IllegalLocationConstraintException` |  |
-| `InvalidAccessKeyId` |  |
-| `InvalidAnnotationName` |  |
-| `InvalidArgument` |  |
-| `InvalidBucketName` |  |
-| `InvalidBucketState` |  |
-| `InvalidDigest` |  |
-| `InvalidLocationConstraint` |  |
-| `InvalidObjectState` |  |
-| `InvalidPrefix` |  |
-| `InvalidRequest` |  |
-| `InvalidWriteOffset` |  |
-| `MalformedPolicy` |  |
-| `MalformedXML` |  |
+| `AnnotationLimitExceeded` | BadRequestError, ThrottlingError |
+| `AnnotationNameTooLong` | BadRequestError |
+| `BucketAlreadyExists` | ConflictError, AlreadyExistsError |
+| `BucketAlreadyOwnedByYou` | ConflictError, AlreadyExistsError |
+| `BucketHasAccessPointsAttached` | ConflictError |
+| `BucketNotEmpty` | ConflictError |
+| `ConditionalRequestConflict` | ConflictError, RetryableError |
+| `EncryptionTypeMismatch` | BadRequestError |
+| `IdempotencyParameterMismatch` | BadRequestError |
+| `IllegalLocationConstraintException` | BadRequestError |
+| `InvalidAccessKeyId` | AuthError |
+| `InvalidAnnotationName` | BadRequestError |
+| `InvalidArgument` | BadRequestError |
+| `InvalidBucketName` | BadRequestError |
+| `InvalidBucketState` | ConflictError |
+| `InvalidDigest` | BadRequestError |
+| `InvalidLocationConstraint` | BadRequestError |
+| `InvalidObjectState` | AuthError |
+| `InvalidPrefix` | BadRequestError |
+| `InvalidRequest` | BadRequestError |
+| `InvalidWriteOffset` | BadRequestError |
+| `MalformedPolicy` | BadRequestError |
+| `MalformedXML` | BadRequestError |
 | `MethodNotAllowed` |  |
-| `NoSuchAnnotation` |  |
-| `NoSuchBucket` |  |
+| `NoSuchAnnotation` | BadRequestError |
+| `NoSuchBucket` | BadRequestError |
 | `NoSuchBucketPolicy` |  |
 | `NoSuchCORSConfiguration` |  |
 | `NoSuchConfiguration` |  |
-| `NoSuchKey` |  |
+| `NoSuchKey` | BadRequestError |
 | `NoSuchLifecycleConfiguration` |  |
 | `NoSuchPublicAccessBlockConfiguration` |  |
 | `NoSuchTagSet` |  |
-| `NoSuchUpload` |  |
+| `NoSuchUpload` | BadRequestError |
 | `NoSuchVersion` |  |
 | `NoSuchWebsiteConfiguration` |  |
 | `NotFound` |  |
-| `ObjectAlreadyInActiveTierError` |  |
+| `ObjectAlreadyInActiveTierError` | AuthError |
 | `ObjectLockConfigurationNotFoundError` |  |
-| `ObjectNotInActiveTierError` |  |
+| `ObjectNotInActiveTierError` | AuthError |
 | `OwnershipControlsNotFoundError` |  |
 | `ParseError` |  |
 | `PermanentRedirect` |  |
-| `PreconditionFailed` |  |
+| `PreconditionFailed` | ConflictError |
 | `ReplicationConfigurationNotFoundError` |  |
 | `RequestError` |  |
 | `RequestLimitExceeded` | ThrottlingError, RetryableError |
 | `SignatureDoesNotMatch` | AuthError |
 | `SlowDown` | ThrottlingError, RetryableError |
-| `TooManyParts` |  |
-| `UnsupportedMediaType` |  |
+| `TooManyParts` | BadRequestError |
+| `UnsupportedMediaType` | BadRequestError |

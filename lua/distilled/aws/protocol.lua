@@ -204,8 +204,35 @@ function M.new(service, args)
     return rules
   end
 
-  local function pctx(ctx)
+  -- what an operation's messages may quote (s3/src/util/codec.ts inputEncoder,
+  -- outputBody, errorBody): nothing of a shape that can hold a secret. Cached on the
+  -- descriptor, a long-lived key.
+  local function withhold_of(op, registry)
+    local w = op._aws_withhold
+    if w == nil then
+      local redact = require("distilled.redact")
+      local errs = false
+      for _, tag in ipairs(op.errors or {}) do
+        local cls = service.errors and service.errors[tag]
+        local f = facts[tag]
+        local body = f and f.shape and registry[f.shape]
+        if cls and body and redact.holds_sensitive(body, registry) then
+          errs = true
+        end
+      end
+      w = {
+        input = op.input ~= nil and redact.holds_sensitive(op.input, registry) or false,
+        output = op.output ~= nil and redact.holds_sensitive(op.output, registry) or false,
+        errors = errs,
+      }
+      op._aws_withhold = w
+    end
+    return w
+  end
+
+  local function pctx(ctx, op)
     local registry = service.shapes
+    local w = op and withhold_of(op, registry) or {}
     return {
       aws = args,
       registry = registry,
@@ -215,8 +242,12 @@ function M.new(service, args)
         wire_keys = args.protocol == "restJson1"
           or args.protocol == "awsJson1_0"
           or args.protocol == "awsJson1_1",
+        withhold = w.input or nil,
       },
       validation = ctx and ctx.validation or "lenient",
+      withhold_input = w.input or nil,
+      withhold_output = w.output or nil,
+      withhold_errors = w.errors or nil,
     }
   end
 
@@ -362,7 +393,7 @@ function M.new(service, args)
       input = {}
     end
     local node = input_node(service, op)
-    local p = pctx(ctx)
+    local p = pctx(ctx, op)
 
     -- the call's region (RegionInput): input.region, unless the op models `region`
     local call_region
@@ -615,7 +646,7 @@ function M.new(service, args)
   end
 
   local function decode_success(ctx, op, res)
-    local p = pctx(ctx)
+    local p = pctx(ctx, op)
     local registry = p.registry
     local node = codec.resolve(op.output, registry)
     if node == nil then
@@ -635,6 +666,12 @@ function M.new(service, args)
     local failure
     if read.by_name then
       out, failure = codec.decode(node, read.members or json.object({}), decode_env(p, true))
+      -- a blob payload is the body's bytes as read, not base64 to decode
+      if out and type(out) == "table" and read.raw then
+        for name in pairs(read.raw) do
+          out[name] = read.members[name]
+        end
+      end
     else
       local body = read.body or json.object({})
       out, failure = codec.decode(node, body, decode_env(p, false))
@@ -670,6 +707,18 @@ function M.new(service, args)
         by_name = read.by_name,
       })
     end
+    -- a streaming payload the response leaves empty is "" (Distilled returns an empty
+    -- stream: S3 GetObject of an empty object)
+    if type(out) == "table" then
+      for _, m in ipairs(node.members or {}) do
+        if m.bind == "payload" and out[m.name] == nil then
+          local target = codec.resolve(m.schema, registry)
+          if target and target.streaming and target.t == "blob" then
+            out[m.name] = ""
+          end
+        end
+      end
+    end
     if sensitive and out ~= nil then
       out = redact.wrap(node, out, registry)
     end
@@ -677,7 +726,7 @@ function M.new(service, args)
   end
 
   local function decode_failure(ctx, op, res)
-    local p = pctx(ctx)
+    local p = pctx(ctx, op)
     local code, data = impl.read_error(p, op, res)
     if code == nil then
       -- unreadable error bodies: a ParseError (data is the error)

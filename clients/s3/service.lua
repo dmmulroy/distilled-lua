@@ -9430,64 +9430,97 @@ local classes = {}
 classes.AccessDenied = errors.define({ tag = "AccessDenied", categories = { "AuthError" } })
 classes.AnnotationLimitExceeded = errors.define({
   tag = "AnnotationLimitExceeded",
-  categories = { "ThrottlingError" },
+  categories = { "BadRequestError", "ThrottlingError" },
 })
-classes.AnnotationNameTooLong = errors.define({ tag = "AnnotationNameTooLong", categories = {} })
+classes.AnnotationNameTooLong = errors.define({
+  tag = "AnnotationNameTooLong",
+  categories = { "BadRequestError" },
+})
 classes.BucketAlreadyExists = errors.define({
   tag = "BucketAlreadyExists",
-  categories = { "AlreadyExistsError" },
+  categories = { "ConflictError", "AlreadyExistsError" },
 })
 classes.BucketAlreadyOwnedByYou = errors.define({
   tag = "BucketAlreadyOwnedByYou",
-  categories = {},
+  categories = { "ConflictError", "AlreadyExistsError" },
 })
 classes.BucketHasAccessPointsAttached = errors.define({
   tag = "BucketHasAccessPointsAttached",
-  categories = {},
+  categories = { "ConflictError" },
 })
-classes.BucketNotEmpty = errors.define({ tag = "BucketNotEmpty", categories = {} })
+classes.BucketNotEmpty = errors.define({ tag = "BucketNotEmpty", categories = { "ConflictError" } })
 classes.ConditionalRequestConflict = errors.define({
   tag = "ConditionalRequestConflict",
-  categories = {},
+  categories = { "ConflictError", "RetryableError" },
 })
-classes.EncryptionTypeMismatch = errors.define({ tag = "EncryptionTypeMismatch", categories = {} })
+classes.EncryptionTypeMismatch = errors.define({
+  tag = "EncryptionTypeMismatch",
+  categories = { "BadRequestError" },
+})
 classes.IdempotencyParameterMismatch = errors.define({
   tag = "IdempotencyParameterMismatch",
-  categories = {},
+  categories = { "BadRequestError" },
 })
 classes.IllegalLocationConstraintException = errors.define({
   tag = "IllegalLocationConstraintException",
-  categories = {},
+  categories = { "BadRequestError" },
 })
-classes.InvalidAccessKeyId = errors.define({ tag = "InvalidAccessKeyId", categories = {} })
-classes.InvalidAnnotationName = errors.define({ tag = "InvalidAnnotationName", categories = {} })
-classes.InvalidArgument = errors.define({ tag = "InvalidArgument", categories = {} })
-classes.InvalidBucketName = errors.define({ tag = "InvalidBucketName", categories = {} })
-classes.InvalidBucketState = errors.define({ tag = "InvalidBucketState", categories = {} })
-classes.InvalidDigest = errors.define({ tag = "InvalidDigest", categories = {} })
+classes.InvalidAccessKeyId = errors.define({
+  tag = "InvalidAccessKeyId",
+  categories = { "AuthError" },
+})
+classes.InvalidAnnotationName = errors.define({
+  tag = "InvalidAnnotationName",
+  categories = { "BadRequestError" },
+})
+classes.InvalidArgument = errors.define({
+  tag = "InvalidArgument",
+  categories = { "BadRequestError" },
+})
+classes.InvalidBucketName = errors.define({
+  tag = "InvalidBucketName",
+  categories = { "BadRequestError" },
+})
+classes.InvalidBucketState = errors.define({
+  tag = "InvalidBucketState",
+  categories = { "ConflictError" },
+})
+classes.InvalidDigest = errors.define({ tag = "InvalidDigest", categories = { "BadRequestError" } })
 classes.InvalidLocationConstraint = errors.define({
   tag = "InvalidLocationConstraint",
-  categories = {},
+  categories = { "BadRequestError" },
 })
 classes.InvalidObjectState = errors.define({
   tag = "InvalidObjectState",
-  categories = {},
+  categories = { "AuthError" },
   fields = { "StorageClass", "AccessTier" },
 })
-classes.InvalidPrefix = errors.define({ tag = "InvalidPrefix", categories = {} })
-classes.InvalidRequest = errors.define({ tag = "InvalidRequest", categories = {} })
-classes.InvalidWriteOffset = errors.define({ tag = "InvalidWriteOffset", categories = {} })
-classes.MalformedPolicy = errors.define({ tag = "MalformedPolicy", categories = {} })
-classes.MalformedXML = errors.define({ tag = "MalformedXML", categories = {} })
+classes.InvalidPrefix = errors.define({ tag = "InvalidPrefix", categories = { "BadRequestError" } })
+classes.InvalidRequest = errors.define({
+  tag = "InvalidRequest",
+  categories = { "BadRequestError" },
+})
+classes.InvalidWriteOffset = errors.define({
+  tag = "InvalidWriteOffset",
+  categories = { "BadRequestError" },
+})
+classes.MalformedPolicy = errors.define({
+  tag = "MalformedPolicy",
+  categories = { "BadRequestError" },
+})
+classes.MalformedXML = errors.define({ tag = "MalformedXML", categories = { "BadRequestError" } })
 classes.MethodNotAllowed = errors.define({
   tag = "MethodNotAllowed",
   categories = {},
   fields = { "Method", "ResourceType", "DeleteMarker", "LastModified" },
 })
-classes.NoSuchAnnotation = errors.define({ tag = "NoSuchAnnotation", categories = {} })
+classes.NoSuchAnnotation = errors.define({
+  tag = "NoSuchAnnotation",
+  categories = { "BadRequestError" },
+})
 classes.NoSuchBucket = errors.define({
   tag = "NoSuchBucket",
-  categories = {},
+  categories = { "BadRequestError" },
   fields = { "BucketName" },
 })
 classes.NoSuchBucketPolicy = errors.define({ tag = "NoSuchBucketPolicy", categories = {} })
@@ -9496,7 +9529,7 @@ classes.NoSuchCORSConfiguration = errors.define({
   categories = {},
 })
 classes.NoSuchConfiguration = errors.define({ tag = "NoSuchConfiguration", categories = {} })
-classes.NoSuchKey = errors.define({ tag = "NoSuchKey", categories = {} })
+classes.NoSuchKey = errors.define({ tag = "NoSuchKey", categories = { "BadRequestError" } })
 classes.NoSuchLifecycleConfiguration = errors.define({
   tag = "NoSuchLifecycleConfiguration",
   categories = {},
@@ -9506,7 +9539,7 @@ classes.NoSuchPublicAccessBlockConfiguration = errors.define({
   categories = {},
 })
 classes.NoSuchTagSet = errors.define({ tag = "NoSuchTagSet", categories = {} })
-classes.NoSuchUpload = errors.define({ tag = "NoSuchUpload", categories = {} })
+classes.NoSuchUpload = errors.define({ tag = "NoSuchUpload", categories = { "BadRequestError" } })
 classes.NoSuchVersion = errors.define({
   tag = "NoSuchVersion",
   categories = {},
@@ -9519,7 +9552,7 @@ classes.NoSuchWebsiteConfiguration = errors.define({
 classes.NotFound = errors.define({ tag = "NotFound", categories = {} })
 classes.ObjectAlreadyInActiveTierError = errors.define({
   tag = "ObjectAlreadyInActiveTierError",
-  categories = {},
+  categories = { "AuthError" },
 })
 classes.ObjectLockConfigurationNotFoundError = errors.define({
   tag = "ObjectLockConfigurationNotFoundError",
@@ -9527,7 +9560,7 @@ classes.ObjectLockConfigurationNotFoundError = errors.define({
 })
 classes.ObjectNotInActiveTierError = errors.define({
   tag = "ObjectNotInActiveTierError",
-  categories = {},
+  categories = { "AuthError" },
 })
 classes.OwnershipControlsNotFoundError = errors.define({
   tag = "OwnershipControlsNotFoundError",
@@ -9539,7 +9572,10 @@ classes.PermanentRedirect = errors.define({
   categories = {},
   fields = { "BucketRegion", "Endpoint", "Bucket" },
 })
-classes.PreconditionFailed = errors.define({ tag = "PreconditionFailed", categories = {} })
+classes.PreconditionFailed = errors.define({
+  tag = "PreconditionFailed",
+  categories = { "ConflictError" },
+})
 classes.ReplicationConfigurationNotFoundError = errors.define({
   tag = "ReplicationConfigurationNotFoundError",
   categories = {},
@@ -9557,8 +9593,11 @@ classes.SlowDown = errors.define({
   tag = "SlowDown",
   categories = { "ThrottlingError", "RetryableError" },
 })
-classes.TooManyParts = errors.define({ tag = "TooManyParts", categories = {} })
-classes.UnsupportedMediaType = errors.define({ tag = "UnsupportedMediaType", categories = {} })
+classes.TooManyParts = errors.define({ tag = "TooManyParts", categories = { "BadRequestError" } })
+classes.UnsupportedMediaType = errors.define({
+  tag = "UnsupportedMediaType",
+  categories = { "BadRequestError" },
+})
 
 local ops = {}
 

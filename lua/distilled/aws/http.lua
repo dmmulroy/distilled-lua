@@ -232,6 +232,13 @@ function http.bind_input(op, node, input, env)
     header_env[k], text_env[k] = v, v
   end
   header_env.timestamp, text_env.timestamp = "http-date", "date-time"
+  -- a required member the caller left out fails before anything is bound, whatever it
+  -- binds to (Distilled's schema encode: `Expected a value, got undefined at ["Key"]`)
+  for _, m in ipairs(node.members or {}) do
+    if m.required and (input[m.name] == nil or input[m.name] == json.null) then
+      return nil, http.encode_failure(codec.mismatch("a value", nil), m.name, env)
+    end
+  end
   for _, m in ipairs(node.members or {}) do
     local raw = input[m.name]
     if raw ~= nil and raw ~= json.null then

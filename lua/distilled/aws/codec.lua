@@ -667,13 +667,17 @@ function codec.decode_member(member, value, env)
   return decode_value(member.schema, value, env, 0, member.ts, member)
 end
 
+-- Distilled's AWS ParseError (s3/src/errors.ts) has no category: the core class has the
+-- ParseError one. Same tag, so matching by tag is unchanged.
+codec.ParseError = errors.define({ tag = "ParseError", categories = {} })
+
 --- codec.parse_error(message) -> ParseError
 function codec.parse_error(message, fields)
   local f = { message = message }
   for k, v in pairs(fields or {}) do
     f[k] = v
   end
-  return errors.new("ParseError", f)
+  return errors.new(codec.ParseError, f)
 end
 
 return codec
