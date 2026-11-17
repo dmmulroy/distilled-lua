@@ -44,6 +44,7 @@ return {
   "scope_spec.lua",
   "secret_spec.lua",
   "sigv4_spec.lua",
+  "slack_client_spec.lua",
   "testing_spec.lua",
   "trace_expect_spec.lua",
   "trace_exporters_spec.lua",
