@@ -43,8 +43,205 @@ end
 -- service.lua
 ---------------------------------------------------------------------------------------
 
---- writer.service(plan) -> { ["service.lua"] = source }
-function writer.service(plan)
+-- Large models (task 18). A service whose single file would pass SINGLE_FILE_MAX_BYTES
+-- or SINGLE_FILE_MAX_CONSTANTS is split: service.lua keeps the errors (unless they are
+-- big too) and a shape index, the shapes go to service/shapes_NNN.lua (each loaded on
+-- the first use of one of its shapes) and the operations to service/ops_NNN.lua (all
+-- loaded with service.lua, so service.ops stays a plain table). Measured limits that
+-- force it (verify/features/generator.md, "Large models"):
+--   * LuaJIT refuses a function with more than 65,536 constants (infisical's service.lua);
+--   * gopher-lua compiles a function in time quadratic in its distinct constants: 65,000
+--     take 7 s, the same code in 64 KB files 0.03 s. Its own limit is 262,143;
+--   * split, gopher-lua still needs 0.57 s to load all of infisical's 15 MB of shapes
+--     (Neon's whole service: 24 ms), hence lazy shapes.
+-- Sizes are of the emitted source; constants are emit.scan's upper bound.
+writer.SINGLE_FILE_MAX_BYTES = 512 * 1024
+writer.SINGLE_FILE_MAX_CONSTANTS = 20000
+writer.CHUNK_BYTES = 128 * 1024
+writer.CHUNK_CONSTANTS = 4000
+-- one statement past these fails generation: LuaJIT's 65,536 constants per function and
+-- its ~190 syntax levels (Lua 5.1-5.5 and gopher-lua stop near 200)
+writer.MAX_CONSTANTS = 60000
+writer.MAX_DEPTH = 100
+-- the directory of the chunk files, next to service.lua
+writer.CHUNK_DIR = "service"
+
+local function field(tbl, name)
+  return tbl .. (naming.is_identifier(name) and ("." .. name) or ("[" .. emit.string(name) .. "]"))
+end
+
+-- statement(target, value, what) -> { name, lines, bytes, facts, consts } | nil, problem
+local function statement(name, target, value, what)
+  local lines = emit.assign(target, value)
+  local bytes = 0
+  for _, l in ipairs(lines) do
+    bytes = bytes + #l + 1
+  end
+  local facts = emit.scan(value)
+  local consts = facts.tables
+  for _ in pairs(facts.strings) do
+    consts = consts + 1
+  end
+  for _ in pairs(facts.numbers) do
+    consts = consts + 1
+  end
+  if consts > writer.MAX_CONSTANTS then
+    return nil,
+      what
+        .. " needs about "
+        .. consts
+        .. " Lua constants, more than one function can hold on LuaJIT (writer.MAX_CONSTANTS "
+        .. writer.MAX_CONSTANTS
+        .. ")"
+  end
+  if facts.depth > writer.MAX_DEPTH then
+    return nil,
+      what
+        .. " nests "
+        .. facts.depth
+        .. " tables deep, past what the Lua parsers accept (writer.MAX_DEPTH "
+        .. writer.MAX_DEPTH
+        .. ")"
+  end
+  return { name = name, lines = lines, bytes = bytes, facts = facts, consts = consts }
+end
+
+-- pack(stmts) -> chunks: consecutive statements, each chunk at most CHUNK_BYTES and
+-- CHUNK_CONSTANTS (a statement bigger than that alone gets its own chunk). Strings and
+-- numbers shared between statements are counted once, like the compiler does.
+local function pack(stmts)
+  local chunks = {}
+  local cur, bytes, seen, consts
+  local function open()
+    cur, bytes, seen, consts = {}, 0, {}, 0
+  end
+  open()
+  for _, st in ipairs(stmts) do
+    local new = st.facts.tables
+    for s in pairs(st.facts.strings) do
+      if not seen[s] then
+        new = new + 1
+      end
+    end
+    for n in pairs(st.facts.numbers) do
+      if not seen[n] then
+        new = new + 1
+      end
+    end
+    if
+      #cur > 0
+      and (bytes + st.bytes > writer.CHUNK_BYTES or consts + new > writer.CHUNK_CONSTANTS)
+    then
+      chunks[#chunks + 1] = cur
+      open()
+      new = st.consts
+    end
+    cur[#cur + 1] = st
+    bytes = bytes + st.bytes
+    consts = consts + new
+    for s in pairs(st.facts.strings) do
+      seen[s] = true
+    end
+    for n in pairs(st.facts.numbers) do
+      seen[n] = true
+    end
+  end
+  if #cur > 0 then
+    chunks[#chunks + 1] = cur
+  end
+  return chunks
+end
+
+-- locality_order(shape_stmts, op_stmts) -> the shape statements in the order the
+-- operations reach them: depth-first from each operation's refs (operations in method
+-- order), then whatever is left (error bodies) by name. Packed in that order, the shapes
+-- one call touches sit in few chunks, wherever their names sort.
+local function locality_order(shape_stmts, op_stmts)
+  local by_name = {}
+  for _, st in ipairs(shape_stmts) do
+    by_name[st.name] = st
+  end
+  local order, placed = {}, {}
+  local function visit(roots)
+    local stack = {}
+    for i = #roots, 1, -1 do
+      stack[#stack + 1] = roots[i]
+    end
+    while #stack > 0 do
+      local name = stack[#stack]
+      stack[#stack] = nil
+      local st = by_name[name]
+      if st and not placed[name] then
+        placed[name] = true
+        order[#order + 1] = st
+        local refs = st.facts.refs
+        for i = #refs, 1, -1 do
+          stack[#stack + 1] = refs[i]
+        end
+      end
+    end
+  end
+  for _, st in ipairs(op_stmts) do
+    visit(st.facts.refs)
+  end
+  for _, st in ipairs(shape_stmts) do
+    visit({ st.name })
+  end
+  return order
+end
+
+--- writer.size_of(...) -> bytes, constants of statement lists in one function (constants
+-- shared between statements counted once)
+function writer.size_of(...)
+  local bytes, consts, seen = 0, 0, {}
+  for _, list in ipairs({ ... }) do
+    for _, st in ipairs(list) do
+      bytes = bytes + st.bytes
+      consts = consts + st.facts.tables
+      for _, set in ipairs({ st.facts.strings, st.facts.numbers }) do
+        for k in pairs(set) do
+          if not seen[k] then
+            seen[k] = true
+            consts = consts + 1
+          end
+        end
+      end
+    end
+  end
+  return bytes, consts
+end
+
+local function uses_json(stmts)
+  for _, st in ipairs(stmts) do
+    for code in pairs(st.facts.raw) do
+      if string.find(code, "json.", 1, true) then
+        return true
+      end
+    end
+  end
+  return false
+end
+
+local function sum_bytes(stmts)
+  local n = 0
+  for _, st in ipairs(stmts) do
+    n = n + st.bytes
+  end
+  return n
+end
+
+local function contract_comment(b)
+  b:lines_of(
+    emit.comment(
+      "Contract: docs/interfaces.md, 'Schema nodes' and 'Operation and service descriptors'. "
+        .. "Shapes are registry entries referenced by name (S.ref), so recursive shapes need "
+        .. "nothing special."
+    )
+  )
+end
+
+-- the service.lua of a model that fits one file (Neon): unchanged since task 06
+local function single_file(plan, shape_stmts, error_stmts, op_stmts, svc)
   local b = emit.buffer()
   b:lines_of(
     writer.header(
@@ -53,13 +250,7 @@ function writer.service(plan)
     )
   )
   b:line("--")
-  b:lines_of(
-    emit.comment(
-      "Contract: docs/interfaces.md, 'Schema nodes' and 'Operation and service descriptors'. "
-        .. "Shapes are registry entries referenced by name (S.ref), so recursive shapes need "
-        .. "nothing special."
-    )
-  )
+  contract_comment(b)
   b:line('local S = require("distilled.schema")')
   b:line('local errors = require("distilled.errors")')
   if plan.ctx.uses_json then
@@ -68,34 +259,22 @@ function writer.service(plan)
   b:blank()
   b:line("local shapes = {}")
   b:blank()
-  for _, n in ipairs(plan.nodes) do
-    local target = "shapes"
-      .. (naming.is_identifier(n.name) and ("." .. n.name) or ("[" .. emit.string(n.name) .. "]"))
-    b:lines_of(emit.assign(target, n.node))
+  for _, st in ipairs(shape_stmts) do
+    b:lines_of(st.lines)
   end
   b:blank()
   b:line("local classes = {}")
   b:blank()
-  for _, d in ipairs(plan.errors) do
-    local target = "classes"
-      .. (naming.is_identifier(d.tag) and ("." .. d.tag) or ("[" .. emit.string(d.tag) .. "]"))
-    b:lines_of(emit.assign(target, emit.call("errors.define", gen_errors.value(d))))
+  for _, st in ipairs(error_stmts) do
+    b:lines_of(st.lines)
   end
   b:blank()
   b:line("local ops = {}")
   b:blank()
-  local ops_mod = require("distilled.gen.ops")
-  for _, op in ipairs(plan.ops) do
-    b:lines_of(emit.assign("ops." .. op.method_name, ops_mod.descriptor(plan.ctx, op)))
+  for _, st in ipairs(op_stmts) do
+    b:lines_of(st.lines)
   end
   b:blank()
-  local svc = {
-    name = plan.provider.name,
-    shapes = emit.raw("shapes"),
-    errors = emit.raw("classes"),
-    ops = emit.raw("ops"),
-    telemetry = plan.service_telemetry,
-  }
   -- expanded on purpose (one key per line), whatever its width
   b:line("return {")
   for _, k in ipairs({ "name", "shapes", "errors", "ops", "telemetry" }) do
@@ -104,7 +283,283 @@ function writer.service(plan)
     end
   end
   b:line("}")
-  return { ["service.lua"] = b:text() }
+  return b:text()
+end
+
+-- one chunk file: `local <tbl> = {}`, its statements, `return <tbl>`
+local function chunk_file(plan, what, requires, tbl, stmts)
+  local b = emit.buffer()
+  b:lines_of(writer.header(plan, what))
+  for _, r in ipairs(requires) do
+    b:line(r)
+  end
+  b:blank()
+  b:line("local " .. tbl .. " = {}")
+  b:blank()
+  for _, st in ipairs(stmts) do
+    b:lines_of(st.lines)
+  end
+  b:blank()
+  b:line("return " .. tbl)
+  return b:text()
+end
+
+local function chunk_requires(stmts, with_schema, with_errors)
+  local r = {}
+  if with_schema then
+    r[#r + 1] = 'local S = require("distilled.schema")'
+  end
+  if with_errors then
+    r[#r + 1] = 'local errors = require("distilled.errors")'
+  end
+  if uses_json(stmts) then
+    r[#r + 1] = 'local json = require("distilled.json")'
+  end
+  return r
+end
+
+-- the split layout of a large model: service.lua plus service/*.lua
+local function split_files(plan, shape_stmts, error_stmts, op_stmts, svc)
+  local title = plan.provider.title
+  local files = {}
+  local shape_chunks = pack(locality_order(shape_stmts, op_stmts))
+  local op_chunks = pack(op_stmts)
+  local error_chunks = {}
+  if sum_bytes(error_stmts) > writer.CHUNK_BYTES then
+    error_chunks = pack(error_stmts)
+  end
+  local count = #shape_chunks
+  if #op_chunks > count then
+    count = #op_chunks
+  end
+  if #error_chunks > count then
+    count = #error_chunks
+  end
+  local width = #tostring(count)
+  if width < 3 then
+    width = 3
+  end
+  local function number(i)
+    return string.format("%0" .. width .. "d", i)
+  end
+  local function path(kind, i)
+    return writer.CHUNK_DIR .. "/" .. kind .. "_" .. number(i) .. ".lua"
+  end
+
+  local index = {}
+  for i, chunk in ipairs(shape_chunks) do
+    -- in a chunk the shapes are sorted by name, as in a single file
+    table.sort(chunk, function(a, b)
+      return a.name < b.name
+    end)
+    for _, st in ipairs(chunk) do
+      index[#index + 1] = number(i) .. " " .. st.name
+    end
+    files[path("shapes", i)] = chunk_file(
+      plan,
+      title .. " shapes, file " .. i .. " of " .. #shape_chunks .. ": loaded on first use.",
+      chunk_requires(chunk, true, false),
+      "shapes",
+      chunk
+    )
+  end
+  for i, chunk in ipairs(op_chunks) do
+    files[path("ops", i)] = chunk_file(
+      plan,
+      title .. " operations, file " .. i .. " of " .. #op_chunks .. ": loaded by service.lua.",
+      chunk_requires(chunk, true, false),
+      "ops",
+      chunk
+    )
+  end
+  for i, chunk in ipairs(error_chunks) do
+    files[path("errors", i)] = chunk_file(
+      plan,
+      title .. " errors, file " .. i .. " of " .. #error_chunks .. ": loaded by service.lua.",
+      chunk_requires(chunk, false, true),
+      "classes",
+      chunk
+    )
+  end
+
+  local b = emit.buffer()
+  b:lines_of(
+    writer.header(plan, title .. " service descriptor: shapes, errors and operations as data.")
+  )
+  b:line("--")
+  contract_comment(b)
+  b:line("--")
+  b:lines_of(
+    emit.comment(
+      "A large model, split (gen/writer.lua): the "
+        .. #shape_stmts
+        .. " shapes are in "
+        .. #shape_chunks
+        .. " files "
+        .. writer.CHUNK_DIR
+        .. "/shapes_*.lua, each loaded on the first use of one of its shapes (so "
+        .. "pairs(service.shapes) sees only loaded shapes; service.shape_chunks lists the "
+        .. "modules). The operations are in "
+        .. #op_chunks
+        .. " files "
+        .. writer.CHUNK_DIR
+        .. "/ops_*.lua, all loaded here."
+    )
+  )
+  if #error_chunks == 0 then
+    b:line('local errors = require("distilled.errors")')
+    if uses_json(error_stmts) then
+      b:line('local json = require("distilled.json")')
+    end
+    b:blank()
+  end
+  b:lines_of(
+    emit.comment(
+      "This module's name (`<client>.service`), so the files load under whatever directory "
+        .. "the client was vendored as."
+    )
+  )
+  b:line("local MODULE = ... or " .. emit.string(plan.provider.name .. ".service"))
+  b:blank()
+  b:lines_of(
+    emit.comment(
+      "One line per shape: `<file> <name>`, the shape is in "
+        .. writer.CHUNK_DIR
+        .. "/shapes_<file>.lua. Read on the first lookup (one string constant: a table "
+        .. "constructor would cost gopher-lua time quadratic in its entries)."
+    )
+  )
+  b:line("local SHAPES = " .. emit.long_string(compat.concat(index, "\n") .. "\n"))
+  b:blank()
+  b:line("local shape_chunks = {}")
+  b:line("for i = 1, " .. #shape_chunks .. " do")
+  b:line('  shape_chunks[i] = MODULE .. string.format(".shapes_%0' .. width .. 'd", i)')
+  b:line("end")
+  b:blank()
+  b:line("local where -- shape name -> file number, built on the first lookup")
+  b:blank()
+  b:lines_of(
+    emit.comment(
+      "The registry: a lookup of a shape not loaded yet loads its whole file. An unknown "
+        .. "name is nil. A missing file raises, as a missing module does."
+    )
+  )
+  b:line("local shapes = setmetatable({}, {")
+  b:line("  __index = function(registry, name)")
+  b:line("    if where == nil then")
+  b:line("      where = {}")
+  b:line('      for file, shape in string.gmatch(SHAPES, "(%d+) ([^\\n]+)") do')
+  b:line("        where[shape] = file")
+  b:line("      end")
+  b:line("      SHAPES = nil")
+  b:line("    end")
+  b:line("    local file = where[name]")
+  b:line("    if file == nil then")
+  b:line("      return nil")
+  b:line("    end")
+  b:line('    for k, node in pairs(require(MODULE .. ".shapes_" .. file)) do')
+  b:line("      rawset(registry, k, node)")
+  b:line("    end")
+  b:line("    return rawget(registry, name)")
+  b:line("  end,")
+  b:line("})")
+  b:blank()
+  b:line("local classes = {}")
+  b:blank()
+  if #error_chunks == 0 then
+    for _, st in ipairs(error_stmts) do
+      b:lines_of(st.lines)
+    end
+  else
+    b:line("for i = 1, " .. #error_chunks .. " do")
+    b:line(
+      '  for tag, class in pairs(require(MODULE .. string.format(".errors_%0'
+        .. width
+        .. 'd", i))) do'
+    )
+    b:line("    classes[tag] = class")
+    b:line("  end")
+    b:line("end")
+  end
+  b:blank()
+  b:line("local ops = {}")
+  b:line("for i = 1, " .. #op_chunks .. " do")
+  b:line(
+    '  for name, op in pairs(require(MODULE .. string.format(".ops_%0' .. width .. 'd", i))) do'
+  )
+  b:line("    ops[name] = op")
+  b:line("  end")
+  b:line("end")
+  b:blank()
+  svc.shape_chunks = emit.raw("shape_chunks")
+  b:line("return {")
+  for _, k in ipairs({ "name", "shapes", "errors", "ops", "shape_chunks", "telemetry" }) do
+    if svc[k] ~= nil then
+      b:lines_of(emit.value(svc[k], "  ", emit.key(k), ","))
+    end
+  end
+  b:line("}")
+  files["service.lua"] = b:text()
+  return files
+end
+
+--- writer.service(plan) -> { ["service.lua"] = source, ["service/..."] = ... } | nil, problem
+-- One file for a model that fits (writer.SINGLE_FILE_MAX_*), else the split layout above.
+-- The extra files are named "service/<kind>_<NNN>.lua"; writer.layout tells which.
+function writer.service(plan)
+  local problems = {}
+  local function add(list, st, err)
+    if st then
+      list[#list + 1] = st
+    else
+      problems[#problems + 1] = err
+    end
+  end
+  local shape_stmts, error_stmts, op_stmts = {}, {}, {}
+  for _, n in ipairs(plan.nodes) do
+    if string.find(n.name, "\n", 1, true) then
+      problems[#problems + 1] = "shape " .. n.id .. ": its name has a line break"
+    end
+    add(shape_stmts, statement(n.name, field("shapes", n.name), n.node, "shape " .. n.id))
+  end
+  for _, d in ipairs(plan.errors) do
+    add(
+      error_stmts,
+      statement(
+        d.tag,
+        field("classes", d.tag),
+        emit.call("errors.define", gen_errors.value(d)),
+        "error " .. d.tag
+      )
+    )
+  end
+  local ops_mod = require("distilled.gen.ops")
+  for _, op in ipairs(plan.ops) do
+    add(
+      op_stmts,
+      statement(
+        op.method_name,
+        "ops." .. op.method_name,
+        ops_mod.descriptor(plan.ctx, op),
+        "operation " .. op.id
+      )
+    )
+  end
+  if #problems > 0 then
+    return nil, compat.concat(problems, "\n")
+  end
+  local svc = {
+    name = plan.provider.name,
+    shapes = emit.raw("shapes"),
+    errors = emit.raw("classes"),
+    ops = emit.raw("ops"),
+    telemetry = plan.service_telemetry,
+  }
+  local bytes, consts = writer.size_of(shape_stmts, error_stmts, op_stmts)
+  if bytes <= writer.SINGLE_FILE_MAX_BYTES and consts <= writer.SINGLE_FILE_MAX_CONSTANTS then
+    return { ["service.lua"] = single_file(plan, shape_stmts, error_stmts, op_stmts, svc) }
+  end
+  return split_files(plan, shape_stmts, error_stmts, op_stmts, svc)
 end
 
 ---------------------------------------------------------------------------------------
@@ -114,6 +569,9 @@ end
 --- writer.client(plan) -> source of init.lua
 function writer.client(plan)
   local spec = plan.provider
+  if spec.rpc then
+    return require("distilled.gen.rpc").client(plan) -- RPC models (task 22)
+  end
   local b = emit.buffer()
   b:lines_of(
     writer.header(plan, spec.title .. ' client: what require("' .. spec.name .. '") returns.')
@@ -136,39 +594,139 @@ function writer.client(plan)
   b:line('local service = require(MODULE .. ".service")')
   b:blank()
 
-  -- options
-  local options = {}
+  -- options and the protocol arguments. A spec with only the classic keys (bearer or
+  -- header auth, one base URL) gets client options that read the environment; one with
+  -- the provider keys of task 13 gets `provider` data that rest.new interprets
+  -- (gen/provider_ext.lua) and plain client options.
+  local options
   local auth = spec.auth
-  if auth.kind ~= "none" then
-    options[auth.from] = { secret = true, env = auth.env, required = true }
-  end
-  options[spec.base_url.option] = { default = spec.base_url.default, env = spec.base_url.env }
-  -- operations on their own host (smithy.api#http server / baseUrl, task 12): a
-  -- `<server>_base_url` option per server and an option per {variable} of a base URL
-  local route_hosts = writer.route_hosts(plan)
-  for _, name in ipairs(route_hosts.options) do
-    if options[name] == nil then
-      options[name] = {}
-    end
-  end
-
   local protocol_args = {
-    base_url = emit.raw("function(creds)\n    return creds." .. spec.base_url.option .. "\n  end"),
     unknown_tag = spec.unknown_tag,
     parse_tag = spec.parse_tag,
     error_fields_at = spec.error_fields_at,
   }
-  if auth.kind == "bearer" then
-    protocol_args.headers = emit.call("rest.bearer", auth.from)
-  elseif auth.kind == "header" then
-    protocol_args.headers = emit.call("rest.header", auth.header, auth.from)
+  -- operations on their own host (smithy.api#http server / baseUrl, task 12): a
+  -- `<server>_base_url` option per server and an option per {variable} of a base URL
+  local route_hosts = writer.route_hosts(plan)
+  if spec.runtime then
+    options = {}
+    for k, v in pairs(spec.client_options) do
+      options[k] = v
+    end
+    for _, name in ipairs(route_hosts.options) do
+      if options[name] == nil then
+        options[name] = { type = "string" }
+      end
+    end
+    protocol_args.provider = spec.runtime
+  else
+    options = {}
+    if auth.kind ~= "none" then
+      options[auth.from] = { secret = true, env = auth.env, required = true }
+    end
+    options[spec.base_url.option] = { default = spec.base_url.default, env = spec.base_url.env }
+    for _, name in ipairs(route_hosts.options) do
+      if options[name] == nil then
+        options[name] = {}
+      end
+    end
+    protocol_args.base_url =
+      emit.raw("function(creds)\n    return creds." .. spec.base_url.option .. "\n  end")
+    if auth.kind == "bearer" then
+      protocol_args.headers = emit.call("rest.bearer", auth.from)
+    elseif auth.kind == "header" then
+      protocol_args.headers = emit.call("rest.header", auth.header, auth.from)
+    end
   end
   if spec.classify_error then
     protocol_args.classify_error = emit.call("require", spec.classify_error)
   end
+  if spec.unknown_fields then
+    protocol_args.unknown_fields = spec.unknown_fields
+  end
+  if spec.query_style then
+    protocol_args.query_style = spec.query_style
+  end
+  if spec.empty_json_body then
+    protocol_args.empty_json_body = true
+  end
+  if spec.transform_response then
+    protocol_args.transform_response = emit.call("rest.transforms", spec.transform_response)
+  end
+  if spec.glue then
+    b:lines_of(
+      emit.comment("The provider's hand-written glue (provider spec glue), next to this file.")
+    )
+    b:line('local glue = require(MODULE .. ".glue")')
+    b:blank()
+    protocol_args.glue = emit.raw("glue")
+  end
 
-  if spec.error_envelope or spec.status_map then
+  -- error_classes the model does not declare itself (a model error of the same tag, in
+  -- some models of a package, is the class: status_map below prefers service.errors)
+  local provider_errors, provider_classes = {}, {}
+  for _, c in ipairs(spec.error_classes or {}) do
+    if not plan.error_tags_set[c.tag] then
+      provider_errors[c.tag] = true
+      provider_classes[#provider_classes + 1] = c
+    end
+  end
+  if spec.error_envelope or spec.status_map or next(provider_errors) then
     b:line('local errors = require("distilled.errors")')
+    b:blank()
+  end
+  if spec.error_envelope then
+    local env = spec.error_envelope
+    b:lines_of(
+      emit.comment(
+        "The provider's error envelope (provider spec error_envelope): the first pointer that "
+          .. "holds text or a number wins, like Distilled's default envelope."
+      )
+    )
+    b:line("local function text_at(body, pointers)")
+    b:line("  for _, pointer in ipairs(pointers) do")
+    b:line("    local v = errors.at_pointer(body, pointer)")
+    if env.non_empty then
+      b:line('    if (type(v) == "string" and v ~= "") or type(v) == "number" then')
+    else
+      b:line('    if type(v) == "string" or type(v) == "number" then')
+    end
+    b:line("      return v")
+    b:line("    end")
+    b:line("  end")
+    b:line("  return nil")
+    b:line("end")
+    b:blank()
+    b:line("local function error_envelope(body)")
+    b:line("  return {")
+    for _, k in ipairs({ "code", "message" }) do
+      if env[k] then
+        b:lines_of(
+          emit.value(emit.call("text_at", emit.raw("body"), env[k]), "    ", k .. " = ", ",")
+        )
+      end
+    end
+    b:line("  }")
+    b:line("end")
+    b:blank()
+    protocol_args.error_envelope = emit.raw("error_envelope")
+  end
+  if next(provider_errors) then
+    b:lines_of(
+      emit.comment("Error classes of the provider spec (statuses the shared map has no class for).")
+    )
+    b:line("local provider_errors = {}")
+    for _, c in ipairs(provider_classes) do
+      b:lines_of(emit.assign(
+        "provider_errors." .. c.tag,
+        emit.call("errors.define", {
+          tag = c.tag,
+          categories = #c.categories > 0 and c.categories or nil,
+          retryable = c.retryable,
+          fields = c.retryable and { "retry_after" } or nil,
+        })
+      ))
+    end
     b:blank()
   end
   if spec.status_map then
@@ -185,39 +743,13 @@ function writer.client(plan)
     table.sort(statuses)
     for _, status in ipairs(statuses) do
       local tag = spec.status_map[status]
-      local where = plan.error_tags_set[tag] and "service.errors" or "errors.classes"
+      local where = plan.error_tags_set[tag] and "service.errors"
+        or provider_errors[tag] and "provider_errors"
+        or "errors.classes"
       b:line("status_map[" .. status .. "] = " .. where .. "." .. tag)
     end
     b:blank()
     protocol_args.status_map = emit.raw("status_map")
-  end
-  if spec.error_envelope then
-    b:lines_of(
-      emit.comment(
-        "The provider's error envelope (provider spec error_envelope): text or numbers only, "
-          .. "like Distilled's default envelope."
-      )
-    )
-    b:line("local function text_at(body, pointer)")
-    b:line("  local v = errors.at_pointer(body, pointer)")
-    b:line('  if type(v) == "string" or type(v) == "number" then')
-    b:line("    return v")
-    b:line("  end")
-    b:line("  return nil")
-    b:line("end")
-    b:blank()
-    b:line("local function error_envelope(body)")
-    b:line("  return {")
-    if spec.error_envelope.code then
-      b:line("    code = text_at(body, " .. emit.string(spec.error_envelope.code) .. "),")
-    end
-    if spec.error_envelope.message then
-      b:line("    message = text_at(body, " .. emit.string(spec.error_envelope.message) .. "),")
-    end
-    b:line("  }")
-    b:line("end")
-    b:blank()
-    protocol_args.error_envelope = emit.raw("error_envelope")
   end
 
   if spec.protocol then
@@ -230,22 +762,24 @@ function writer.client(plan)
     b:line("  base_url_option = " .. emit.string(spec.base_url.option) .. ",")
     b:line("})")
   else
-    -- base_url is a function: emitted by hand so it is formatted as stylua would
     b:line("local protocol = rest.new({")
-    if route_hosts.any then
-      b:line(
-        "  base_url = rest.route_base_url("
-          .. emit.string(spec.base_url.option)
-          .. ", { default = "
-          .. emit.string(spec.base_url.default)
-          .. " }),"
-      )
-    else
-      b:line("  base_url = function(creds)")
-      b:line("    return creds." .. spec.base_url.option)
-      b:line("  end,")
+    if protocol_args.base_url then
+      if route_hosts.any then
+        b:line(
+          "  base_url = rest.route_base_url("
+            .. emit.string(spec.base_url.option)
+            .. ", { default = "
+            .. emit.string(spec.base_url.default)
+            .. " }),"
+        )
+      else
+        -- base_url is a function: emitted by hand so it is formatted as stylua would
+        b:line("  base_url = function(creds)")
+        b:line("    return creds." .. spec.base_url.option)
+        b:line("  end,")
+      end
+      protocol_args.base_url = nil
     end
-    protocol_args.base_url = nil
     for _, k in ipairs(emit.sorted_keys(protocol_args)) do
       b:lines_of(emit.value(protocol_args[k], "  ", emit.key(k), ","))
     end
@@ -294,9 +828,52 @@ local function md_escape(s)
   return (string.gsub(s, "|", "\\|"))
 end
 
+local function env_text(list)
+  local quoted = {}
+  for i, v in ipairs(list) do
+    quoted[i] = "`" .. v .. "`"
+  end
+  return compat.concat(quoted, " or ")
+end
+
+--- writer.option_rows(spec) -> README table rows for the provider options (task 13 specs)
+function writer.option_rows(spec)
+  local rows = {}
+  for _, d in ipairs(spec.option_docs or {}) do
+    local parts = {}
+    local what = d.base_url and "base URL" or (d.secret and "secret" or "text")
+    parts[#parts + 1] = (d.required and "required " or "") .. what
+    if d.secret then
+      parts[#parts] = parts[#parts] .. ": a string, a secret, or `fn(host) -> value, err`"
+    end
+    if #d.env > 0 then
+      parts[#parts + 1] = "from " .. env_text(d.env)
+    end
+    if d.default ~= nil and d.default ~= "" then
+      parts[#parts + 1] = "default `" .. d.default .. "`"
+    end
+    if d.choices then
+      local names = {}
+      for k, v in pairs(d.choices) do
+        names[#names + 1] = "`" .. (type(k) == "number" and v or k) .. "`"
+      end
+      table.sort(names)
+      parts[#parts + 1] = "one of " .. compat.concat(names, ", ")
+    end
+    if d.doc then
+      parts[#parts + 1] = d.doc
+    end
+    rows[#rows + 1] = "| `" .. d.name .. "` | " .. md_escape(compat.concat(parts, "; ")) .. " |"
+  end
+  return rows
+end
+
 --- writer.readme(plan) -> markdown
 function writer.readme(plan)
   local spec, m = plan.provider, plan.model
+  if spec.rpc then
+    return require("distilled.gen.rpc").readme(plan) -- RPC models (task 22)
+  end
   local out = {}
   local function add(s)
     out[#out + 1] = s or ""
@@ -321,7 +898,10 @@ function writer.readme(plan)
   add()
   add("local " .. spec.title .. ' = require("' .. spec.name .. '")')
   add("local client = " .. spec.title .. ".new({")
-  if spec.auth.kind ~= "none" then
+  if spec.auth.kind == "basic" then
+    add("  " .. spec.auth.username .. " = user,")
+    add("  " .. spec.auth.password .. " = password,")
+  elseif spec.auth.kind ~= "none" then
     local env = spec.auth.env and (" -- default: $" .. spec.auth.env) or ""
     add("  " .. spec.auth.from .. " = key," .. env)
   end
@@ -331,7 +911,14 @@ function writer.readme(plan)
   add()
   add("| Option | Meaning |")
   add("| --- | --- |")
-  if spec.auth.kind ~= "none" then
+  if spec.runtime then
+    for _, line in ipairs(writer.option_rows(spec)) do
+      add(line)
+    end
+  end
+  if spec.runtime then
+    -- rows written above
+  elseif spec.auth.kind ~= "none" then
     add(
       "| `"
         .. spec.auth.from
@@ -340,15 +927,17 @@ function writer.readme(plan)
         .. " |"
     )
   end
-  add(
-    "| `"
-      .. spec.base_url.option
-      .. "` | base URL, default `"
-      .. spec.base_url.default
-      .. "`"
-      .. (spec.base_url.env and ("; or from `" .. spec.base_url.env .. "`") or "")
-      .. " |"
-  )
+  if not spec.runtime then
+    add(
+      "| `"
+        .. spec.base_url.option
+        .. "` | base URL, default `"
+        .. spec.base_url.default
+        .. "`"
+        .. (spec.base_url.env and ("; or from `" .. spec.base_url.env .. "`") or "")
+        .. " |"
+    )
+  end
   add("| `host`, `transport`, `sleep`, ... | the host seams (see distilled's docs/interfaces.md) |")
   add("| `retry`, `deadline_s`, `tracing`, `validation` | the common client options |")
   add()

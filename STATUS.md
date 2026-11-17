@@ -829,5 +829,216 @@ See `tasks/15-xml.done.md`.
 
 - `verify/features/README.md` should list `graphql.md` (area "GraphQL clients", task 16),
   after the generator row.
-- STATUS.md itself has leftover merge markers (`||||||| abf4e89`, three of them) from
-  earlier merges into main. They are not mine; I left them as they are.
+- STATUS.md itself has leftover merge markers (`
+
+## 13 providers
+
+Done (see `tasks/13-providers.done.md`).
+
+- Survey: `docs/providers-survey.md`, 106 packages: 18 A, 83 B, 5 C. 98 specs in
+  `providers/` (neon, hetzner (task 10) and 96 new; 23 with a glue module in `providers/glue/`). Not
+  written: hetzner (task 10 owns it), questrade (refresh token in a URL query), scaleway
+  and slack (reasons in the survey).
+- New spec keys (`lua/distilled/gen/provider_ext.lua`, called from `provider.validate`):
+  `options`, env lists, `headers`, `auth.kind = "basic"`, `auth.prefix`,
+  `auth.optional`, templated or required `base_url` with `trim_slash`, `ensure_suffix`,
+  `origin`; `require_one_of`, `public_operations`, `user_agent`, `oauth`,
+  `error_classes`, `unknown_fields`, `transform_response`, `empty_json_body`,
+  `query_style`, pointer lists in `error_envelope`, `glue`. A spec with none of them
+  generates exactly as before.
+- Runtime: `rest.new{ provider = ..., glue = ..., unknown_fields, transform_input,
+  classify_success }`, `rest.envelope`, `rest.transforms`, `rest.strip_nulls`,
+  `rest.compile_provider`. `credentials.from_env` takes a list of names.
+  `classify_error`'s info gained `now`; `classify_success` may return `true` (read the
+  2xx answer as a failure).
+
+Files outside my list that I had to change (orchestrator, please check on merge):
+
+- `lua/distilled/gen/writer.lua`: the protocol and options of `init.lua` are emitted
+  there, not in `gen/init.lua`; `writer.client` now emits `provider = ...` for task-13
+  specs (classic specs unchanged), `error_classes`, pointer-list envelopes, `glue`;
+  the README options table (`writer.option_rows`). Task 12 also edits this file.
+- `lua/distilled/gen/types.lua`: the `Options` fields of task-13 specs.
+- `spec/gen_provider_spec.lua`: one line, `kind = "basic"` is now valid (the case uses
+  `"digest"`).
+
+For task 10 (merge): `models.override` should be able to carry `auth`, `options` and
+`headers` (clerk, convex, digitalocean, e2b, exa, fly-io, mailchimp, onepassword have
+models with different auth; their spec comments say what). Apply an override to the raw
+spec *before* `provider.validate`: the runtime data (`spec.runtime`) is computed there,
+so changing `spec.base_url` after validation does not reach it. entire's Core models
+need only `base_url = { option = "core_base_url", env = "ENTIRE_CORE_BASE_URL",
+default = "https://us.console.entire.io" }`.
+
+Task 12 merged: a task-13 spec's base URL follows `rest.route_base_url`'s rule for an
+operation with `route.server` or its own `route.base_url` (`compile_provider`), and the
+writer declares task 12's `<server>_base_url` / template options for it too. stackit's
+glue reads `route.base_url` (the http trait's baseUrl), digitalocean's `route.server`.
+For task 10 (merged): `provider.for_model` passes a `models.override.<m>.base_url` on to
+the runtime data (`ext.override_base_url`).
+After the merge of main every package generates whole: `bin/distilled-lua package
+--models models/<pkg> --provider providers/<lua>.lua --out /tmp/...` for all 98 specs
+gives 1016 models ok, 0 failed, 2 skipped (models.skip). Two generator changes made that
+possible: an `error_classes` tag that a model also declares uses the model's class (Vercel,
+Whop, Starburst, Atlas declare PaymentRequired / PreconditionFailed in some models only),
+and `naming.operations` is not checked against a single model of a multi-model package (exa).
+
+## 22 tencentcloud
+
+**Done.** See `tasks/22-tencentcloud.done.md` and `verify/features/tencentcloud.md`.
+263/263 models, 15,381/15,381 operations (the TS count), `dl gen-diff tencentcloud` ok in
+all three runtimes (every op also built and signed through the client's protocol);
+conformance with Distilled: 16 signer vectors, 17 requests, 85 responses, 0 mismatches.
+
+### What others can use
+
+- `require("distilled.tencentcloud.signer").sign{ secret_id, secret_key, service, host,
+  action, timestamp, content_type, payload, signed_headers? }` -> `{ authorization,
+  signature, canonical_request, string_to_sign, credential_scope }`; `utc_date(ts)`.
+- `require("distilled.protocol.tencentcloud")`: `.new(service, { unknown_tag, parse_tag,
+  user_agent })` (also callable), `.options` (client options), `.option_docs`,
+  `protocol.encode / decode / call` with rest.lua's contract (meta, attempt, spans).
+- `require("distilled.tencentcloud.errors")`: the 27 common classes (`classes`,
+  `COMMON`, `TAGS`), `envelope_error`, `unknown_class`, `parse_class`. Error field
+  `request_id` (Distilled `requestId`).
+- **Provider spec key `rpc`** (`gen/rpc.lua`) for models whose operations have no
+  `smithy.api#http`: `rpc = { protocol = "<module>", trait = "<ns#trait>", fields =
+  { ... }, method = "POST", uri = "/" }`. The op gets `method`/`uri` from it and
+  `op.rpc` = the trait's scalar fields (required fields checked at generation); init.lua
+  is `Client.define{ protocol = <module>.new(service, { unknown_tag, parse_tag }),
+  options = <module>.options }`; README/types options from `<module>.option_docs`. No
+  `base_url` needed with `rpc`. **Task 17 (AWS JSON/query)** can reuse it with its own
+  protocol module (the trait can be omitted only if we add that; today it is required).
+- `verify/lib/gen_check.lua`: ops with `op.rpc` are also encoded through the client
+  class's `protocol.encode` with dummy credentials (a full signed POST must come out).
+
+### Contract additions (orchestrator: `docs/interfaces.md`)
+
+- Op descriptor field `rpc` (table of strings, RPC models only); provider spec key
+  `rpc`; the protocol module convention (`.new`, `.options`, `.option_docs`).
+
+### Edits outside my files (hooks, all small; please keep when merging 13/17/18)
+
+- `gen/provider.lua`: `rpc` in TOP, base_url optional with rpc, `rpc.validate` call.
+- `gen/ops.lua`: `ops.http` falls back to `rpc.http` when the spec has rpc;
+  `ops.descriptor` has `rpc = rpc.field(ctx, op)` (nil elsewhere: Neon unchanged).
+- `gen/writer.lua`: `writer.client` / `writer.readme` delegate to `gen/rpc.lua` first.
+- `gen/types.lua`: Options fields from `rpc.option_fields` instead of the base_url line.
+- `gen/traits.lua`: `com.tencentcloud#action` marked handled.
+- `verify/dl`: `tencentcloud-ref` command (+ help line).
+- `spec/provider_spec.lua` (task 13): `tencentcloud` added to its list of provider files.
+
+### Notes for others
+
+- Output size (task 18): `clients/tencentcloud` is 44 MB; the largest service.lua
+  (csip, 758 ops) is 1.2 MB and loads in 15 ms (lua/luajit) and ~0.4 s in Rex; every
+  model loads in all three runtimes with today's emission. Regenerate with
+  `verify/dl gen-all tencentcloud` after an emission change; nothing in the protocol
+  depends on the layout.
+- `verify/features/parity.md` not regenerated by me (shared file): `dl parity` shows
+  `tencentcloud | 15381 | 15381 | 263/263 | 0 | yes`.
+- `verify/features/README.md` should list `tencentcloud.md` (task 22).
+- One unexplained Rex failure in the first `dl test --http tencentcloud` run (output
+  lost); 14 reruns (rex alone and all three runtimes) passed. Recorded in the done file.
+
+## 18 big-models
+
+**Done.** See `tasks/18-big-models.done.md` and `verify/features/generator.md` ("Large
+models"). infisical's client now loads on luajit, and `require` takes 74 ms in Rex
+(was 10.6 s); every one of the 10 largest models loads in all three runtimes.
+
+### Contract update (for `docs/interfaces.md`, service descriptor)
+
+- A **split service** (generated when `service.lua` would pass 512 KB or ~20,000
+  constants) has `service.shape_chunks`: a list of module names, each returning
+  `{ [name] = node }`. Then `service.shapes` is a registry with an `__index` metamethod
+  that loads a shape's whole file on first lookup: **indexing works as before,
+  `pairs(service.shapes)` only sees loaded shapes.** Code that needs every shape
+  iterates `shape_chunks` (gen_check does). Unknown names are nil; a missing file raises.
+- `service.ops` and `service.errors` stay plain complete tables (loaded eagerly from
+  `service/ops_NNN.lua` / `errors_NNN.lua`). `client.lua` needed no change.
+- `gen.generate` returns `files.dirs` (subdirectories, sorted; `{}` for one-file
+  clients). File names may contain `/` (`service/shapes_001.lua`). `gen.write` still runs
+  no process: the caller creates `files.dirs`.
+- Neon and Hetzner are byte-identical; nothing regenerated.
+
+### Edits outside my file list
+
+- `bin/distilled-lua`: `write_files` creates `files.dirs` and removes a generated
+  client's old `service/` directory before writing (generate and package). Needed for the
+  layout; no other change.
+- New verify scripts (measurement only): `verify/lib/load_bench.lua`,
+  `verify/lib/big_models.sh`, `verify/lib/bench_sanitize.mjs`, `verify/lib/big_synth.lua`,
+  `verify/lib/lua_limits.lua`. Proposed (orchestrator): `dl big-models` / `dl lua-limits`
+  wrappers in `verify/dl`.
+
+### For the AWS / Azure / Cloudflare / GCP / Tencent tasks
+
+- Nothing to do: any model the generator accepts is split when needed. ~33 ms of Rex
+  `require` per 1,000 operations remains (op descriptors are eager); shapes cost only
+  when used (~10-60 ms for a first call in Rex).
+- One shape with tens of thousands of enum values or members cannot be split: gopher-lua
+  compiles a 100,000-string constructor in 17 s. Generation fails past 60,000 constants
+  in one statement (LuaJIT's 65,536 limit).
+- `types.lua` is not split (12 MB for infisical); it is only read by LuaLS.
+
+
+## 24 pk-crypto
+
+**Done.** See `tasks/24-pk-crypto.done.md` and `verify/features/crypto.md` (section
+"Public-key crypto and JOSE").
+
+### APIs others can use (proposed for `docs/interfaces.md`)
+
+- `distilled.crypto.pem`: `private_key(input)`, `public_key(input)` (PEM text, DER, or
+  a secret; PKCS #1, PKCS #8, SEC1, SPKI), `decode`, `encode`.
+- `distilled.crypto.rsa`: `sign(key, msg [, hash])`, `verify(key, msg, sig [, hash])`,
+  `private_key{ n, e, d [, p, q, dp, dq, qi] }`, `public_key{ n, e }`.
+- `distilled.crypto.ecdsa`: `sign(key, msg [, { hash, format = "raw"|"der", low_s }])
+  -> sig, recovery_id`, `sign_digest`, `verify`, `verify_digest`, `recover(curve,
+  digest, sig, recid)`, `private_key(curve, d [, point])`, `public_key(curve, point)`,
+  `point_bytes`, `der_to_raw`, `raw_to_der`. Curves "P-256", "secp256k1".
+- `distilled.crypto.ed25519`: `private_key(seed32)`, `public_key(bytes32)`, `sign`,
+  `verify`.
+- `distilled.crypto.jws`: `object(k, v, ...)` (ordered JSON; nil values dropped),
+  `json`, `compact{ key, alg?, header?, payload }`, `flattened{...}` (ACME), `decode`,
+  `verify(token, key [, algorithms])`, `public_jwk`, `jwk(key, { private })`,
+  `thumbprint`, `key_from_jwk`, `b64`, `b64_decode`, `sign_bytes`, `verify_bytes`.
+- `distilled.crypto.jwt`: `encode{ key, alg?, header?, claims }`, `decode`,
+  `verify(token, key, { now, leeway, algorithms })`.
+- Keys are `distilled.crypto.key` objects whose private parts sit in the metatable.
+  Parse a key once and keep the object: Montgomery contexts, generated code and point
+  tables are cached on it.
+- Recipes for the GitHub App, GCP, Coinbase (ES256 and EdDSA), DPoP and ACME tokens,
+  each tested byte for byte against the TypeScript output, are in
+  `verify/features/crypto.md` and `spec/crypto_pk_spec.lua` ("tokens as Distilled's
+  packages mint them"). The provider tasks only need to supply the clock and the nonce.
+
+### Decisions
+
+- Not constant time (documented). Pure Lua, one implementation. The only per-runtime
+  switch is `bigint.GENERATE` (generated straight-line Montgomery products on lua and
+  gopher-lua, loops on LuaJIT, where the loops are 6x faster). The spec tests both on
+  every runtime.
+- Errors are `InvalidInput` with messages that name the format and never the bytes.
+  Callers (GitHub `GithubAppAuthError`, GCP `GCPCredentialsError`, Coinbase
+  `ConfigError`) wrap them in their own error the way the TS packages do.
+- `jws.verify` with PEM text and no `algorithms` never accepts HS*: that prevents
+  HMAC/public-key algorithm confusion. An HMAC token needs `algorithms = { "HS256" }`.
+- ECDSA's default is high-S allowed (RFC 6979 and node:crypto). `low_s = true` is for
+  Ethereum and Bitcoin. An EC key whose file carries a public point must match d
+  (checked when the key is loaded).
+- RSA moduli 1024-4400 bits. PSS, P-384/521, and RSA key generation are not implemented
+  (no package needs them).
+
+### Outside my file list
+
+- `verify/dl`: `pk-bench` and `pk-vectors` commands plus their help lines (additions
+  only, next to task 14's `crypto-bench`/`crypto-vectors`). New helpers:
+  `verify/lib/pk_bench.lua`, `verify/lib/pk_vectors.mjs`, `verify/lib/pk_published.mjs`.
+- `lua/distilled/crypto/key.lua` (new; the key object shared by rsa/ecdsa/ed25519).
+- Proposed, not done: `distilled.crypto` (task 14's `init.lua`) could lazy-load `pem`,
+  `jws`, `jwt`, `rsa`, `ecdsa`, `ed25519` the way it does `hex`/`base64`;
+  `docs/interfaces.md` could gain a section from the API list above.
+- Random bytes for key generation, Coinbase nonces and DPoP `jti` need a host field,
+  as task 14 proposed. `ecdsa.private_key(curve, random32)` turns them into a key.
