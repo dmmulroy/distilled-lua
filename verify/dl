@@ -202,6 +202,24 @@ cmd_json_bench() {
   done
 }
 
+# crypto-bench / crypto-vectors (task 14): distilled.crypto throughput and Node vectors
+cmd_crypto_bench() {
+  status=0
+  for rt in $RUNTIMES; do
+    case $rt in
+      lua | luajit) "$rt" "$LIB/crypto_bench.lua" || status=1 ;;
+      rex) rex do "$LIB/crypto_bench.lua" || status=1 ;;
+    esac
+  done
+  exit $status
+}
+
+cmd_crypto_vectors() {
+  node "$LIB/crypto_vectors.mjs" "$ROOT/spec/golden/crypto/vectors.lua" || die "node failed"
+  node --conditions=bun --experimental-transform-types --no-warnings "$LIB/sigv4_vectors.mjs" "$ROOT/spec/golden/sigv4/vectors.lua" || die "node failed"
+  stylua "$ROOT/spec/golden/crypto/vectors.lua" "$ROOT/spec/golden/sigv4/vectors.lua"
+}
+
 # ----------------------------------------------------------------------------------
 # fmt
 # ----------------------------------------------------------------------------------
@@ -888,6 +906,10 @@ verify/dl: distilled-lua verification driver
   dl manifest               regenerate spec/manifest.lua (dl test does this too)
   dl fmt [--check]          format (or check) Lua with stylua
   dl json-bench [file]      time json.decode of a file (default models/neon/neon.json)
+  dl crypto-bench           distilled.crypto throughput (1 MB, HMAC, SigV4) under lua,
+                            luajit and rex, checked against the million-"a" digests
+  dl crypto-vectors         regenerate spec/golden/{crypto,sigv4}/vectors.lua with Node
+                            (node:crypto, aws4fetch from ../distilled)
   dl trace <script>         run a script with a tracer (verify/lib/trace_env.lua), write
                             OTLP/JSON lines to verify/tmp/trace/, print the span tree
       --level L             debug (default) | operation
@@ -1016,6 +1038,8 @@ case $cmd in
   manifest) cmd_manifest "$@" ;;
   fmt) cmd_fmt "$@" ;;
   json-bench) cmd_json_bench "$@" ;;
+  crypto-bench) cmd_crypto_bench "$@" ;;
+  crypto-vectors) cmd_crypto_vectors "$@" ;;
   help | -h | --help) cmd_help ;;
   trace) cmd_trace_or_expect trace "$@" ;;
   expect) cmd_trace_or_expect expect "$@" ;;

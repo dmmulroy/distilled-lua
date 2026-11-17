@@ -579,3 +579,77 @@ all generate now (1,029 of 1,206 with the 939 that already did; none of those re
   `update_live_table_schema` (required members recurse past depth 24), so `gen_check`
   reports 5/6 ops built there. A generation-side non-issue; the synthesizer could stop at
   the first optional or treat a cycle of required members as unbuildable data.
+||||||| abf4e89
+
+
+## 14 crypto
+
+**Done.** See `tasks/14-crypto.done.md`, `verify/features/crypto.md`, and the
+`distilled.crypto` / `distilled.sigv4` sections appended to `docs/interfaces.md`.
+
+### APIs others can use
+
+- `require("distilled.crypto")`: `digest(name, msg)`, `hmac(name, key, msg)`, shortcuts
+  `sha256`, `sha1`, `md5`, `sha224`, `sha384`, `sha512`, `sha3_256`, `keccak256` and
+  `hmac_<name>`; `crc32`, `crc32c`; `equal(a, b)`; `hex.encode/decode`,
+  `base64.encode/decode/url_encode(s, pad)/url_decode`. Binary strings in and out; HMAC
+  keys may be secrets; decode failures are `InvalidInput`.
+- `require("distilled.sigv4")`: `sign{ request, credentials, region?, service?,
+  now_epoch | datetime, sign_query?, all_headers?, hash_payload?, append_session_token?,
+  single_encode?, key_cache? } -> signed request copy | nil, err`, `presign{...} -> url`,
+  `canonical_request`, `signing_key`, `guess_service_region`, `amz_datetime`. A protocol
+  should keep one `key_cache = {}` per client (halves the signing time).
+- Tencent TC3, Polymarket L2, Stripe/Resend webhooks, AWS SigV2: everything they need
+  (HMAC-SHA256, SHA-256 hex, base64/base64url with padding) is here.
+
+### gopher-lua defect found (please add to AGENTS.md's list)
+
+- **A multiple assignment to locals is sequential in gopher-lua.** `a, b = b, a` leaves
+  `b, b`; `g, h = h + 0, g + 0` leaves `2, 2`; `i, j, k = j, k, i` leaves `2, 3, 2`;
+  `a, b = f(b), f(a)` too. Each right-hand side is evaluated after the previous variable
+  was assigned. Upvalues, globals, table fields and `local x, y = y, x` declarations are
+  fine. Workaround: a temporary (`local tmp = a; a = b; b = tmp`).
+- It already breaks `lua/distilled/testing/init.lua` line 119 (task 03): `m, n = 1, m`
+  makes `testing.random(seed)(n)` return 1 every time in Rex (measured:
+  `random(7)(6)` x8 gives `1 1 1 5 2 5 3 3` on lua, `1 1 1 1 1 1 1 1` in Rex).
+  Proposed fix: `n = m` then `m = 1`. I grepped `lua/` for other multi-assignments whose
+  right side reads an earlier left-side local: none besides that one (and the swap in my
+  own sigv4.lua, fixed).
+
+### Decisions
+
+- Byte-table implementation (no `bit`/`bit32` even on LuaJIT): one tested path.
+  Compression functions are generated Lua source compiled on first use.
+- `sigv4.sign` returns a shallow copy of the request (method, url, headers replaced), a
+  superset of "the signed headers", because presigning changes the URL.
+- `region`/`service` are optional and guessed from the host (Distilled's `guessScope`);
+  the region falls back to `us-east-1`.
+- No module-level derived-key cache (it would hold secret-derived keys in a global);
+  callers pass `key_cache`, keyed by sha256(secret) and scope, at most 16 entries.
+- The URL parsing SigV4 needs lives in `sigv4.lua` (WHATWG subset). Proposal: move
+  `parse_url` / URLSearchParams helpers to `distilled.url` (task 03's file) if another
+  signer needs them.
+
+### Survey (requirement 2): crypto the packages need beyond this task
+
+- ECDSA P-256 / ES256: Coinbase CDP JWT, ACME (account keys, JWS), AWS login
+  credentials (DPoP), SigV4A (`aws4signer` `signV4a`).
+- Ed25519 / EdDSA: Coinbase (alternative key type); needs SHA-512 (done) + curve math.
+- RSA PKCS#1 v1.5 / RS256: GitHub App JWT, GCP service-account JWT, ACME RS256 keys.
+- secp256k1 + Keccak (EIP-712): Polymarket L1; Distilled does not produce it either.
+- MD5: Mailchimp subscriber hash, S3 Content-MD5 (done). CRC-32/CRC-32C: S3 checksums
+  (done). SHA-1: AWS SSO cache names (done). HMAC-SHA256: everything else (done).
+- Random bytes (Coinbase nonce, `randomUUID` for S3/Whop idempotency): not crypto-grade
+  in pure Lua; a host field (e.g. `host.random_bytes(n)` via `rex.exec`/`/dev/urandom`)
+  would be needed. Proposed for the providers task.
+
+### Edits outside my file list (all named in the brief or needed for its helpers)
+
+- `docs/interfaces.md`: appended the two sections (the brief asks for it).
+- `verify/dl`: `crypto-bench` and `crypto-vectors` commands plus help lines (the brief
+  allows "a verify/dl helper"); new `verify/lib/crypto_bench.lua`,
+  `verify/lib/crypto_vectors.mjs`, `verify/lib/sigv4_vectors.mjs`; vector data in
+  `spec/golden/crypto/` and `spec/golden/sigv4/`.
+- Proposed (not done): `verify/features/README.md` row "20 | Crypto and SigV4 |
+  [crypto.md](crypto.md) | task 14"; AGENTS.md defect list entry for the
+  multiple-assignment bug above.
