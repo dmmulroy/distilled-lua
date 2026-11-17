@@ -66,8 +66,15 @@ local PAGINATED = "smithy.api#paginated"
 cloudflare.RESULT_INFO = "result_info"
 cloudflare.DEFAULT_BASE_URL = "https://api.cloudflare.com/client/v4"
 
---- cloudflare.applies(m) -> boolean: the model speaks the v4 envelope protocol
-function cloudflare.applies(m)
+cloudflare.PROTOCOL_MODULE = "distilled.protocol.cloudflare"
+
+--- cloudflare.applies(m [, spec]) -> boolean: the model speaks the v4 envelope protocol
+-- (its service says so), or the provider spec names the Cloudflare protocol (`protocol =
+-- "distilled.protocol.cloudflare"`: k2, a hand-written model, has no service shape).
+function cloudflare.applies(m, spec)
+  if spec and spec.protocol == cloudflare.PROTOCOL_MODULE then
+    return true
+  end
   local svc = m and m.service
   return svc ~= nil and svc.traits ~= nil and svc.traits[T.v4] ~= nil
 end
@@ -137,6 +144,42 @@ local function set_trait(m, holder, key, value)
     keys[#keys + 1] = key
   end
   traits[key] = value
+end
+
+local function remove_trait(m, holder, key)
+  holder.traits[key] = nil
+  local keys = m.order[holder.traits]
+  if keys then
+    for i = #keys, 1, -1 do
+      if keys[i] == key then
+        table.remove(keys, i)
+      end
+    end
+  end
+end
+
+local function ts_names(m, id)
+  local names = {}
+  for _, mem in ipairs(m:members(m.shapes[id])) do
+    names[cloudflare.ts_member_name(mem.name)] = true
+  end
+  return names
+end
+
+--- cloudflare.invalid_pagination(m, op, trait) -> reason | nil (validatePaginated)
+function cloudflare.invalid_pagination(m, op, pg)
+  local root = string.match(tostring(pg.items or "result"), "^[^%.]*")
+  local mode = pg.mode or "token"
+  if mode ~= "single" then
+    local token = type(pg.inputToken) == "string" and string.match(pg.inputToken, "^[^%.]*")
+    if not token or not ts_names(m, op.input)[token] then
+      return "pagination inputToken " .. tostring(pg.inputToken) .. " is not an input member"
+    end
+  end
+  if root ~= "resultInfo" and not ts_names(m, op.output)[root] then
+    return "pagination items " .. tostring(pg.items or "result") .. " is not an output member"
+  end
+  return nil
 end
 
 local function add_member(m, def, name, target, traits)
@@ -308,11 +351,23 @@ function cloudflare.prepare(ctx)
       end
     end
 
-    -- 2. outputs: the paginated ones get result_info, the others a bare payload root
+    -- 2. pagination traits Distilled cannot use make plain operations (generator.ts
+    -- step 3, validatePaginated over the TS names, resultInfo counting as an output),
+    -- then the paginated outputs get result_info and the others a bare payload root
     local paginated = {}
     for _, op in ipairs(m.operations) do
-      if op.def.traits and op.def.traits[PAGINATED] ~= nil then
-        paginated[op.output] = true
+      local pg = op.def.traits and op.def.traits[PAGINATED]
+      if type(pg) == "table" then
+        local why = cloudflare.invalid_pagination(m, op, pg)
+        if why then
+          remove_trait(m, op.def, PAGINATED)
+          m.warnings[#m.warnings + 1] = op.id
+            .. ": "
+            .. why
+            .. "; emitted as a plain operation without _pages/_items, as Distilled does"
+        else
+          paginated[op.output] = true
+        end
       end
     end
     local info_id
@@ -348,6 +403,13 @@ function cloudflare.prepare(ctx)
       local tr = op.def.traits or {}
       local pg = tr[PAGINATED]
       if type(pg) == "table" then
+        -- core reads an absent page size as none; ops.pagination would refuse it
+        if type(pg.pageSize) == "string" then
+          local root = string.match(pg.pageSize, "^[^%.]*")
+          if not ts_names(m, op.input)[root] then
+            remove_trait(m, { traits = pg }, "pageSize")
+          end
+        end
         for _, k in ipairs({ "inputToken", "pageSize" }) do
           if type(pg[k]) == "string" then
             pg[k] = smithy_path(m, op.input, pg[k])

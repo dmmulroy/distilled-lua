@@ -23,4 +23,6 @@ return {
   parse_tag = "CloudflareParseError",
   naming = { members = "wire" },
   pagination = { items_fallback = "result" },
+  -- every model speaks the envelope, also k2 (hand-written, no service shape to say so)
+  protocol = "distilled.protocol.cloudflare",
 }

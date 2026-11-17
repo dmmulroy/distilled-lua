@@ -675,4 +675,9 @@ function cloudflare.new(opts)
   return protocol
 end
 
-return cloudflare
+-- The provider spec's protocol module contract: require(module)(service, spec) -> protocol.
+return setmetatable(cloudflare, {
+  __call = function(_, _, spec)
+    return cloudflare.new(spec)
+  end,
+})

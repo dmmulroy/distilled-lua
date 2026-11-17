@@ -213,7 +213,7 @@ function gen.plan(args)
   }
   -- Cloudflare's v4 envelope models (gen/cloudflare.lua): model rewrites and hooks
   local cloudflare = require("distilled.gen.cloudflare")
-  if cloudflare.applies(m) then
+  if cloudflare.applies(m, spec) then
     local ok, cerr = cloudflare.prepare(ctx)
     if not ok then
       return nil, cerr
