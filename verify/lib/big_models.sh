@@ -67,7 +67,8 @@ P
       break
     fi
     if [ $i -eq 1 ]; then
-      changes=$(node "$ROOT/verify/lib/bench_sanitize.mjs" "$model" "$W/model.json" "$W/probe.log")
+      # first the generic fixes only: they may be all it takes
+      changes=$(node "$ROOT/verify/lib/bench_sanitize.mjs" "$model" "$W/model.json")
     else
       changes=$(node "$ROOT/verify/lib/bench_sanitize.mjs" "$W/model.json" "$W/model.json" "$W/probe.log")
     fi
@@ -108,7 +109,7 @@ P
             fi
             set -- $res
             line=$(grep -v '^"' "$W/load_${which}_${rt}_$stop.log" | tail -n 1 | cut -c1-200)
-            [ "$3" = 0 ] || line="FAIL $(tail -n 2 "$W/load_${which}_${rt}_$stop.log.time" "$W/load_${which}_${rt}_$stop.log" | tr '\n' ' ' | cut -c1-200)"
+            [ "$3" = 0 ] || line="FAIL $(grep -v 'traceback\|\[C\]\|in main chunk\|in function' "$W/load_${which}_${rt}_$stop.log" | tr '\n' ' ' | sed 's/[[:space:]][[:space:]]*/ /g' | cut -c1-200)"
             echo "$which load $rt $stop: process $1 s, $(mb "$2") MB rss | $line"
           done
         done

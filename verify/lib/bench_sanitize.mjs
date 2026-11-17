@@ -4,8 +4,10 @@
 //
 //   node verify/lib/bench_sanitize.mjs <in.json> <out.json> [<generator errors.txt>]
 //
-// Always: drops the com.distilled.openapi#apiVersion trait (Azure, task 20) and error
-// references whose target has no smithy.api#error trait (AWS, task 17). With an errors
+// Always: drops the com.distilled.openapi#apiVersion trait and http apiVersion key (Azure,
+// task 20), sets X-Ray telemetry propagation to w3c, drops error
+// references whose target has no smithy.api#error trait, and gives an operation with no
+// smithy.api#http trait the route POST /<Operation> (AWS, task 17). With an errors
 // file (the generator's "generation failed" lines, `<shape id>: <problem>`): a pagination
 // problem drops that operation's smithy.api#paginated trait, any other problem on an
 // operation drops the operation. Prints what it changed as one JSON line on stdout.
@@ -18,7 +20,7 @@ if (!input || !output) {
 }
 const model = JSON.parse(readFileSync(input, "utf8"));
 const shapes = model.shapes;
-const changes = { apiVersion: 0, errorRefs: 0, pagination: 0, droppedOps: [] };
+const changes = { apiVersion: 0, errorRefs: 0, http: 0, pagination: 0, droppedOps: [] };
 
 const stripTrait = (traits) => {
   if (traits && "com.distilled.openapi#apiVersion" in traits) {
@@ -28,9 +30,28 @@ const stripTrait = (traits) => {
 };
 const isError = (id) => shapes[id]?.traits?.["smithy.api#error"] !== undefined;
 
+const ids = new Map(Object.entries(shapes).map(([id, s]) => [s, id]));
+const op_name = (shape) => ids.get(shape)?.split("#")[1];
 for (const shape of Object.values(shapes)) {
   stripTrait(shape.traits);
   for (const member of Object.values(shape.members ?? {})) stripTrait(member.traits);
+  const http = shape.traits?.["smithy.api#http"];
+  if (http && "apiVersion" in http) {
+    delete http.apiVersion;
+    changes.apiVersion++;
+  }
+  const tel = shape.traits?.["com.distilled.telemetry#service"];
+  if (tel && tel.propagation && tel.propagation !== "w3c") {
+    tel.propagation = "w3c"; // AWS X-Ray (task 17)
+    changes.propagation = (changes.propagation ?? 0) + 1;
+  }
+  if (shape.type === "operation" && shape.traits?.["smithy.api#http"] === undefined) {
+    // AWS query/JSON protocols bind no HTTP route: give each its own POST path, so the
+    // shapes generate (the size is what is measured, not the route)
+    shape.traits = shape.traits ?? {};
+    shape.traits["smithy.api#http"] = { method: "POST", uri: "/" + (op_name(shape) ?? "op"), code: 200 };
+    changes.http++;
+  }
   if (Array.isArray(shape.errors)) {
     const kept = shape.errors.filter((e) => isError(e.target));
     changes.errorRefs += shape.errors.length - kept.length;
