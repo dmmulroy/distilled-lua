@@ -67,6 +67,13 @@ end
 function ops.http(ctx, op)
   local http = op.def.traits and op.def.traits["smithy.api#http"]
   local where = op.id
+  if ctx.aws then
+    -- the AWS RPC protocols have no HTTP bindings: POST / (gen/aws.lua)
+    local rpc = require("distilled.gen.aws").http(ctx, op)
+    if rpc then
+      return rpc
+    end
+  end
   if type(http) ~= "table" then
     if ctx.provider.rpc then
       -- an RPC model (provider spec rpc): one binding for every operation (gen/rpc.lua)
@@ -283,6 +290,10 @@ end
 --- ops.pagination(ctx, op) -> trait (snake_case, Lua names) | nil | false, message
 function ops.pagination(ctx, op)
   local pg = op.def.traits and op.def.traits[T_PAGINATED]
+  if ctx.aws then
+    -- operations inherit the service's paginated trait (mergePaginated)
+    pg = require("distilled.gen.aws").paginated(ctx, op, pg)
+  end
   if pg == nil then
     return nil
   end
@@ -338,6 +349,11 @@ function ops.pagination(ctx, op)
   -- validatePaginated: the token must be an input member and the items root an output
   -- member; Distilled quietly degrades such an operation to a plain one, we fail.
   local items = pg.items or ctx.provider.pagination.items_fallback
+  if ctx.aws then
+    -- AWS: a paginated trait without items pages whole responses (_pages; _items
+    -- yields each page), as Distilled's paginateWithDefaults does
+    items = pg.items
+  end
   local out = { mode = mode }
   if pg.inputToken then
     out.input_token = lua_path(ctx, op.input, pg.inputToken)
@@ -370,6 +386,9 @@ function ops.pagination(ctx, op)
     end
   end
   local items_root = string.match(out.items or "", "^[^%.]+")
+  if ctx.aws and out.items == nil then
+    return out
+  end
   if not items_root or not out_names[items_root] then
     return false, where .. ": pagination items " .. tostring(items) .. " is not an output member"
   end
@@ -700,10 +719,11 @@ function ops.service_telemetry(ctx, rules)
     elseif k == "attributes" then
       out.attributes = deep_copy_json(ctx, v)
     elseif k == "propagation" then
-      if v ~= "w3c" then
+      -- xray: the X-Amzn-Trace-Id header of AWS (core telemetry-xray.ts, aws/protocol.lua)
+      if v ~= "w3c" and not (v == "xray" and ctx.aws) then
         return false, "service: telemetry propagation " .. tostring(v) .. " is not supported"
       end
-      out.propagate = "w3c"
+      out.propagate = v
     elseif k == "hosts" then
       return false, "service: telemetry host rules are not supported; use --no-telemetry"
     else
@@ -920,6 +940,8 @@ function ops.descriptor(ctx, op)
     pagination_methods = ops.renamed_page_methods(op),
     retry = op.retry,
     span = op.span,
+    -- AWS operations: host prefix, static context params, checksums (gen/aws.lua)
+    aws = ctx.aws and require("distilled.gen.aws").op_facts(ctx, op) or nil,
   }
 end
 

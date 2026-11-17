@@ -86,6 +86,7 @@ local NAMES = {
   "archil",
   "argocd",
   "auth0",
+  "aws", -- task 17 (gen/aws.lua)
   "axiom",
   "azure", -- task 20 (protocol distilled.protocol.azure)
   "boat_dev",
@@ -155,6 +156,7 @@ local NAMES = {
   "revenuecat",
   "rivet",
   "s2",
+  "s3",
   "sentry",
   "spacetimedb",
   "squarespace",

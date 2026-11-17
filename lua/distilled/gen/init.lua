@@ -220,6 +220,24 @@ function gen.plan(args)
     -- ARM ids that differ only in case (one per api-version) get distinct names
     name_overrides = azure.operation_names(m, spec)
   end
+  if m.is_aws then
+    -- AWS models (gen/aws.lua): protocol, service facts, the telemetry the runtime skips
+    local aws_ctx, aerr = require("distilled.gen.aws").context(m, spec)
+    if aerr then
+      return nil, aerr
+    end
+    ctx.aws = aws_ctx
+    if aws_ctx then
+      -- the class is named after the sdkId (DynamoDB, Route53), as Distilled's modules are
+      local copy = {}
+      for k, v in pairs(spec) do
+        copy[k] = v
+      end
+      copy.title = require("distilled.gen.aws").title(aws_ctx.sdk_id)
+      spec = copy
+      ctx.provider = spec
+    end
+  end
 
   -- method names for every operation (collisions are checked over the whole model, so
   -- `--ops` cannot hide one)
@@ -268,7 +286,9 @@ function gen.plan(args)
       if not labels then
         problems[#problems + 1] = op.id .. ": " .. lerr
       else
-        if input_owner[op.input] then
+        -- (an AWS RPC operation has no labels: DynamoDB's Enable/Disable
+        -- KinesisStreamingDestination share their input)
+        if input_owner[op.input] and not ctx.aws then
           problems[#problems + 1] = op.id
             .. ": its input "
             .. op.input
@@ -291,6 +311,10 @@ function gen.plan(args)
           ctx.greedy[op.input] = greedy
           for _, mem in ipairs(m:members(in_def)) do
             local bind = shapes.binding(mem.traits)
+            if ctx.aws and ctx.aws.rpc then
+              -- the AWS RPC protocols ignore HTTP bindings (some models carry them)
+              bind = "body"
+            end
             if bind == "label" then
               if not placeholder[mem.name] then
                 problems[#problems + 1] = op.id
@@ -395,6 +419,9 @@ function gen.plan(args)
       op.retry = retry
     end
     local unsupported, uerr = ops_mod.streaming(ctx, op)
+    if ctx.aws and unsupported == nil then
+      unsupported = require("distilled.gen.aws").event_stream(ctx, op)
+    end
     if unsupported == false then
       problems[#problems + 1] = uerr
     else
@@ -422,8 +449,16 @@ function gen.plan(args)
   end)
   local error_classes = {}
   local reserved_tags = { [spec.unknown_tag] = "unknown_tag", [spec.parse_tag] = "parse_tag" }
+  if ctx.aws then
+    -- an AWS parse failure is the built-in ParseError, as in Distilled, and SQS models
+    -- an error of that name too: only the unknown tag is reserved
+    reserved_tags = { [spec.unknown_tag] = "unknown_tag" }
+  end
   for _, id in ipairs(error_ids) do
     local d, eerr = gen_errors.class(ctx, id)
+    if d and ctx.aws then
+      d = require("distilled.gen.aws").error_class(ctx, id, d)
+    end
     if not d then
       problems[#problems + 1] = eerr
     else
@@ -543,6 +578,9 @@ function gen.plan(args)
     for _, b in ipairs(d.bodies) do
       roots[#roots + 1] = b
     end
+    if d.aws and d.aws.root then
+      roots[#roots + 1] = d.aws.root
+    end
   end
   local reachable = m:reachable(roots)
   local registry_ids = {}
@@ -636,13 +674,22 @@ function gen.generate(args)
   for name, text in pairs(service_files) do
     files[name] = text
   end
-  files["init.lua"] = writer.client(plan)
-  if plan.provider.glue then
-    -- the provider's hand-written glue travels with the client (require(MODULE .. ".glue"))
-    files["glue.lua"] = plan.provider.glue.source
+  if plan.ctx.aws then
+    local aws_gen = require("distilled.gen.aws")
+    files["init.lua"] = aws_gen.client_file(plan)
+    if plan.ctx.aws.rules then
+      files["endpoints.lua"] = aws_gen.endpoints_file(plan)
+    end
+  else
+    files["init.lua"] = writer.client(plan)
+    if plan.provider.glue then
+      -- the provider's hand-written glue travels with the client (require(MODULE .. ".glue"))
+      files["glue.lua"] = plan.provider.glue.source
+    end
   end
   files["types.lua"] = types_mod.render(plan)
-  files["README.md"] = writer.readme(plan)
+  files["README.md"] = plan.ctx.aws and require("distilled.gen.aws").readme(plan)
+    or writer.readme(plan)
   local order = {}
   for name in pairs(files) do
     order[#order + 1] = name
