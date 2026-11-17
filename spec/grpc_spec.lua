@@ -553,3 +553,339 @@ t.describe("grpc over HTTP (dl serve)", function()
     t.fails_with("TransportError", c:get_thing({ thingId = "x" }))
   end)
 end)
+
+---------------------------------------------------------------------------------------
+-- distilled.protocol.rpc and the generated proto clients (clients/modal, boxd, e2b,
+-- namespacelabs): the provider specs' settings, hosts, headers and error mapping
+---------------------------------------------------------------------------------------
+local rpc = require("distilled.protocol.rpc")
+
+package.path = t.root .. "/clients/?.lua;" .. t.root .. "/clients/?/init.lua;" .. package.path
+
+-- a generated client over a scripted transport
+local function gen_client(module, responses, opts, env)
+  local tr = scripted(responses)
+  local host = testing.host({ transport = tr, env = env or {} })
+  local o = { host = host, retry = "none" }
+  for k, v in pairs(opts or {}) do
+    o[k] = v
+  end
+  return require(module).new(o), tr
+end
+
+local function json_reply(status, body, headers)
+  local h = { ["content-type"] = "application/json" }
+  for k, v in pairs(headers or {}) do
+    h[k] = v
+  end
+  return { status = status, headers = h, body = json.encode(body) }
+end
+
+t.describe("rpc settings", function()
+  t.it("prepare: later environment variables, chained defaults, required checks", function()
+    local settings = {
+      region = { env = { "R" }, default = "us" },
+      url = { env = { "U1", "U2" }, default = "https://{region}.x.test" },
+      token = { secret = true, env = { "T1", "T2" }, required = true },
+    }
+    local prepare = rpc.prepare(settings)
+    local s = assert(prepare({ token = "a" }, { getenv = function() end }))
+    t.eq(s.url, "https://us.x.test")
+    s = assert(prepare({ token = "a", region = "eu" }, { getenv = function() end }))
+    t.eq(s.url, "https://eu.x.test")
+    local env = { U2 = "https://second.test", T2 = "t2" }
+    s = assert(prepare({}, {
+      getenv = function(n)
+        return env[n]
+      end,
+    }))
+    t.eq(s.url, "https://second.test")
+    t.eq(secret.unwrap(s.token), "t2")
+    t.truthy(secret.is(s.token))
+    local _, err = prepare({}, { getenv = function() end })
+    t.eq(err.tag, "ConfigError")
+    t.eq(err.key, "token")
+    t.match(err.message, "T1 or T2", true)
+  end)
+
+  t.it("prepare: require_one_of", function()
+    local prepare = rpc.prepare({ a = { secret = true, env = "A" }, b = { secret = true } }, {
+      require_one_of = { "a", "b" },
+    })
+    local _, err = prepare({}, { getenv = function() end })
+    t.eq(err.tag, "ConfigError")
+    t.match(err.message, "one of the options a, b", true)
+    t.truthy(prepare({ b = "x" }, {}))
+  end)
+
+  t.it("base_url: templates, prefixes and cases; host parts are checked", function()
+    local by = rpc.base_url({
+      by_prefix = { { "/a.", "{a_url}" } },
+      when = "domain",
+      cases = { ["e2b.app"] = "https://sandbox.{domain}" },
+      default = "https://{port}-{id}.{domain}/",
+    })
+    t.eq(by({ a_url = "https://a.test/" }, { uri = "/a.S/M" }), "https://a.test")
+    t.eq(by({ domain = "e2b.app" }, { uri = "/b.S/M" }), "https://sandbox.e2b.app")
+    t.eq(by({ domain = "x.dev", port = "1", id = "sb" }, { uri = "/" }), "https://1-sb.x.dev")
+    local _, err = by({ domain = "x.dev", port = "1", id = "a/b" }, { uri = "/" })
+    t.eq(err.tag, "ConfigError")
+    t.eq(err.key, "id")
+    _, err = by({ domain = "x.dev", port = "1" }, { uri = "/" })
+    t.eq(err.key, "id")
+  end)
+
+  t.it("headers: unset and empty values are skipped, unless wins", function()
+    local h = rpc.headers({
+      { "authorization", "Bearer {bearer}" },
+      { "x-id", "{id}", unless = "bearer" },
+      { "x-fixed", "8" },
+    })
+    local out = h({ id = secret.wrap("i") })
+    t.eq(out["x-id"], "i")
+    t.eq(out["authorization"], nil)
+    t.eq(out["x-fixed"], "8")
+    out = h({ id = "i", bearer = "b" })
+    t.eq(out["x-id"], nil)
+    t.eq(out["authorization"], "Bearer b")
+    t.eq(h({ id = "" })["x-id"], nil)
+  end)
+end)
+
+t.describe("generated modal client (binary gRPC)", function()
+  local function d()
+    return require("modal.app.descriptors")
+  end
+
+  t.it("sends the token headers and decodes the reply", function()
+    local reply = {
+      status = 200,
+      headers = { ["content-type"] = "application/grpc", ["grpc-status"] = "0" },
+      body = pb.frame(assert(pb.encode(d(), "modal.client.AppGetOrCreateResponse", {
+        appId = "ap-1",
+      }))),
+    }
+    local c, tr = gen_client("modal.app", { reply }, nil, {
+      MODAL_TOKEN_ID = "ak-1",
+      MODAL_TOKEN_SECRET = "as-1",
+      MODAL_API_URL = "http://modal.test",
+    })
+    local out = assert(c:app_get_or_create({
+      appName = "x",
+      objectCreationType = "OBJECT_CREATION_TYPE_CREATE_IF_MISSING",
+    }))
+    t.eq(out.appId, "ap-1")
+    local req = tr.requests[1]
+    t.eq(req.url, "http://modal.test/modal.client.ModalClient/AppGetOrCreate")
+    t.eq(req.headers["x-modal-token-id"], "ak-1")
+    t.eq(req.headers["x-modal-token-secret"], "as-1")
+    t.eq(req.headers["x-modal-client-type"], "8")
+    t.eq(req.headers["x-modal-client-version"], "1.6.3")
+    t.eq(req.headers["content-type"], "application/grpc")
+    t.eq(req.headers["authorization"], nil)
+    t.eq(req.http2, nil)
+    local sent = assert(pb.unframe(req.body)).messages[1]
+    t.same(assert(pb.decode(d(), "modal.client.AppGetOrCreateRequest", sent)), {
+      appName = "x",
+      environmentName = "", -- proto3: a missing scalar decodes as its default
+      objectCreationType = "OBJECT_CREATION_TYPE_CREATE_IF_MISSING",
+    })
+  end)
+
+  t.it("maps a gRPC status to the model's error by code", function()
+    local c = gen_client("modal.app", {
+      {
+        status = 200,
+        headers = {
+          ["content-type"] = "application/grpc",
+          ["grpc-status"] = "5",
+          ["grpc-message"] = "App%20not%20found",
+        },
+        body = "",
+      },
+    }, { token_id = "a", token_secret = "b" })
+    local _, err = c:app_get_or_create({ appName = "x" })
+    t.eq(err.tag, "AppNotFound")
+    t.eq(err.code, 5)
+    t.eq(err.message, "App not found")
+  end)
+
+  t.it("sends a bearer token instead of the token pair, over HTTP/2", function()
+    local c, tr = gen_client("modal.app", {
+      {
+        status = 200,
+        headers = { ["content-type"] = "application/grpc", ["grpc-status"] = "0" },
+        body = pb.frame(""),
+      },
+    }, { token_id = "a", token_secret = "b", bearer_token = "jwt", base_url = "https://r.test" })
+    t.truthy(c:app_get_or_create({ appName = "x" }))
+    local req = tr.requests[1]
+    t.eq(req.headers["authorization"], "Bearer jwt")
+    t.eq(req.headers["x-modal-token-id"], nil)
+    t.eq(req.headers["x-modal-token-secret"], nil)
+    t.eq(req.http2, true)
+    t.eq(req.url, "https://r.test/modal.client.ModalClient/AppGetOrCreate")
+  end)
+
+  t.it("needs the token pair", function()
+    local c, tr = gen_client("modal.app", {})
+    local _, err = c:app_get_or_create({ appName = "x" })
+    t.eq(err.tag, "ConfigError")
+    t.eq(#tr.requests, 0)
+  end)
+end)
+
+t.describe("generated boxd client (gRPC-Web)", function()
+  t.it("collects a server stream and reads the token from BOXD_TOKEN", function()
+    local d = require("boxd.descriptors")
+    local body = pb.frame(assert(pb.encode(d, "boxd.api.v1.LogChunk", { data = "aGk=" })))
+      .. pb.frame(assert(pb.encode(d, "boxd.api.v1.LogChunk", { data = "eW8=" })))
+      .. pb.frame("grpc-status: 0\r\n", 128)
+    local c, tr = gen_client("boxd", {
+      { status = 200, headers = { ["content-type"] = "application/grpc-web+proto" }, body = body },
+    }, nil, { BOXD_TOKEN = "bxd_1" })
+    local out = assert(c:stream_logs({ vmId = "vm-1" }))
+    t.eq(#out.items, 2)
+    t.eq(out.items[1].data, "aGk=")
+    t.eq(out.items[2].data, "eW8=")
+    local req = tr.requests[1]
+    t.eq(req.url, "https://boxd.sh:9443/boxd.api.v1.BoxdApi/StreamLogs")
+    t.eq(req.headers["authorization"], "Bearer bxd_1")
+    t.eq(req.headers["content-type"], "application/grpc-web+proto")
+  end)
+
+  t.it("an UNAUTHENTICATED trailer frame is Unauthorized", function()
+    local c = gen_client("boxd", {
+      {
+        status = 200,
+        headers = { ["content-type"] = "application/grpc-web+proto" },
+        body = pb.frame("grpc-status: 16\r\ngrpc-message: bad key\r\n", 128),
+      },
+    }, { token = "x" })
+    local _, err = c:get_vm({ vmId = "vm-1" })
+    t.eq(err.tag, "Unauthorized")
+    t.eq(err.message, "bad key")
+  end)
+end)
+
+t.describe("generated e2b clients (REST and Connect JSON)", function()
+  t.it("control plane: one of the API key and the access token", function()
+    local c, tr = gen_client("e2b.sandboxes", {})
+    local _, err = c:list_sandboxes({})
+    t.eq(err.tag, "ConfigError")
+    t.match(err.message, "E2B_API_KEY", true)
+    t.eq(#tr.requests, 0)
+  end)
+
+  t.it("control plane: the domain sets the API host; key and team headers", function()
+    local c, tr = gen_client("e2b.sandboxes", { json_reply(200, {}) }, nil, {
+      E2B_API_KEY = "e2b_k",
+      E2B_DOMAIN = "e2b.dev",
+    })
+    t.truthy(c:list_sandboxes({}))
+    local req = tr.requests[1]
+    t.eq(string.match(req.url, "^[^?]*"), "https://api.e2b.dev/v2/sandboxes")
+    t.eq(req.headers["x-api-key"], "e2b_k")
+    t.eq(req.headers["authorization"], nil)
+    t.eq(req.headers["x-team-id"], nil)
+  end)
+
+  t.it("envd: the shared sandbox host, routing headers and an empty JSON body", function()
+    local c, tr = gen_client("e2b.process", { json_reply(200, { processes = {} }) }, {
+      sandbox_id = "sb1",
+      access_token = "envd-tok",
+    }, { E2B_API_KEY = "never-sent" })
+    t.truthy(c:list_processes({}))
+    local req = tr.requests[1]
+    t.eq(req.url, "https://sandbox.e2b.app/process.Process/List")
+    t.eq(req.headers["e2b-sandbox-id"], "sb1")
+    t.eq(req.headers["e2b-sandbox-port"], "49983")
+    t.eq(req.headers["connect-protocol-version"], "1")
+    t.eq(req.headers["x-access-token"], "envd-tok")
+    t.eq(req.headers["x-api-key"], nil)
+    t.eq(req.body, "{}")
+  end)
+
+  t.it("envd: another domain addresses <port>-<id>.<domain>; 502 is SandboxNotRunning", function()
+    local c, tr = gen_client("e2b.process", {
+      json_reply(502, { code = 502, message = "The sandbox was not found" }),
+    }, { sandbox_id = "sb1", domain = "example.dev" })
+    local _, err = c:list_processes({})
+    t.eq(tr.requests[1].url, "https://49983-sb1.example.dev/process.Process/List")
+    t.eq(err.tag, "SandboxNotRunning")
+    t.eq(err.message, "The sandbox was not found")
+  end)
+
+  t.it("envd: needs the sandbox id", function()
+    local c = gen_client("e2b.process", {})
+    local _, err = c:list_processes({})
+    t.eq(err.tag, "ConfigError")
+    t.eq(err.key, "sandbox_id")
+  end)
+
+  t.it("volume content: the volume's token as the bearer", function()
+    local c, tr = gen_client("e2b.volume_content", { json_reply(200, {}) }, { token = "vol-t" })
+    t.truthy(c:list_volume_dir({ volumeID = "v1", path = "/" }))
+    local req = tr.requests[1]
+    t.eq(string.match(req.url, "^[^?]*"), "https://api.e2b.app/volumecontent/v1/dir")
+    t.eq(req.headers["authorization"], "Bearer vol-t")
+  end)
+
+  t.it("a Connect error body under its status: string code, message", function()
+    local c = gen_client("e2b.process", {
+      json_reply(404, { code = "not_found", message = "process not found" }),
+    }, { sandbox_id = "sb1" })
+    local _, err = c:send_process_input({ process = { pid = 1 } })
+    t.eq(err.tag, "NotFound")
+    t.eq(err.message, "process not found")
+  end)
+end)
+
+t.describe("generated namespacelabs clients (Connect JSON)", function()
+  t.it("routes by proto package: compute by region, vault to the global host", function()
+    local c, tr = gen_client("namespacelabs.compute", { json_reply(200, {}) }, nil, {
+      NSC_TOKEN = "nsc",
+      NSC_REGION = "eu",
+    })
+    t.truthy(c:create_instance({}))
+    local req = tr.requests[1]
+    t.eq(
+      req.url,
+      "https://eu.compute.namespaceapis.com/namespace.cloud.compute.v1beta.ComputeService/CreateInstance"
+    )
+    t.eq(req.headers["authorization"], "Bearer nsc")
+    t.eq(req.body, "{}")
+    local v, vtr = gen_client("namespacelabs.vault", { json_reply(200, {}) }, { token = "nsc" })
+    t.truthy(v:list_objects({}))
+    t.eq(
+      vtr.requests[1].url,
+      "https://global.namespaceapis.com/namespace.cloud.vault.v1beta.VaultService/ListObjects"
+    )
+  end)
+
+  t.it("NSC_ENDPOINT is the compute host when NSC_COMPUTE_URL is unset", function()
+    local c, tr = gen_client("namespacelabs.compute", { json_reply(200, {}) }, nil, {
+      NSC_TOKEN = "nsc",
+      NSC_ENDPOINT = "https://compute.local.test/",
+    })
+    t.truthy(c:create_instance({}))
+    t.eq(
+      tr.requests[1].url,
+      "https://compute.local.test/namespace.cloud.compute.v1beta.ComputeService/CreateInstance"
+    )
+  end)
+
+  t.it("error matchers on the Connect code; the unknown error keeps details", function()
+    local v = gen_client("namespacelabs.vault", {
+      json_reply(400, { code = "invalid_argument", message = "bad name" }),
+      json_reply(418, { code = "teapot", message = "short", details = { { type = "x" } } }),
+    }, { token = "nsc" })
+    local _, err = v:list_objects({})
+    t.eq(err.tag, "InvalidArgument")
+    t.eq(err.message, "bad name")
+    _, err = v:list_objects({})
+    t.eq(err.tag, "UnknownNamespaceLabsError")
+    t.eq(err.code, "teapot")
+    t.same(err.details, { { type = "x" } })
+  end)
+end)

@@ -54,7 +54,8 @@ local KEYS = {
   models = true,
 }
 local OPTION_KEYS = { secret = true, env = true, default = true, required = true, doc = true }
-local MODEL_KEYS = { options = true, base_url = true, headers = true, require_one_of = true }
+local MODEL_KEYS =
+  { options = true, base_url = true, headers = true, require_one_of = true, empty_json_body = true }
 
 local function sorted_keys(t)
   local list = {}
@@ -306,6 +307,9 @@ function proto.validate(r, spec)
           if mo.require_one_of ~= nil then
             check_one_of(w .. ".require_one_of", mo.require_one_of, p)
           end
+          if mo.empty_json_body ~= nil and type(mo.empty_json_body) ~= "boolean" then
+            p[#p + 1] = w .. ".empty_json_body must be a boolean"
+          end
         end
       end
     end
@@ -372,12 +376,17 @@ function proto.effective(spec)
   if mo.require_one_of ~= nil then
     one_of = mo.require_one_of
   end
+  local empty = r.empty_json_body == true
+  if mo.empty_json_body ~= nil then
+    empty = mo.empty_json_body
+  end
   return {
     settings = out,
     docs = settings,
     headers = headers,
     base_url = mo.base_url or r.base_url or ("{" .. b.option .. "}"),
     require_one_of = one_of or nil,
+    empty_json_body = empty,
   }
 end
 
@@ -766,8 +775,8 @@ function proto.client(plan, header)
       )
     )
   end
-  if r.empty_json_body ~= nil then
-    b:line("  empty_json_body = " .. tostring(r.empty_json_body) .. ",")
+  if module == "connect" then
+    b:line("  empty_json_body = " .. tostring(eff.empty_json_body) .. ",")
   end
   b:line("  unknown_tag = " .. emit.string(spec.unknown_tag) .. ",")
   b:line("  parse_tag = " .. emit.string(spec.parse_tag) .. ",")
