@@ -13,11 +13,14 @@ traits.TABLE = {
   -- operations
   ["smithy.api#http"] = {
     handled = "ops.lua: method, uri, code, contentType, bodyMediaType, and the extensions"
-      .. " baseUrl, server, accept, rawDownload (op.base_url, op.server, op.accept,"
-      .. " op.raw_download)",
+      .. " baseUrl, server, accept, rawDownload, apiVersion (op.base_url, op.server,"
+      .. " op.accept, op.raw_download, op.api_version)",
   },
   ["smithy.api#paginated"] = { handled = "ops.lua: pagination, validated against members" },
   ["smithy.api#documentation"] = { handled = "types.lua and README.md: descriptions" },
+  ["com.distilled.openapi#apiVersion"] = {
+    handled = "azure.lua: op.api_version (with the Azure protocol only)",
+  },
   ["com.distilled.openapi#contentType"] = {
     handled = "ops.lua: op.content_type (the same value as smithy.api#http contentType)",
   },

@@ -42,6 +42,9 @@ local HTTP_KEYS = {
   server = true,
   baseUrl = true,
   rawDownload = true,
+  -- Azure's ARM api-version, folded into the http trait by its convert.ts (AzureHttpTrait;
+  -- the same value as com.distilled.openapi#apiVersion): op.api_version (gen/azure.lua)
+  apiVersion = true,
 }
 
 --- ops.base_url_variables(url) -> list of `{name}` template variables in order | nil, message
@@ -138,6 +141,10 @@ function ops.http(ctx, op)
   if http.rawDownload ~= nil and type(http.rawDownload) ~= "boolean" then
     return nil, where .. ": smithy.api#http rawDownload must be a boolean"
   end
+  local api_version, aerr = require("distilled.gen.azure").api_version(ctx, op, http)
+  if aerr then
+    return nil, where .. ": " .. aerr
+  end
   return {
     method = string.upper(http.method),
     uri = http.uri,
@@ -148,6 +155,7 @@ function ops.http(ctx, op)
     server = http.server,
     base_url = http.baseUrl,
     raw_download = http.rawDownload == true or nil,
+    api_version = api_version,
   }
 end
 
@@ -897,6 +905,7 @@ function ops.descriptor(ctx, op)
     base_url = op.http.base_url,
     server = op.http.server,
     raw_download = op.http.raw_download,
+    api_version = op.http.api_version,
     unsupported = op.unsupported,
     input = emit.call("S.ref", naming.local_name(op.input)),
     output = op.out.value,

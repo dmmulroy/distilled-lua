@@ -302,6 +302,11 @@ function writer.client(plan)
     b:line("  unknown_tag = " .. emit.string(spec.unknown_tag) .. ",")
     b:line("  parse_tag = " .. emit.string(spec.parse_tag) .. ",")
     b:line("  base_url_option = " .. emit.string(spec.base_url.option) .. ",")
+    if spec.runtime then
+      -- the provider-spec data of a task-13 spec (options, env, defaults, auth), as
+      -- rest.new's `provider` (Azure's protocol builds on rest.compile_provider)
+      b:lines_of(emit.value(spec.runtime, "  ", "provider = ", ","))
+    end
     b:line("})")
   else
     b:line("local protocol = rest.new({")

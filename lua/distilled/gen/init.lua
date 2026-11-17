@@ -211,6 +211,14 @@ function gen.plan(args)
     greedy = {},
     items_root = {},
   }
+  -- Azure Resource Manager models (gen/azure.lua): leading ARM-id labels become greedy
+  local azure = require("distilled.gen.azure")
+  local name_overrides = spec.naming.operations
+  if azure.applies(spec) then
+    azure.prepare(m)
+    -- ARM ids that differ only in case (one per api-version) get distinct names
+    name_overrides = azure.operation_names(m, spec)
+  end
 
   -- method names for every operation (collisions are checked over the whole model, so
   -- `--ops` cannot hide one)
@@ -224,7 +232,7 @@ function gen.plan(args)
   end
   local method_names, nerr, page_methods = naming.operation_names(entries, {
     words = spec.naming.words,
-    overrides = spec.naming.operations,
+    overrides = name_overrides,
   })
   if not method_names then
     return nil, nerr
