@@ -41,7 +41,12 @@
 --           title = "HetznerServers",        -- class name (default: title .. PascalCase)
 --           base_url = "https://other.test", -- a URL (replaces the default only) or a
 --         },                                 -- partial { default, option, env }
---       },
+--         platform = {                       -- a model with its own auth (task 27):
+--           auth = { kind = "bearer", from = "api_key", env = "OTHER_KEY" },
+--           options = false,                 -- false: the model has none of the package's
+--           headers = { ["X-V"] = "2" },     -- replaces the package's headers
+--         },
+--       },                                   -- (provider.MODEL_SPEC_KEYS lists the keys)
 --     },
 --   }
 --
@@ -154,6 +159,94 @@ provider.UNSUPPORTED = {
   streaming = "streaming operations (no streaming in the runtime yet)",
 }
 
+-- Spec keys a models.override entry may carry besides title and base_url (task 27): the
+-- parts of a package's TS glue that differ per model (Distilled writes one
+-- credentials/protocol pair per model: ClerkPlatformProtocol, ConvexDeploymentProtocol,
+-- FunctionsProtocol, ...). Each replaces the package's key of that name for the model;
+-- `false` removes it. The merged spec is validated whole, like a package spec.
+provider.MODEL_SPEC_KEYS = {
+  auth = true,
+  options = true,
+  headers = true,
+  require_one_of = true,
+  public_operations = true,
+  oauth = true,
+  user_agent = true,
+  error_envelope = true,
+  unknown_fields = true,
+  transform_response = true,
+  empty_json_body = true,
+  glue = true,
+}
+
+-- the keys of a base_url table that only the extended form (provider_ext) knows
+local BASE_EXT_KEYS = { trim_slash = true, ensure_suffix = true, origin = true }
+
+-- Does this override need the whole spec re-validated (task 27), or is it the classic
+-- title/base_url change (task 10)? Classic overrides keep generating exactly as before.
+local function full_override(o)
+  for k in pairs(provider.MODEL_SPEC_KEYS) do
+    if o[k] ~= nil then
+      return true
+    end
+  end
+  local b = o.base_url
+  if type(b) == "table" then
+    for k, v in pairs(b) do
+      if v == false or BASE_EXT_KEYS[k] or type(v) == "table" then
+        return true
+      end
+    end
+    if
+      type(b.env) == "table"
+      or (b.default ~= nil and string.find(tostring(b.default), "{", 1, true))
+    then
+      return true
+    end
+  elseif type(b) == "string" and string.find(b, "{", 1, true) then
+    return true
+  end
+  return false
+end
+
+-- The raw spec of one model: the package's raw spec with the override's keys replacing
+-- the package's (false removes one). base_url merges field by field over the package's
+-- (a string is the default), so an override names only what differs.
+local function merged_raw(raw, o)
+  local m = {}
+  for k, v in pairs(raw) do
+    m[k] = v
+  end
+  m.models = nil
+  for k in pairs(provider.MODEL_SPEC_KEYS) do
+    if o[k] == false then
+      m[k] = nil
+    elseif o[k] ~= nil then
+      m[k] = o[k]
+    end
+  end
+  if o.base_url ~= nil then
+    local base = {}
+    if type(raw.base_url) == "table" then
+      for k, v in pairs(raw.base_url) do
+        base[k] = v
+      end
+    elseif raw.base_url ~= nil then
+      base.default = raw.base_url
+    end
+    local ob = type(o.base_url) == "table" and o.base_url or { default = o.base_url }
+    for k, v in pairs(ob) do
+      if v == false then
+        base[k] = nil
+      else
+        base[k] = v
+      end
+    end
+    m.base_url = base
+  end
+  return m
+end
+
 -- Gaps that were closed: listing one is a stale provider spec, reported as such.
 provider.CLOSED_GAPS = {
   multipart = "request.build encodes multipart bodies now; remove it from allow_unsupported",
@@ -215,11 +308,13 @@ function provider.for_model(spec, model_name)
   if not provider.is_model_name(model_name) then
     error("distilled.gen.provider.for_model: bad model name " .. tostring(model_name), 2)
   end
+  local ov = spec.models.override[model_name] or {}
   local out = {}
-  for k, v in pairs(spec) do
+  -- a task-27 override: the model's own validated spec (auth, options, headers, ...)
+  for k, v in pairs(ov.spec or spec) do
     out[k] = v
   end
-  local ov = spec.models.override[model_name] or {}
+  out.models = spec.models
   local pascal = string.gsub(model_name, "_?(%w)(%w*)", function(first, rest)
     return string.upper(first) .. rest
   end)
@@ -227,6 +322,9 @@ function provider.for_model(spec, model_name)
   out.model_name = model_name
   out.name = spec.name .. "." .. model_name
   out.title = ov.title or (string.gsub(spec.title, "[^%w_]", "") .. pascal)
+  if ov.spec then
+    return out
+  end
   out.base_url = ov.base_url or spec.base_url
   if out.runtime and ov.base_url then
     ext.override_base_url(out)
@@ -453,7 +551,11 @@ function provider.validate(spec, opts)
           elseif type(o) ~= "table" then
             p[#p + 1] = where .. " must be a table"
           else
-            check_keys(where, o, { base_url = true, title = true }, p)
+            local allowed = { base_url = true, title = true }
+            for key in pairs(provider.MODEL_SPEC_KEYS) do
+              allowed[key] = true
+            end
+            check_keys(where, o, allowed, p)
             local ov = {}
             if o.title ~= nil then
               if type(o.title) ~= "string" or not naming.is_identifier(o.title) then
@@ -461,7 +563,18 @@ function provider.validate(spec, opts)
               end
               ov.title = o.title
             end
-            if o.base_url ~= nil then
+            if full_override(o) then
+              -- the model's own spec: the package's raw spec with the override applied,
+              -- validated whole (its runtime data, options and docs are its own)
+              local mspec, merr = provider.validate(merged_raw(raw, o), opts)
+              if not mspec then
+                for line in string.gmatch(merr, "[^\n]+") do
+                  p[#p + 1] = where .. ": " .. line
+                end
+              else
+                ov.spec = mspec
+              end
+            elseif o.base_url ~= nil then
               local b = normalize_base_url(where .. ".base_url", o.base_url, p, true)
               ov.base_url = {
                 default = b.default or out.base_url.default,
