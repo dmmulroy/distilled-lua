@@ -758,3 +758,27 @@ t.describe("cloudflare protocol helpers", function()
     t.eq(cloudflare._test_pattern("timeout", "timeouts"), false)
   end)
 end)
+
+t.describe("cloudflare opAliases (generator.ts alias re-exports)", function()
+  t.it("an alias is a second method on the same route", function()
+    local reply = { body = envelope({ successful_key_count = 1 }) }
+    local input = { account_id = "a", namespace_id = "n", body = json.array({ "k" }) }
+    local v1, e1, r1 = run(KV, "bulk_delete_namespaces", input, reply)
+    local v2, e2, r2 = run(KV, "bulk_delete_namespace_keys", input, reply)
+    t.eq(e1, nil)
+    t.eq(e2, nil)
+    t.same(v2, v1)
+    t.eq(r2[1].method, r1[1].method)
+    t.eq(r2[1].url, BASE .. "/accounts/a/storage/kv/namespaces/n/bulk/delete")
+    t.eq(r2[1].url, r1[1].url)
+    t.eq(r2[1].body, r1[1].body)
+  end)
+
+  t.it("the alias keeps the target's errors", function()
+    local input = { account_id = "a", namespace_id = "n", body = json.array({ "k" }) }
+    local reply = { status = 404, body = error_envelope({ { code = 10013, message = "x" } }) }
+    local _, e1 = run(KV, "bulk_delete_namespaces", input, reply)
+    local _, e2 = run(KV, "bulk_delete_namespace_keys", input, reply)
+    t.eq(e2.tag, e1.tag)
+  end)
+end)

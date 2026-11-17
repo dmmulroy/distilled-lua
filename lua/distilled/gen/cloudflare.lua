@@ -510,6 +510,81 @@ function cloudflare.after_select(ctx, plan_ops)
     op.extra = ctx.cloudflare.op_extra[op.id]
   end
   ctx.nullable_owners = ctx.model:reachable(roots)
+  cloudflare.add_aliases(ctx, plan_ops)
+end
+
+--- cloudflare.add_aliases(ctx, plan_ops): the model's metadata opAliases ("some routes
+-- exist under several distilled export names upstream"), as generator.ts emits them:
+-- `export const <alias> = <target>` when the target is emitted and the alias name is
+-- free. Here an alias is a second method on the same operation: a copy of the target's
+-- plan entry under the alias's method name (and `_pages` / `_items` for a paginated one).
+function cloudflare.add_aliases(ctx, plan_ops)
+  local meta = ctx.model.doc.metadata
+  local aliases = type(meta) == "table" and meta.opAliases or nil
+  if type(aliases) ~= "table" then
+    return
+  end
+  local by_export, taken = {}, {}
+  for _, op in ipairs(ctx.model.operations) do
+    taken[naming.snake_case(op.name, ctx.words)] = true
+  end
+  for _, op in ipairs(plan_ops) do
+    by_export[cloudflare.ts_export_name(op.name)] = op
+    taken[op.method_name] = true
+    for _, name in pairs(op.page_methods or {}) do
+      taken[name] = true
+    end
+  end
+  for _, a in ipairs(aliases) do
+    local target = type(a) == "table" and by_export[a.target] or nil
+    if target and type(a.alias) == "string" and not by_export[a.alias] then
+      local method = naming.snake_case(
+        string.upper(string.sub(a.alias, 1, 1)) .. string.sub(a.alias, 2),
+        ctx.words
+      )
+      local page_methods
+      if target.page_methods then
+        page_methods = { pages = method .. "_pages", items = method .. "_items" }
+      end
+      local free = naming.is_identifier(method)
+        and not naming.KEYWORDS[method]
+        and not naming.CLIENT_METHODS[method]
+        and not taken[method]
+      for _, name in pairs(page_methods or {}) do
+        free = free and not taken[name]
+      end
+      if free then
+        local copy = {}
+        for k, v in pairs(target) do
+          copy[k] = v
+        end
+        copy.method_name = method
+        copy.page_methods = page_methods
+        copy.alias_of = target.method_name
+        -- its own documentation (README row, types.lua): generator.ts's alias comment
+        local def, traits = {}, {}
+        for k, v in pairs(target.def) do
+          def[k] = v
+        end
+        for k, v in pairs(target.def.traits or {}) do
+          traits[k] = v
+        end
+        local doc = traits["smithy.api#documentation"]
+        traits["smithy.api#documentation"] = "Alias of `"
+          .. target.method_name
+          .. "` (same route, alternate export name upstream)."
+          .. (type(doc) == "string" and (" " .. doc) or "")
+        def.traits = traits
+        copy.def = def
+        plan_ops[#plan_ops + 1] = copy
+        by_export[a.alias] = copy
+        taken[method] = true
+        for _, name in pairs(page_methods or {}) do
+          taken[name] = true
+        end
+      end
+    end
+  end
 end
 
 ---------------------------------------------------------------------------------------

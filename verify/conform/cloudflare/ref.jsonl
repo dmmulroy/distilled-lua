@@ -112,12 +112,11 @@
 {"id":"ai.get_model_schema#typed-ModelNotSupported","outcome":{"ok":false,"error":{"tag":"ModelNotSupported","message":"conform typed error","code":1000,"transient":false,"throttling":false}}}
 {"id":"ai.get_model_schema#unknown","outcome":{"ok":false,"error":{"tag":"UnknownCloudflareError","message":"something new","code":424242,"transient":false,"throttling":false}}}
 {"id":"ai.get_model_schema#extra","outcome":{"ok":false,"error":{"tag":"Forbidden","message":"Unable to authenticate request","transient":true,"throttling":false}}}
-{"id":"ai.create_finetune#request","ok":true,"method":"POST","url":"https://api.cloudflare.com/client/v4/accounts/p-account_id/ai/finetunes","headers":{"authorization":"Bearer cf-conform-token","content-type":"application/json","content-length":"79"},"body":{"kind":"bytes","text":"{\"model\":\"s model\",\"name\":\"s name\",\"description\":\"s description\",\"public\":true}","content_type":"application/json"}}
-{"id":"ai.create_finetune#success","outcome":{"ok":true,"value":{"id":"o-id","createdAt":"o-created_at","model":"o-model","modifiedAt":"o-modified_at","name":"o-name","public":false,"description":"o-description"}}}
-{"id":"ai.create_finetune#success-nulls-strict","outcome":{"ok":true,"value":{"id":"o-id","createdAt":"o-created_at","model":"o-model","modifiedAt":"o-modified_at","name":"o-name","public":false,"description":null}}}
-{"id":"ai.create_finetune#typed-ModelNotSupported","outcome":{"ok":false,"error":{"tag":"ModelNotSupported","message":"conform typed error","code":1000,"transient":false,"throttling":false}}}
-{"id":"ai.create_finetune#unknown","outcome":{"ok":false,"error":{"tag":"UnknownCloudflareError","message":"something new","code":424242,"transient":false,"throttling":false}}}
-{"id":"ai.create_finetune#extra","outcome":{"ok":false,"error":{"tag":"NotFound","message":"HTTP 404","transient":false,"throttling":false}}}
+{"id":"ai.create_ai_to_markdown#request","ok":true,"method":"POST","url":"https://api.cloudflare.com/client/v4/accounts/p-account_id/ai/tomarkdown","headers":{"authorization":"Bearer cf-conform-token","content-type":"application/json","content-length":"30"},"body":{"kind":"bytes","text":"{\"file\":{\"files\":[\"s files\"]}}","content_type":"application/json"}}
+{"id":"ai.create_ai_to_markdown#success","outcome":{"ok":true,"value":[{"data":"o-data","format":"o-format","mimeType":"o-mimeType","name":"o-name","tokens":"o-tokens"}]}}
+{"id":"ai.create_ai_to_markdown#success-nulls-strict","outcome":{"ok":true,"value":[{"data":"o-data","format":"o-format","mimeType":"o-mimeType","name":"o-name","tokens":"o-tokens"}]}}
+{"id":"ai.create_ai_to_markdown#unknown","outcome":{"ok":false,"error":{"tag":"UnknownCloudflareError","message":"something new","code":424242,"transient":false,"throttling":false}}}
+{"id":"ai.create_ai_to_markdown#extra","outcome":{"ok":false,"error":{"tag":"NotFound","message":"HTTP 404","transient":false,"throttling":false}}}
 {"id":"ai_audit.robots_bulk_get#request","ok":true,"method":"POST","url":"https://api.cloudflare.com/client/v4/zones/p-zone_id/ai-audit/robots/bulk","headers":{"authorization":"Bearer cf-conform-token","content-type":"application/json","content-length":"10"},"body":{"kind":"bytes","text":"[\"s body\"]","content_type":"application/json"}}
 {"id":"ai_audit.robots_bulk_get#success","outcome":{"ok":true,"value":{"k1":{"userAgents":{"k1":{"allow":["o-allow"],"disallow":["o-disallow"]}},"sitemaps":["o-sitemaps"],"status":3}}}}
 {"id":"ai_audit.robots_bulk_get#success-nulls-strict","outcome":{"ok":true,"value":{"k1":{"userAgents":{"k1":{"allow":["o-allow"],"disallow":["o-disallow"],"contentSignals":null,"crawlDelay":null}},"sitemaps":null,"status":null}}}}
@@ -1420,12 +1419,12 @@
 {"id":"keyless_certificates.delete_keyless_certificate#typed-KeylessCertificateNotFound","outcome":{"ok":false,"error":{"tag":"KeylessCertificateNotFound","message":"conform Invalid or missing Keyless SSL case","code":1005,"transient":false,"throttling":false}}}
 {"id":"keyless_certificates.delete_keyless_certificate#unknown","outcome":{"ok":false,"error":{"tag":"UnknownCloudflareError","message":"something new","code":424242,"transient":false,"throttling":false}}}
 {"id":"keyless_certificates.delete_keyless_certificate#extra","outcome":{"ok":false,"error":{"tag":"BadGateway","message":"<html>bad</html>","transient":true,"throttling":false}}}
-{"id":"kv.bulk_delete_namespaces#request","ok":true,"method":"POST","url":"https://api.cloudflare.com/client/v4/accounts/p-account_id/storage/kv/namespaces/p-namespace_id/bulk/delete","headers":{"authorization":"Bearer cf-conform-token","content-type":"application/json","content-length":"10"},"body":{"kind":"bytes","text":"[\"s body\"]","content_type":"application/json"}}
-{"id":"kv.bulk_delete_namespaces#success","outcome":{"ok":true,"value":{"successfulKeyCount":3,"unsuccessfulKeys":["o-unsuccessful_keys"]}}}
-{"id":"kv.bulk_delete_namespaces#success-nulls-strict","outcome":{"ok":true,"value":{"successfulKeyCount":null,"unsuccessfulKeys":null}}}
-{"id":"kv.bulk_delete_namespaces#typed-NamespaceNotFound","outcome":{"ok":false,"error":{"tag":"NamespaceNotFound","message":"conform typed error","code":10013,"transient":false,"throttling":false}}}
-{"id":"kv.bulk_delete_namespaces#unknown","outcome":{"ok":false,"error":{"tag":"UnknownCloudflareError","message":"something new","code":424242,"transient":false,"throttling":false}}}
-{"id":"kv.bulk_delete_namespaces#extra","outcome":{"ok":false,"error":{"tag":"TooManyRequests","message":"slow down","transient":true,"throttling":true,"retry_after":3}}}
+{"id":"kv.bulk_delete_namespace_keys#request","ok":true,"method":"POST","url":"https://api.cloudflare.com/client/v4/accounts/p-account_id/storage/kv/namespaces/p-namespace_id/bulk/delete","headers":{"authorization":"Bearer cf-conform-token","content-type":"application/json","content-length":"10"},"body":{"kind":"bytes","text":"[\"s body\"]","content_type":"application/json"}}
+{"id":"kv.bulk_delete_namespace_keys#success","outcome":{"ok":true,"value":{"successfulKeyCount":3,"unsuccessfulKeys":["o-unsuccessful_keys"]}}}
+{"id":"kv.bulk_delete_namespace_keys#success-nulls-strict","outcome":{"ok":true,"value":{"successfulKeyCount":null,"unsuccessfulKeys":null}}}
+{"id":"kv.bulk_delete_namespace_keys#typed-NamespaceNotFound","outcome":{"ok":false,"error":{"tag":"NamespaceNotFound","message":"conform typed error","code":10013,"transient":false,"throttling":false}}}
+{"id":"kv.bulk_delete_namespace_keys#unknown","outcome":{"ok":false,"error":{"tag":"UnknownCloudflareError","message":"something new","code":424242,"transient":false,"throttling":false}}}
+{"id":"kv.bulk_delete_namespace_keys#extra","outcome":{"ok":false,"error":{"tag":"TooManyRequests","message":"slow down","transient":true,"throttling":true,"retry_after":3}}}
 {"id":"kv.list_namespaces#request","ok":true,"method":"GET","url":"https://api.cloudflare.com/client/v4/accounts/p-account_id/storage/kv/namespaces?direction=asc&order=id&page=7&per_page=7","headers":{"authorization":"Bearer cf-conform-token"},"body":{"kind":"none"}}
 {"id":"kv.list_namespaces#success","outcome":{"ok":true,"value":{"result":[{"id":"o-id","title":"o-title","jurisdiction":"eu","mode":"instant","supportsUrlEncoding":false}]}}}
 {"id":"kv.list_namespaces#success-nulls-strict","outcome":{"ok":true,"value":{"result":[{"id":"o-id","title":"o-title","jurisdiction":null,"mode":null,"supportsUrlEncoding":null}]}}}
@@ -1444,12 +1443,12 @@
 {"id":"kv.get_namespace#typed-NamespaceNotFound","outcome":{"ok":false,"error":{"tag":"NamespaceNotFound","message":"conform typed error","code":10013,"transient":false,"throttling":false}}}
 {"id":"kv.get_namespace#unknown","outcome":{"ok":false,"error":{"tag":"UnknownCloudflareError","message":"something new","code":424242,"transient":false,"throttling":false}}}
 {"id":"kv.get_namespace#extra","outcome":{"ok":false,"error":{"tag":"NotFound","message":"HTTP 404","transient":false,"throttling":false}}}
-{"id":"kv.bulk_put_namespaces#request","ok":true,"method":"PUT","url":"https://api.cloudflare.com/client/v4/accounts/p-account_id/storage/kv/namespaces/p-namespace_id/bulk","headers":{"authorization":"Bearer cf-conform-token","content-type":"application/json","content-length":"107"},"body":{"kind":"bytes","text":"[{\"key\":\"s key\",\"value\":\"s value\",\"base64\":true,\"expiration\":7,\"expiration_ttl\":7,\"metadata\":{\"opaque\":1}}]","content_type":"application/json"}}
-{"id":"kv.bulk_put_namespaces#success","outcome":{"ok":true,"value":{"successfulKeyCount":3,"unsuccessfulKeys":["o-unsuccessful_keys"]}}}
-{"id":"kv.bulk_put_namespaces#success-nulls-strict","outcome":{"ok":true,"value":{"successfulKeyCount":null,"unsuccessfulKeys":null}}}
-{"id":"kv.bulk_put_namespaces#typed-InvalidRequestBody","outcome":{"ok":false,"error":{"tag":"InvalidRequestBody","message":"conform typed error","code":10012,"transient":false,"throttling":false}}}
-{"id":"kv.bulk_put_namespaces#unknown","outcome":{"ok":false,"error":{"tag":"UnknownCloudflareError","message":"something new","code":424242,"transient":false,"throttling":false}}}
-{"id":"kv.bulk_put_namespaces#extra","outcome":{"ok":false,"error":{"tag":"Unauthorized","message":"Invalid access token","transient":false,"throttling":false}}}
+{"id":"kv.bulk_put_namespace_keys#request","ok":true,"method":"PUT","url":"https://api.cloudflare.com/client/v4/accounts/p-account_id/storage/kv/namespaces/p-namespace_id/bulk","headers":{"authorization":"Bearer cf-conform-token","content-type":"application/json","content-length":"107"},"body":{"kind":"bytes","text":"[{\"key\":\"s key\",\"value\":\"s value\",\"base64\":true,\"expiration\":7,\"expiration_ttl\":7,\"metadata\":{\"opaque\":1}}]","content_type":"application/json"}}
+{"id":"kv.bulk_put_namespace_keys#success","outcome":{"ok":true,"value":{"successfulKeyCount":3,"unsuccessfulKeys":["o-unsuccessful_keys"]}}}
+{"id":"kv.bulk_put_namespace_keys#success-nulls-strict","outcome":{"ok":true,"value":{"successfulKeyCount":null,"unsuccessfulKeys":null}}}
+{"id":"kv.bulk_put_namespace_keys#typed-InvalidRequestBody","outcome":{"ok":false,"error":{"tag":"InvalidRequestBody","message":"conform typed error","code":10012,"transient":false,"throttling":false}}}
+{"id":"kv.bulk_put_namespace_keys#unknown","outcome":{"ok":false,"error":{"tag":"UnknownCloudflareError","message":"something new","code":424242,"transient":false,"throttling":false}}}
+{"id":"kv.bulk_put_namespace_keys#extra","outcome":{"ok":false,"error":{"tag":"Unauthorized","message":"Invalid access token","transient":false,"throttling":false}}}
 {"id":"leaked_credential_checks.list_detections#request","ok":true,"method":"GET","url":"https://api.cloudflare.com/client/v4/zones/p-zone_id/leaked-credential-checks/detections","headers":{"authorization":"Bearer cf-conform-token"},"body":{"kind":"none"}}
 {"id":"leaked_credential_checks.list_detections#success","outcome":{"ok":true,"value":{"result":[{"id":"o-id","password":"o-password","username":"o-username"}]}}}
 {"id":"leaked_credential_checks.list_detections#success-nulls-strict","outcome":{"ok":true,"value":{"result":[{"id":null,"password":null,"username":null}]}}}
@@ -2115,11 +2114,11 @@
 {"id":"radar.ai_timeseries_groups_summary#success-nulls-strict","outcome":{"ok":true,"value":{"meta":{"confidenceInfo":{"annotations":[{"dataSource":"ALL","description":"o-description","endDate":"o-endDate","eventType":"GENERAL","isInstantaneous":false,"linkedUrl":"o-linkedUrl","startDate":"o-startDate","tags":null}],"level":3},"dateRange":[{"endTime":"o-endTime","startTime":"o-startTime"}],"lastUpdated":"o-lastUpdated","normalization":"PERCENTAGE","units":[{"name":"o-name","value":"o-value"}]},"summary_0":{"k1":"o-summary_0"}}}}
 {"id":"radar.ai_timeseries_groups_summary#unknown","outcome":{"ok":false,"error":{"tag":"UnknownCloudflareError","message":"something new","code":424242,"transient":false,"throttling":false}}}
 {"id":"radar.ai_timeseries_groups_summary#extra","outcome":{"ok":false,"error":{"tag":"BadGateway","message":"<html>bad</html>","transient":true,"throttling":false}}}
-{"id":"radar.download_dataset#request","ok":true,"method":"POST","url":"https://api.cloudflare.com/client/v4/radar/datasets/download?format=JSON","headers":{"authorization":"Bearer cf-conform-token","content-type":"application/json","content-length":"15"},"body":{"kind":"bytes","text":"{\"datasetId\":7}","content_type":"application/json"}}
-{"id":"radar.download_dataset#success","outcome":{"ok":true,"value":{"dataset":{"url":"o-url"}}}}
-{"id":"radar.download_dataset#success-nulls-strict","outcome":{"ok":true,"value":{"dataset":{"url":"o-url"}}}}
-{"id":"radar.download_dataset#unknown","outcome":{"ok":false,"error":{"tag":"UnknownCloudflareError","message":"something new","code":424242,"transient":false,"throttling":false}}}
-{"id":"radar.download_dataset#extra","outcome":{"ok":false,"error":{"tag":"TooManyRequests","message":"slow down","transient":true,"throttling":true,"retry_after":3}}}
+{"id":"radar.create_ai_to_markdown#request","ok":true,"method":"POST","url":"https://api.cloudflare.com/client/v4/accounts/p-account_id/ai/tomarkdown","headers":{"authorization":"Bearer cf-conform-token","content-type":"application/json","content-length":"21"},"body":{"kind":"bytes","text":"{\"files\":[\"s files\"]}","content_type":"application/json"}}
+{"id":"radar.create_ai_to_markdown#success","outcome":{"ok":true,"value":[{"data":"o-data","format":"o-format","mimeType":"o-mimeType","name":"o-name","tokens":"o-tokens"}]}}
+{"id":"radar.create_ai_to_markdown#success-nulls-strict","outcome":{"ok":true,"value":[{"data":"o-data","format":"o-format","mimeType":"o-mimeType","name":"o-name","tokens":"o-tokens"}]}}
+{"id":"radar.create_ai_to_markdown#unknown","outcome":{"ok":false,"error":{"tag":"UnknownCloudflareError","message":"something new","code":424242,"transient":false,"throttling":false}}}
+{"id":"radar.create_ai_to_markdown#extra","outcome":{"ok":false,"error":{"tag":"TooManyRequests","message":"slow down","transient":true,"throttling":true,"retry_after":3}}}
 {"id":"rate_limits.get_rate_limit#request","ok":true,"method":"GET","url":"https://api.cloudflare.com/client/v4/zones/p-zone_id/rate_limits/p-rate_limit_id","headers":{"authorization":"Bearer cf-conform-token"},"body":{"kind":"none"}}
 {"id":"rate_limits.get_rate_limit#success","outcome":{"ok":true,"value":{}}}
 {"id":"rate_limits.get_rate_limit#success-nulls-strict","outcome":{"ok":true,"value":{}}}
