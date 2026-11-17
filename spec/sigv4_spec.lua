@@ -282,6 +282,33 @@ t.describe("sigv4: time, secrets, copies", function()
     t.match(signed.headers.authorization, "/19700101/us%-east%-1/sqs/aws4_request")
   end)
 
+  t.it("key_cache: same signatures, at most 16 scopes, never keyed by the secret", function()
+    local cache = {}
+    for i = 1, 3 do
+      local c = V.cases[i]
+      local plain = assert(sigv4.sign(args_of(c.input)))
+      local cached = assert(sigv4.sign(args_of(c.input, { key_cache = cache })))
+      local again = assert(sigv4.sign(args_of(c.input, { key_cache = cache })))
+      t.eq(cached.headers.authorization, plain.headers.authorization)
+      t.eq(again.headers.authorization, plain.headers.authorization)
+    end
+    for day = 1, 40 do
+      assert(sigv4.sign({
+        request = { url = "https://sqs.us-east-1.amazonaws.com/" },
+        credentials = DOCS,
+        now_epoch = day * 86400,
+        key_cache = cache,
+      }))
+    end
+    local n = 0
+    for k, v in pairs(cache) do
+      n = n + 1
+      t.no_match(k, DOCS.secret_access_key, true)
+      t.eq(#v, 32)
+    end
+    t.truthy(n >= 1 and n <= 16, "entries: " .. n)
+  end)
+
   t.it("an empty body defaults the method to GET and hashes the empty string", function()
     local signed = assert(sigv4.sign({
       request = { url = "https://execute-api.us-east-1.amazonaws.com/x", body = "" },

@@ -134,6 +134,24 @@ do
     end
   end)
   report(string.format("%-8s sigv4.sign small JSON request: %.2f ms each", runtime, s / m * 1000))
+  local cache = {}
+  local _, s2 = time(function()
+    for i = 1, m do
+      sigv4.sign({
+        request = {
+          method = "GET",
+          url = "https://sqs.us-east-1.amazonaws.com/?Action=ListQueues&n=" .. i,
+        },
+        credentials = {
+          access_key_id = "AKIDEXAMPLE",
+          secret_access_key = "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY",
+        },
+        now_epoch = 1700000000 + i,
+        key_cache = cache,
+      })
+    end
+  end)
+  report(string.format("%-8s sigv4.sign with key_cache: %.2f ms each", runtime, s2 / m * 1000))
 end
 
 if failed then

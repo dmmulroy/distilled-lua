@@ -9,7 +9,7 @@
 --
 --   sigv4.sign{ request, credentials, region?, service?, now_epoch | datetime,
 --               sign_query?, all_headers?, hash_payload?, append_session_token?,
---               single_encode? } -> signed request | nil, err
+--               single_encode?, key_cache? } -> signed request | nil, err
 --   sigv4.presign{ url, method?, headers?, credentials, region?, service?, expires_in?,
 --                  now_epoch | datetime, ... } -> url | nil, err
 --   sigv4.canonical_request{ same arguments as sign } -> string | nil, err
@@ -621,6 +621,7 @@ local SIGN_ARGS = {
   hash_payload = "boolean",
   append_session_token = "boolean",
   single_encode = "boolean",
+  key_cache = "table",
 }
 
 local function check_args(args, allowed, fname)
@@ -673,6 +674,39 @@ function sigv4.signing_key(secret_access_key, date, region, service)
   k = crypto.hmac_sha256(k, region)
   k = crypto.hmac_sha256(k, service)
   return crypto.hmac_sha256(k, "aws4_request")
+end
+
+-- The derived key, from args.key_cache when the caller keeps one (a table it owns, one
+-- per client, as Distilled keeps a cache per secret). Entries are keyed by a hash of the
+-- secret, never the secret itself, plus the scope; at most 16 are kept, so rotating
+-- temporary credentials do not pile up secret-derived keys.
+local KEY_CACHE_MAX = 16
+local function cached_signing_key(cache, state)
+  if not cache then
+    return sigv4.signing_key(state.secret_key, state.date, state.region, state.service)
+  end
+  local id = crypto.sha256(state.secret_key)
+    .. "/"
+    .. state.date
+    .. "/"
+    .. state.region
+    .. "/"
+    .. state.service
+  local key = cache[id]
+  if not key then
+    key = sigv4.signing_key(state.secret_key, state.date, state.region, state.service)
+    local n = 0
+    for _ in pairs(cache) do
+      n = n + 1
+    end
+    if n >= KEY_CACHE_MAX then
+      for k in pairs(cache) do
+        cache[k] = nil
+      end
+    end
+    cache[id] = key
+  end
+  return key
 end
 
 -- prepare(args) -> state | nil, err: everything up to the canonical request
@@ -890,7 +924,7 @@ function sigv4.sign(args)
     state.credential_scope,
     sha256_hex(state.canonical),
   }, "\n")
-  local key = sigv4.signing_key(state.secret_key, state.date, state.region, state.service)
+  local key = cached_signing_key(args.key_cache, state)
   local signature = hex.encode(crypto.hmac_sha256(key, string_to_sign))
 
   local headers = state.headers
