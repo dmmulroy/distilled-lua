@@ -136,17 +136,34 @@ t.describe("gen.shapes: naming policy and refusals", function()
     t.eq(member(svc.shapes.Thing, "fooBar").wire, nil)
   end)
 
-  t.it("refuses nullable list items (no representation in the contract)", function()
-    local files, err = fx.generate({
+  -- Distilled emits `S.Array(S.NullOr(item))` / `S.Record(S.String, S.NullOr(value))`
+  -- for a list member or map value with the nullable trait (generator.ts, list/map).
+  t.it("a nullable list item or map value is an S.nullable node (S.NullOr)", function()
+    local svc, files = service({
       replace = {
         {
           '"ex.api#TagList": { "type": "list", "member": { "target": "smithy.api#String" } }',
           '"ex.api#TagList": { "type": "list", "member": { "target": "smithy.api#String", "traits": { "com.distilled.openapi#nullable": {} } } }',
         },
+        {
+          '"value": { "target": "smithy.api#String" } }',
+          '"value": { "target": "ex.api#Thing", "traits": { "com.distilled.openapi#nullable": {}, "smithy.api#sensitive": {} } } }',
+        },
       },
     })
-    t.eq(files, nil)
-    t.match(err, "ex.api#TagList: nullable list items", true)
+    t.same(svc.shapes.TagList, { t = "list", item = { t = "string", nullable = true } })
+    t.same(svc.shapes.LabelMap, {
+      t = "map",
+      value = { t = "ref", name = "Thing", sensitive = true, nullable = true },
+    })
+    t.match(files["service.lua"], "item = S.nullable(S.string)", true)
+    t.match(files["service.lua"], 'S.nullable(S.sensitive(S.ref("Thing")))', true)
+    -- LuaLS: the item type admits distilled.Null
+    t.match(files["types.lua"], "---@alias ex.TagList (string|distilled.Null)[]", true)
+    t.match(files["types.lua"], "---@alias ex.LabelMap { [string]: ex.Thing|distilled.Null }", true)
+    -- a list without the trait is unchanged
+    local plain = service()
+    t.same(plain.shapes.TagList, { t = "list", item = { t = "string" } })
   end)
 
   t.it("refuses a label member missing from the URI", function()

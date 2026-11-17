@@ -188,3 +188,121 @@ t.describe("schema: value helpers", function()
     t.eq(S.pick_arm(U, "scalar"), nil)
   end)
 end)
+
+-- Task 11: nullable nodes (Distilled's S.NullOr) for Smithy sparse lists and maps, whose
+-- items and values have no member to carry `nullable`, and for a nullable rawResponse
+-- output root.
+t.describe("schema: nullable nodes (S.NullOr)", function()
+  local keys = require("distilled.keys")
+  local redact = require("distilled.redact")
+  local validate = require("distilled.validate")
+  local null = json.null
+
+  local THING = S.struct({
+    name = "Thing",
+    members = {
+      S.member({ name = "displayName", wire = "display_name", schema = S.string }),
+      S.member({ name = "token", schema = S.string, sensitive = true }),
+    },
+  })
+  local REGISTRY = { Thing = THING }
+  local SPARSE_LIST = S.list(S.nullable(S.ref("Thing")))
+  local SPARSE_MAP = S.map(S.nullable(S.ref("Thing")))
+
+  t.it("S.nullable copies and marks; the shared node and a ref keep their shape", function()
+    local n = S.nullable(S.string)
+    t.same(n, { t = "string", nullable = true })
+    t.eq(S.string.nullable, nil)
+    t.same(S.nullable(S.ref("Thing")), { t = "ref", name = "Thing", nullable = true })
+    t.same(S.nullable(S.sensitive(S.string)), { t = "string", sensitive = true, nullable = true })
+    t.raises(function()
+      S.nullable("string")
+    end, "nullable expects a schema node")
+  end)
+
+  t.it("node_nullable reads the flag through refs; null and unknown nodes are nullable", function()
+    t.eq(S.node_nullable(S.nullable(S.ref("Thing")), REGISTRY), true)
+    t.eq(S.node_nullable(S.ref("Thing"), REGISTRY), false)
+    t.eq(S.node_nullable(S.ref("N"), { N = S.nullable(S.number) }), true)
+    t.eq(S.node_nullable(S.null), true)
+    t.eq(S.node_nullable(S.unknown), true)
+    t.eq(S.node_nullable(S.string), false)
+    t.eq(S.node_nullable(S.ref("Missing"), REGISTRY), false)
+    -- resolve still reaches the target: the flag does not change the node's type
+    t.eq(S.resolve(S.nullable(S.ref("Thing")), REGISTRY), THING)
+  end)
+
+  t.it("validate: a sparse list keeps null items; a plain list refuses them", function()
+    local v = json.decode('[{"displayName":"a"},null,{"displayName":"b"}]')
+    t.eq(validate.check(SPARSE_LIST, v, REGISTRY), true)
+    t.eq(validate.check(SPARSE_LIST, v, REGISTRY, { exact = true }), true)
+    local r, mm = validate.check(S.list(S.ref("Thing")), v, REGISTRY)
+    t.eq(r, nil)
+    t.same(mm.path, { 2 })
+    t.eq(mm.expected, "object")
+    t.eq(validate.check(S.list(S.nullable(S.string)), json.decode('["a",null]')), true)
+    local r2, mm2 = validate.check(S.list(S.string), json.decode('["a",null]'))
+    t.eq(r2, nil)
+    t.eq(mm2.message, "Expected string, got null at [2]")
+    -- a null list itself is still refused: the flag is on the item, not the list
+    t.eq(validate.check(SPARSE_LIST, null, REGISTRY), nil)
+  end)
+
+  t.it("validate: a sparse map keeps null values; a non-null value is still checked", function()
+    t.eq(validate.check(SPARSE_MAP, json.decode('{"a":null,"b":{}}'), REGISTRY), true)
+    local r, mm = validate.check(S.map(S.nullable(S.number)), json.decode('{"a":null,"b":"x"}'))
+    t.eq(r, nil)
+    t.same(mm.path, { "b" })
+    t.eq(mm.expected, "number")
+    t.eq(validate.check(S.map(S.number), json.decode('{"a":null}')), nil)
+  end)
+
+  t.it(
+    "validate: a nullable root accepts null in strict mode too (protocol-rest.test.ts)",
+    function()
+      local out = S.nullable(S.ref("Thing"))
+      t.eq(validate.check(out, null, REGISTRY, { exact = true }), true)
+      t.eq(validate.check(out, { displayName = "x" }, REGISTRY, { exact = true }), true)
+      t.eq(validate.check(S.ref("Thing"), null, REGISTRY), nil)
+      -- an empty struct (opaque output) refuses null unless it is nullable
+      local empty = S.struct({ members = {} })
+      t.eq(validate.check(empty, null), nil)
+      t.eq(validate.check(S.nullable(empty), null), true)
+    end
+  )
+
+  t.it("validate: a member whose node is nullable accepts null like a nullable member", function()
+    local s = S.struct({
+      members = { S.member({ name = "x", schema = S.nullable(S.ref("Thing")), required = true }) },
+    })
+    t.eq(validate.check(s, { x = null }, REGISTRY), true)
+  end)
+
+  t.it("keys: null items and values survive renaming in both directions", function()
+    local wire = json.decode('[{"display_name":"a"},null]')
+    local user = keys.decode(SPARSE_LIST, wire, REGISTRY)
+    t.eq(user[1].displayName, "a")
+    t.eq(user[2], null)
+    t.eq(#user, 2)
+    t.eq(json.encode(keys.encode(SPARSE_LIST, user, REGISTRY)), '[{"display_name":"a"},null]')
+    local m = keys.decode(SPARSE_MAP, json.decode('{"k":null,"j":{"display_name":"b"}}'), REGISTRY)
+    t.eq(m.k, null)
+    t.eq(m.j.displayName, "b")
+  end)
+
+  t.it("redact: sensitive members of sparse items are wrapped; null stays null", function()
+    local v = keys.decode(SPARSE_LIST, json.decode('[{"token":"s3cret"},null]'), REGISTRY)
+    t.eq(redact.holds_sensitive(SPARSE_LIST, REGISTRY), true)
+    local w = redact.wrap(SPARSE_LIST, v, REGISTRY)
+    t.truthy(secret.is(w[1].token))
+    t.eq(w[2], null)
+    local p = redact.parsed(S.list(S.nullable(S.sensitive(S.string))), { "a", null })
+    t.truthy(secret.is(p[1]))
+    t.eq(p[2], null)
+    -- sensitive.test.ts "null stays null": a nullable sensitive unknown
+    local s = S.struct({
+      members = { S.member({ name = "env", schema = S.nullable(S.sensitive(S.unknown)) }) },
+    })
+    t.eq(redact.wrap(s, { env = null }).env, null)
+  end)
+end)

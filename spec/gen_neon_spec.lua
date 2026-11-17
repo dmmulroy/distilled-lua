@@ -1,4 +1,4 @@
--- The generator over the real Neon model (models/neon.json, 178 operations): the trait
+-- The generator over the real Neon model (models/neon/neon.json, 178 operations): the trait
 -- audit, and byte-identical output against the committed clients/neon/ in every runtime.
 local t = require("spec.harness")
 local gen = require("distilled.gen")
@@ -15,7 +15,7 @@ local function read(path)
 end
 
 t.describe("gen: the Neon model", function()
-  local m, err = gen.model.load(t.root .. "/models/neon.json")
+  local m, err = gen.model.load(t.root .. "/models/neon/neon.json")
 
   t.it("loads with no problems and no warnings", function()
     t.truthy(m, err)
@@ -48,7 +48,7 @@ t.describe("gen: the Neon model", function()
       t.eq(entry.fail, nil, id)
       t.truthy(entry.handled or entry.ignored, id)
     end
-    -- the 22 trait ids `jq` lists for models/neon.json
+    -- the 22 trait ids `jq` lists for models/neon/neon.json
     t.eq(#ids, 22)
   end)
 

@@ -68,10 +68,17 @@ no network except the local fixture server, skipped things named.
   completed inside it (`xpcall(function() xpcall(f, h); error("y") end, h)`). Use
   `compat.pcall`, built on a coroutine, which has neither bug at any depth and passes
   yields through. Keep counters that closures update in tables if in doubt.
-- Yielding across a Go function boundary (from a `table.sort` comparator or a
-  `string.gsub` callback, inside a coroutine) crashes gopher-lua with a nil pointer
-  dereference that takes down the whole `rex do` run. lua/luajit raise "attempt to yield
-  across a C-call boundary" instead.
+- Yielding across a Go function boundary inside a coroutine breaks gopher-lua. Such a
+  yield is one made from a `table.sort` comparator, a `string.gsub` callback, a
+  metamethod, or a function run by native `pcall`/`xpcall`. The coroutine's call stack
+  is corrupted, and a Go error "runtime error: invalid memory address or nil pointer
+  dereference" (or "can not yield from outside of a coroutine") is raised *through*
+  `coroutine.resume` into the resumer, instead of being returned as `false, msg`. An
+  outer `pcall` catches it; uncaught, it ends the `rex do` run (the Rex server keeps
+  running). Lua 5.1 raises "attempt to yield across metamethod/C-call boundary"
+  instead, and LuaJIT/5.2+ allow the `pcall` case. Upstream: yuin/gopher-lua#545, fix
+  in PR #548 (open). Never yield through native `pcall`; `compat.pcall` is safe.
+  Details: `../gopher-lua-research/REPORT.md`.
 - `error(msg, level)` reports at `level - 1`. `compat.raise(msg, level)` corrects it.
 - `table.concat` fails with "registry overflow" past about 2,500 items. Use
   `compat.concat`.

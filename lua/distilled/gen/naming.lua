@@ -231,6 +231,60 @@ function naming.local_name(id)
   return string.match(id, "#(.*)$") or id
 end
 
+-- LuaLS type names (types.lua) of a shape: `<provider>.<local name>`, except where the
+-- client's own definitions take the name. Distilled needs no rule here (TypeScript has
+-- no Client type, and its error classes are the error shapes' own names), so this one
+-- is ours: such a shape is typed `<Name>Shape`, then `<Name>Shape2`, `<Name>Shape3`...,
+-- the first name no other shape and no client type uses. Only the type name changes;
+-- registry keys, struct names and S.ref names stay the model's local names.
+naming.TYPE_NAME_SUFFIX = "Shape"
+
+--- naming.client_type_names(error_tags) -> { [type name] = "what takes it" }
+-- The names the generated types.lua declares for the client itself.
+function naming.client_type_names(error_tags)
+  local taken =
+    { Client = "the client class", Options = "the client options", Module = "the module" }
+  for _, tag in ipairs(error_tags or {}) do
+    taken[tag .. "Error"] = "the error class " .. tag
+  end
+  return taken
+end
+
+--- naming.type_names(ids, taken) -> { [shape id] = type name } for the renamed shapes
+-- ids: every shape id the types declare, sorted (the order makes the suffixes
+-- deterministic); taken: naming.client_type_names(...). A shape not in the result is
+-- typed by its local name.
+function naming.type_names(ids, taken)
+  local used = {}
+  for name in pairs(taken) do
+    used[name] = true
+  end
+  for _, id in ipairs(ids) do
+    used[naming.local_name(id)] = true
+  end
+  local renamed = {}
+  for _, id in ipairs(ids) do
+    local name = naming.local_name(id)
+    if taken[name] then
+      local base = name .. naming.TYPE_NAME_SUFFIX
+      local candidate, k = base, 2
+      while used[candidate] do
+        candidate = base .. k
+        k = k + 1
+      end
+      used[candidate] = true
+      renamed[id] = candidate
+    end
+  end
+  return renamed
+end
+
+--- naming.type_name(ctx, id) -> the LuaLS type name of shape id (without the prefix)
+function naming.type_name(ctx, id)
+  local renamed = ctx and ctx.type_names and ctx.type_names[id]
+  return renamed or naming.local_name(id)
+end
+
 --- naming.is_prelude(id) -> boolean
 function naming.is_prelude(id)
   return string.sub(id, 1, 11) == "smithy.api#"

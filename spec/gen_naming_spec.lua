@@ -146,4 +146,20 @@ t.describe("gen.naming: helpers", function()
     t.truthy(naming.is_prelude("smithy.api#String"))
     t.falsy(naming.is_prelude("com.neon.api#String"))
   end)
+
+  t.it("type_names: a client type name gets the Shape suffix, then Shape2 (task 11)", function()
+    local taken = naming.client_type_names({ "NotFound" })
+    t.eq(taken.NotFoundError, "the error class NotFound")
+    t.eq(taken.Client, "the client class")
+    local ids = { "a#Client", "a#ClientShape", "a#Module", "a#NotFoundError", "a#Thing" }
+    t.same(naming.type_names(ids, taken), {
+      ["a#Client"] = "ClientShape2",
+      ["a#Module"] = "ModuleShape",
+      ["a#NotFoundError"] = "NotFoundErrorShape",
+    })
+    local ctx = { type_names = naming.type_names(ids, taken) }
+    t.eq(naming.type_name(ctx, "a#Client"), "ClientShape2")
+    t.eq(naming.type_name(ctx, "a#Thing"), "Thing")
+    t.eq(naming.type_name({}, "a#Client"), "Client")
+  end)
 end)

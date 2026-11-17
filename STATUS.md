@@ -124,8 +124,13 @@ tracer, `Scope` and the harness all go through it; the noop tracer is its own mo
   coroutine too.
 - **Limit (all runtimes, not caused by compat.pcall):** a yield cannot cross a C/Go call
   boundary such as a `table.sort` comparator or a `string.gsub` callback. lua/luajit
-  raise "attempt to yield across a C-call boundary". **gopher-lua crashes the whole run**
-  ("invalid memory address or nil pointer dereference"), with or without compat.pcall.
+  raise "attempt to yield across a C-call boundary". **In gopher-lua the coroutine is
+  corrupted**: a Go "invalid memory address or nil pointer dereference" error escapes
+  `coroutine.resume`, which does not return it as `false, msg`. An outer `pcall` catches
+  it; uncaught, it ends the `rex do` run. This happens with or without compat.pcall.
+  A yield inside native `pcall` or a metamethod does the same in gopher-lua
+  (yuin/gopher-lua#545, PR #548), so never yield through native `pcall`. Details:
+  `../gopher-lua-research/REPORT.md`.
 - **Changed behaviour others may notice:** code under compat.pcall sees a different
   `coroutine.running()`. A raise keeps its message and position, but a traceback taken
   later only covers the stack from the re-raise.
@@ -474,6 +479,109 @@ neon` ok (177/178 operations build; the multipart one is acknowledged, see below
 - `docs/interfaces.md` updated to the code (all deviations listed in sections 01-08).
 - Still open: `verify/conform/node/*.mjs` bind only Neon.
 
+## 10 layout
+
+**Done.** See `tasks/10-layout.done.md` and `docs/generating.md`.
+
+### What others can use
+
+- `verify/dl models sync [--convert] [pkg ...]`: `../distilled/packages/<pkg>/.generated-specs/*.json`
+  -> `models/<pkg>/<model>.json` (mirror: stale files removed). `DL_DISTILLED` overrides
+  `../distilled`. `models/` is git-ignored except `models/neon/neon.json`.
+- **`models/neon.json` moved to `models/neon/neon.json`** (every reference updated: specs,
+  docs, examples, README, NOTICE, `dl json-bench`). A branch that adds a new reference to
+  the old path breaks after the merge.
+- `bin/distilled-lua package --models models/<pkg> --provider providers/<lua>.lua --out clients/<lua>`:
+  every model; one line per model (`ok` / `skip` / `FAIL <first line>`), exit 1 when one
+  failed (the rest are written). A generator raise fails only that model ("generator
+  raised: ..."). Writes `<out>.staging` and swaps it in. `generate --model-name <m>`
+  emits one model as `<lua>.<m>`.
+- `verify/dl gen-all [pkg ...] [--jobs N]` (luajit, `DL_GEN_RUNTIME`), `verify/dl gen-diff <pkg>`
+  (package or Lua name; multi-model: all models, the index checked in all three runtimes),
+  `verify/dl parity` (writes `verify/features/parity.md`; commit it after gen-all).
+- Layout: one model -> `clients/<lua>/`; several -> `clients/<lua>/<model>/` (module
+  `<lua>.<model>`) plus the index `clients/<lua>/init.lua`: `index.services` (sorted
+  names), `index.<name>` (lazy require), `index.new(options)` (one client per service,
+  built on first use with the same options). Model Lua names: Distilled's slug rule
+  (`dnsClient` -> `dns_client`; digits stay: `v1alpha1`, `k8s_v1`), `gen.lua_model_name`.
+  `new` and `services` are reserved model names.
+- Provider spec `models = { skip = { <model> }, override = { [<model>] = { title, base_url } } }`,
+  strictly validated; a name that is not a model of the package fails (`provider.check_models`).
+  `provider.for_model(spec, model)` returns the per-model spec: `name` = module name
+  (`hetzner.servers`), `title` = class name (`HetznerServers`), plus `package` and `model_name`.
+- `providers/hetzner.lua` and `clients/hetzner/` (30 models, 178/178 operations).
+
+### Problems found in files I do not own (proposed changes)
+
+- `gen/writer.lua`: for a multi-model module the README says "the directory holding
+  `hetzner.servers/`" and both headers say "with provider spec hetzner.servers". Proposed:
+  use `spec.package or spec.name` for the directory and the spec name (for_model sets
+  `package`). The README summary of Hetzner is "# Overview" (the service doc's first
+  heading): `naming.summary` could skip markdown headings.
+- `gen/ops.lua:101` raises on stripe/stripe (`attempt to index local 'def' (a nil value)`
+  in `ops.output`: the output shape id is not in the model). Task 11/12.
+- Provider-spec features Hetzner and npm need (task 13): extra error classes for a
+  `status_map` that the model does not declare (Hetzner 405 MethodNotAllowed, 410 Gone,
+  412 PreconditionFailed); extra fields on the unknown error (Hetzner `details`); an
+  optional bearer token (npm: public operations need none). Until then Hetzner's 405/410/412
+  are `UnknownHetznerError`, and npm has no committed spec.
+- `gcp/.generated-specs/` has `stable/` and `unstable/` subdirectories; `models sync` only
+  copies top-level `*.json`, so gcp is not synced (the GCP task should decide the layout).
+- `verify/features/README.md` should list `parity.md`; `verify/SKILL.md` should mention
+  `models sync`, `gen-all`, `parity`.
+||||||| abf4e89
+
+
+## 11 schema
+
+**Done.** See `tasks/11-schema.done.md`. Smoke: the 90 models that failed on these classes
+all generate now (1,029 of 1,206 with the 939 that already did; none of those regressed).
+
+### Contract additions (in `docs/interfaces.md`, schema section)
+
+- **Any node may carry `nullable = true`** (Distilled's `S.NullOr(node)`): `json.null` is a
+  value of it. `S.nullable(node)` makes a marked copy (a ref keeps its name);
+  `schema.node_nullable(node, registry)` reads it through refs (also true for `null` and
+  `unknown` nodes). `validate.check` accepts null there in every mode; `keys` and `redact`
+  needed no change (null was already passed through).
+- Generator: a sparse list item / map value (nullable trait on the list member or map
+  value) is `S.nullable(<item>)` (`S.nullable(S.sensitive(...))` with both traits); a
+  nullable rawResponse output is `output = S.nullable(<target>)`, `output_raw = true`.
+  The node keeps the target's type, so `rest.lua` needed no change: an empty body still
+  decodes as `""`/`{}` (as Distilled, whose `resolveNode` collapses NullOr) and a JSON
+  `null` body is `json.null`, in strict mode too.
+- types.lua: `(T|distilled.Null)[]`, `{ [string]: T|distilled.Null }`, and
+  `(T|distilled.Null)?` for a nullable raw output.
+- **Type-name collisions**: Distilled has no rule (no Client type in TS, its error classes
+  are the error shapes' own names). Ours (`naming.type_names`): a shape whose LuaLS type
+  name the client takes (`Client`, `Options`, `Module`, `<Tag>Error`) is typed
+  `<Name>Shape`, then `Shape2`, ... while taken. Registry keys, struct names and `S.ref`
+  names keep the model's names; only types.lua changes. `ctx.type_names` holds the renames;
+  `naming.type_name(ctx, id)` reads them.
+
+### Edits outside my file list (orchestrator: please note for merges)
+
+- `lua/distilled/gen/init.lua`: the "type names the client definitions take" block (just
+  before "5. shape nodes") no longer fails generation; it sets `ctx.type_names`. 10 lines,
+  away from tasks 10/13's areas of that file.
+- `lua/distilled/gen/types.lua` (mine) also breaks a method signature past 100 columns the
+  way stylua does: 6 newly generating models (doppler, github/orgs, remote, vercel
+  marketplace/vcr/projects) have operation names that long and failed `stylua --check`.
+
+### Problems found for others
+
+- **stripe/stripe crashes** in `gen/ops.lua` `ops.output` (task 12's part of the file): an
+  operation whose output is a prelude shape (`smithy.api#Unit` for GetQuotePdf,
+  `smithy.api#Document` for CreateTransfer/GetTransfer, 4 ops) has no `ctx.model.shapes`
+  entry, so `def` is nil. Expected: a Unit output is no output, a Document output is
+  `S.unknown` (or fail early with a message, not a crash).
+- `verify/lib/gen_input.lua` cannot synthesize an input for starburst-galaxy/live_table's
+  `update_live_table_schema` (required members recurse past depth 24), so `gen_check`
+  reports 5/6 ops built there. A generation-side non-issue; the synthesizer could stop at
+  the first optional or treat a cycle of required members as unbuildable data.
+||||||| abf4e89
+
+
 ## 12 traits
 
 **Done.** See `tasks/12-traits.done.md`. Smoke (dummy provider spec; `allow_unsupported =
@@ -558,3 +666,119 @@ also hit a task 11 class generate too. Results: `tasks/notes/smoke-results-12.tx
 - `verify/features/generator.md`: streaming via allow_unsupported; warnings.
 - Not mine, found by gen-check over all smoke outputs: `infisical/infisical`'s
   service.lua has more than 65,536 constants in one function (LuaJIT refuses to load it).
+
+## 14 crypto
+
+**Done.** See `tasks/14-crypto.done.md`, `verify/features/crypto.md`, and the
+`distilled.crypto` / `distilled.sigv4` sections appended to `docs/interfaces.md`.
+
+### APIs others can use
+
+- `require("distilled.crypto")`: `digest(name, msg)`, `hmac(name, key, msg)`, shortcuts
+  `sha256`, `sha1`, `md5`, `sha224`, `sha384`, `sha512`, `sha3_256`, `keccak256` and
+  `hmac_<name>`; `crc32`, `crc32c`; `equal(a, b)`; `hex.encode/decode`,
+  `base64.encode/decode/url_encode(s, pad)/url_decode`. Binary strings in and out; HMAC
+  keys may be secrets; decode failures are `InvalidInput`.
+- `require("distilled.sigv4")`: `sign{ request, credentials, region?, service?,
+  now_epoch | datetime, sign_query?, all_headers?, hash_payload?, append_session_token?,
+  single_encode?, key_cache? } -> signed request copy | nil, err`, `presign{...} -> url`,
+  `canonical_request`, `signing_key`, `guess_service_region`, `amz_datetime`. A protocol
+  should keep one `key_cache = {}` per client (halves the signing time).
+- Tencent TC3, Polymarket L2, Stripe/Resend webhooks, AWS SigV2: everything they need
+  (HMAC-SHA256, SHA-256 hex, base64/base64url with padding) is here.
+
+### gopher-lua defect found (please add to AGENTS.md's list)
+
+- **A multiple assignment to locals is sequential in gopher-lua.** `a, b = b, a` leaves
+  `b, b`; `g, h = h + 0, g + 0` leaves `2, 2`; `i, j, k = j, k, i` leaves `2, 3, 2`;
+  `a, b = f(b), f(a)` too. Each right-hand side is evaluated after the previous variable
+  was assigned. Upvalues, globals, table fields and `local x, y = y, x` declarations are
+  fine. Workaround: a temporary (`local tmp = a; a = b; b = tmp`).
+- It already breaks `lua/distilled/testing/init.lua` line 119 (task 03): `m, n = 1, m`
+  makes `testing.random(seed)(n)` return 1 every time in Rex (measured:
+  `random(7)(6)` x8 gives `1 1 1 5 2 5 3 3` on lua, `1 1 1 1 1 1 1 1` in Rex).
+  Proposed fix: `n = m` then `m = 1`. I grepped `lua/` for other multi-assignments whose
+  right side reads an earlier left-side local: none besides that one (and the swap in my
+  own sigv4.lua, fixed).
+
+### Decisions
+
+- Byte-table implementation (no `bit`/`bit32` even on LuaJIT): one tested path.
+  Compression functions are generated Lua source compiled on first use.
+- `sigv4.sign` returns a shallow copy of the request (method, url, headers replaced), a
+  superset of "the signed headers", because presigning changes the URL.
+- `region`/`service` are optional and guessed from the host (Distilled's `guessScope`);
+  the region falls back to `us-east-1`.
+- No module-level derived-key cache (it would hold secret-derived keys in a global);
+  callers pass `key_cache`, keyed by sha256(secret) and scope, at most 16 entries.
+- The URL parsing SigV4 needs lives in `sigv4.lua` (WHATWG subset). Proposal: move
+  `parse_url` / URLSearchParams helpers to `distilled.url` (task 03's file) if another
+  signer needs them.
+
+### Survey (requirement 2): crypto the packages need beyond this task
+
+- ECDSA P-256 / ES256: Coinbase CDP JWT, ACME (account keys, JWS), AWS login
+  credentials (DPoP), SigV4A (`aws4signer` `signV4a`).
+- Ed25519 / EdDSA: Coinbase (alternative key type); needs SHA-512 (done) + curve math.
+- RSA PKCS#1 v1.5 / RS256: GitHub App JWT, GCP service-account JWT, ACME RS256 keys.
+- secp256k1 + Keccak (EIP-712): Polymarket L1; Distilled does not produce it either.
+- MD5: Mailchimp subscriber hash, S3 Content-MD5 (done). CRC-32/CRC-32C: S3 checksums
+  (done). SHA-1: AWS SSO cache names (done). HMAC-SHA256: everything else (done).
+- Random bytes (Coinbase nonce, `randomUUID` for S3/Whop idempotency): not crypto-grade
+  in pure Lua; a host field (e.g. `host.random_bytes(n)` via `rex.exec`/`/dev/urandom`)
+  would be needed. Proposed for the providers task.
+
+### Edits outside my file list (all named in the brief or needed for its helpers)
+
+- `docs/interfaces.md`: appended the two sections (the brief asks for it).
+- `verify/dl`: `crypto-bench` and `crypto-vectors` commands plus help lines (the brief
+  allows "a verify/dl helper"); new `verify/lib/crypto_bench.lua`,
+  `verify/lib/crypto_vectors.mjs`, `verify/lib/sigv4_vectors.mjs`; vector data in
+  `spec/golden/crypto/` and `spec/golden/sigv4/`.
+- Proposed (not done): `verify/features/README.md` row "20 | Crypto and SigV4 |
+  [crypto.md](crypto.md) | task 14"; AGENTS.md defect list entry for the
+  multiple-assignment bug above.
+||||||| abf4e89
+
+
+## 15 xml
+
+**Done.** `lua/distilled/xml.lua` (port of core `xml.ts`), `spec/xml_spec.lua`, fixtures
+in `spec/fixtures/xml/`, `dl test --xml-fuzz`, `dl xml-bench`, `verify/features/xml.md`.
+See `tasks/15-xml.done.md`.
+
+### API (proposed for `docs/interfaces.md`)
+
+- `xml.decode(text, { max_depth = 256, max_length = 64 MiB }) -> tree | nil, err`
+  (Distilled's `parseXmlSync`). Tree: an element with only text is a string; otherwise a
+  table with children by name, `"@_<attr>"`, `"#text"`; repeated siblings are a list.
+  `err` is `ParseError` with Distilled's message (`"<what> at <line>:<column>"`),
+  `err.offset` (0-based byte), `err.position` (1-based byte), `err.line`, `err.column`
+  (UTF-16 units, as Distilled). Raises only for misuse (non-string text, non-table
+  options, unknown option, non-number limit).
+- `xml.escape(s)` (`escapeXml`), `xml.wrap_tag(tag, content, xmlns?)` (`wrapTag`),
+  `xml.is_list(v)`, `xml.MAX_DEPTH`, `xml.MAX_LENGTH`.
+
+### Decisions others should know (AWS protocol tasks)
+
+- **Distilled bug found, not copied:** xml.ts's ASCII-name fast path rejects any name
+  that continues past ASCII (`<Straße>`, `<Größe>`, attribute `Größe=`): the regex
+  `/[A-Za-z_:][\w:.-]*(?![^\0-\x7f])/y` backtracks. Its reference parser
+  (`test/fixtures/xml/reference-parser.ts`) reads them; so do we. The fuzz compares with
+  xml.ts with that pattern fixed and checks every document against the reference parser
+  too. Worth reporting upstream (fix: lookahead `(?![\w:.-]|[^\0-\x7f])`).
+- Input is UTF-8; invalid UTF-8 (and encoded surrogates) is "Invalid XML character".
+  Distilled's protocols decode the body with `TextDecoder` first (U+FFFD for bad
+  bytes), so a body with invalid UTF-8 fails here where Distilled would parse it with
+  replacement characters. A protocol that wants Distilled's behaviour must replace
+  invalid sequences before `xml.decode`.
+- `max_length` counts bytes (Distilled: UTF-16 units).
+- S3's `src/util/xml.ts` helpers (`elementText`, `readXmlMap`, `extractXmlRoot`,
+  unwrap of list wrappers) are protocol-level and not ported here.
+
+### Outside my files
+
+- `verify/dl` (not listed in my brief, required by its item 3): added the `--xml-fuzz`
+  flag of `dl test`, the `xml-bench` command and their help lines. Additions only.
+- `verify/features/README.md` should list `xml.md` (left for the orchestrator, to avoid
+  conflicting edits).

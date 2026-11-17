@@ -3,9 +3,10 @@
 -- Ports the shape half of Distilled's generator (`generator.ts` steps 2 and 5,
 -- `members.ts`): member naming with collision fallback, the binding cascade label ->
 -- query -> header -> payload -> body, wire names (`smithyWireName`), required (with the
--- `@default` rule for response-only shapes and the paginated items rule), nullable,
--- sensitive, string_encoded, open structures, enums, lists, maps and unions with their
--- discriminator (`unionDiscriminator`).
+-- `@default` rule for response-only shapes and the paginated items rule), nullable
+-- (members, and list items / map values as S.nullable nodes), sensitive, string_encoded,
+-- open structures, enums, lists, maps and unions with their discriminator
+-- (`unionDiscriminator`).
 --
 -- Values returned here are emit values (gen/emit.lua): plain tables with `emit.raw` for
 -- the shared scalar nodes and `emit.call("S.ref", name)` for references. Every named
@@ -257,6 +258,22 @@ function shapes.member_value(ctx, info)
   return v
 end
 
+--- shapes.element(ctx, member_def) -> emit value for a list item or a map value
+-- The element takes a structure member's traits (Distilled's list/map branch): sensitive
+-- wraps it in S.sensitive, nullable (a sparse list or map) in S.nullable, Distilled's
+-- `S.NullOr(item)`.
+function shapes.element(ctx, mem)
+  local traits = mem.traits or {}
+  local node = shapes.ref(ctx, mem.target)
+  if traits[T_SENSITIVE] ~= nil then
+    node = emit.call("S.sensitive", node)
+  end
+  if traits[T_NULLABLE] ~= nil then
+    node = emit.call("S.nullable", node)
+  end
+  return node
+end
+
 --- shapes.node(ctx, id) -> emit value for the registry entry of a named shape | nil, message
 function shapes.node(ctx, id)
   local m = ctx.model
@@ -273,25 +290,9 @@ function shapes.node(ctx, id)
       node.open = true
     end
   elseif def.type == "list" or def.type == "set" then
-    local mt = def.member.traits or {}
-    if mt[T_NULLABLE] ~= nil then
-      return nil, id .. ": nullable list items have no representation in the schema contract"
-    end
-    local item = shapes.ref(ctx, def.member.target)
-    if mt[T_SENSITIVE] ~= nil then
-      item = emit.call("S.sensitive", item)
-    end
-    node = { t = "list", item = item }
+    node = { t = "list", item = shapes.element(ctx, def.member) }
   elseif def.type == "map" then
-    local vt = def.value.traits or {}
-    if vt[T_NULLABLE] ~= nil then
-      return nil, id .. ": nullable map values have no representation in the schema contract"
-    end
-    local value = shapes.ref(ctx, def.value.target)
-    if vt[T_SENSITIVE] ~= nil then
-      value = emit.call("S.sensitive", value)
-    end
-    node = { t = "map", value = value }
+    node = { t = "map", value = shapes.element(ctx, def.value) }
   elseif def.type == "enum" or def.type == "intEnum" then
     local values = shapes.enum_values(ctx, def)
     if #values == 0 then

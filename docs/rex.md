@@ -14,7 +14,7 @@ The configuration loads modules from disk with `package.path`, so copy them next
 
 ```sh
 lua bin/distilled-lua vendor --out ~/.config/rex/vendor          # lua/distilled/ minus gen/ and testing/
-lua bin/distilled-lua generate --model models/neon.json --provider providers/neon.lua \
+lua bin/distilled-lua generate --model models/neon/neon.json --provider providers/neon.lua \
   --ops list_projects,get_project,create_project --out ~/.config/rex/vendor/neon
 ```
 

@@ -221,6 +221,22 @@ argument; nothing global. Any node may also carry `sensitive = true` (Smithy put
 `@sensitive` on shapes; list items and map values have no member);
 `schema.node_sensitive(node, registry)` reads it through refs.
 
+Any node may also carry `nullable = true`: `json.null` is then a value of it (Distilled's
+`S.NullOr(node)`). `S.nullable(node)` returns a marked copy (a ref keeps its name and
+type); `schema.node_nullable(node, registry)` reads the flag through refs and is also true
+for `null` and `unknown` nodes. The generator emits it where no member can carry the
+trait: a sparse list item or map value (`S.list(S.nullable(S.ref("Thing")))`, the nullable
+trait on the list member or map value) and a nullable rawResponse output root
+(`output = S.nullable(S.ref("Body"))`, `output_raw = true`). `validate.check` accepts
+`json.null` at such a node in every mode; `keys` and `redact` pass it through unchanged.
+The node's type is unchanged, so an empty response body still decodes as for the target
+(`""` for a string output, else `{}`), and a JSON `null` body is `json.null`.
+
+LuaLS type names (`types.lua`) are `<provider>.<local name>`, except that a shape named like
+one of the client's own types (`Client`, `Options`, `Module`, `<Tag>Error` of a generated
+error class) is typed `<Name>Shape` (then `Shape2`, ... while taken; `naming.type_names`).
+Registry keys, struct names and `S.ref` names keep the model's local names.
+
 ## Operation and service descriptors
 
 ```lua
@@ -436,3 +452,84 @@ testing.random(seed) -> fn               -- Park-Miller, identical on every runt
 require("distilled.testing.fixtures")    -- the task 03 fixture service
 require("distilled.testing.expect")      -- span assertions (verify/features/tracing.md)
 ```
+
+## `distilled.crypto` (task 14)
+
+Pure Lua 5.1, no `bit`/`bit32`, identical results on lua 5.5, LuaJIT and gopher-lua.
+Every function takes and returns byte strings (a Lua string is UTF-8 bytes already).
+Wrong argument types raise (level 2); malformed encoded input returns `nil, err`.
+
+```lua
+local crypto = require("distilled.crypto")
+crypto.digest(name, message) -> binary digest
+  -- name: "md5" | "sha1" | "sha224" | "sha256" | "sha384" | "sha512" | "sha3_256" | "keccak256"
+crypto.sha256(message), crypto.sha1(message), ... (one per name)  -> binary digest
+crypto.hmac(name, key, message) -> binary MAC        -- key: string or distilled.secret
+crypto.hmac_sha256(key, message), crypto.hmac_sha1, crypto.hmac_sha512, ... (one per name)
+crypto.hash_function(name) -> fn(message), block_size   -- raises on an unknown name
+crypto.HASHES[name] = { module, block size, digest length }
+crypto.crc32(message [, crc]) -> number, crypto.crc32c(message [, crc]) -> number
+crypto.equal(a, b) -> boolean            -- compares every byte (signature checks)
+crypto.hex.encode(s) -> lowercase hex;   crypto.hex.decode(h) -> bytes | nil, InvalidInput
+crypto.base64.encode(s) -> padded;       crypto.base64.decode(text) -> bytes | nil, InvalidInput
+crypto.base64.url_encode(s [, pad]) -> unpadded unless pad; crypto.base64.url_decode(text)
+```
+
+- Modules: `distilled.crypto.{sha2, sha1, md5, keccak, hmac, crc32, hex, base64}`, plus
+  the internals `bytes` (lookup tables) and `codegen` (source generation). `sha2.digest(name,
+  message)`, `sha1.digest`, `md5.digest`, `keccak.keccak256` / `keccak.sha3_256`,
+  `crc32.crc32` / `crc32.crc32c` / `crc32.bytes(n)` (4-byte big-endian, what S3 base64s).
+- base64 decoding is strict about the alphabet (no whitespace, no mixing `+/` with `-_`),
+  accepts input with or without padding, and rejects misplaced padding and lengths 4n+1.
+- The compression functions are generated Lua source compiled on first use
+  (`sha2.source(name)`, `sha1.source()`, `md5.source()`, `keccak.source()` return it).
+  First use costs 20 ms (lua) to 110 ms (Rex) for all of them.
+
+## `distilled.sigv4` (task 14)
+
+AWS Signature Version 4, a port of `@distilled.cloud/aws4signer` (aws4fetch's rules,
+byte for byte).
+
+```lua
+local sigv4 = require("distilled.sigv4")
+sigv4.sign{
+  request = { method?, url, headers?, body?, ... },   -- the distilled request table
+  credentials = { access_key_id, secret_access_key, session_token? },  -- secrets allowed
+  region?, service?,          -- guessed from the host when absent (region: us-east-1)
+  now_epoch = seconds | datetime = "YYYYMMDDTHHMMSSZ",   -- one is required
+  sign_query?,                -- presign: signature in the query instead of headers
+  all_headers?,               -- also sign content-type, range, user-agent, ...
+  hash_payload?,              -- send and sign x-amz-content-sha256 (S3: instead of UNSIGNED-PAYLOAD)
+  append_session_token?,      -- add the token after signing (always for iotdevicegateway)
+  single_encode?,             -- encode the path once (default: twice outside S3)
+  key_cache?,                 -- a table the caller owns (one per client): derived keys,
+                              -- by sha256(secret) and scope, at most 16
+} -> signed | nil, err
+sigv4.presign{ url, method?, headers?, credentials, region?, service?, expires_in?,
+               now_epoch | datetime, all_headers?, append_session_token?, single_encode? }
+  -> url | nil, err
+sigv4.canonical_request{ same as sign } -> string | nil, err   -- holds the session token: do not log
+sigv4.signing_key(secret_access_key, "YYYYMMDD", region, service) -> binary key
+sigv4.guess_service_region(url [, headers]) -> service, region   ("" when unknown)
+sigv4.amz_datetime(epoch) -> "YYYYMMDDTHHMMSSZ"
+sigv4.UNSIGNABLE_HEADERS
+```
+
+- `signed` is a shallow copy of `request` (other fields such as `timeout` kept) with
+  `method` (defaults: POST with a non-empty body, else GET), `url` (normalised as `new
+  URL()` does; with `sign_query` the X-Amz-* parameters are added and the whole query is
+  re-serialised form-style, like `URLSearchParams.set`) and `headers` replaced: lower-case
+  names, values trimmed, `host` removed (the transport sends it), and `x-amz-date`,
+  `x-amz-security-token`, `x-amz-content-sha256` (S3: `UNSIGNED-PAYLOAD` by default) and
+  `authorization` added. The input request is not modified.
+- Errors: a URL that is not absolute http(s) or a header with a non-token name, a
+  non-string value or NUL/CR/LF is `InvalidInput` (messages never carry a header value
+  or the URL); missing `access_key_id` / `secret_access_key` (or a non-string
+  `session_token`) is `ConfigError` with `err.key`. Unknown or mistyped arguments, no
+  time, a malformed `datetime` or a non-string body raise (misuse).
+- Not ported: SigV4A (`signV4a`, needs ECDSA P-256) and `AwsClient` (the protocol layer
+  will call `sign`). The derived-key cache is the caller's `key_cache` table instead of a
+  module-level map (without one, each call derives the key: 4 HMACs). Differences from Distilled: `hash_payload` replaces an existing
+  `x-amz-content-sha256` header (Distilled joins two differently-cased ones); header
+  names that differ only in case are joined in sorted order (a Lua table has no
+  insertion order); header values are bytes, so only ASCII whitespace is collapsed.

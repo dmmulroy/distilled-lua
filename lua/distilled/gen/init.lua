@@ -2,11 +2,12 @@
 --
 --   local gen = require("distilled.gen")
 --   local files, err = gen.generate{
---     model = "models/neon.json" | <Model>,      -- path, or gen.model.load's result
---     provider = "providers/neon.lua" | <spec>, -- path, or a spec table
---     ops = { "get_project", ... } | nil,       -- keep only these (method or model names)
---     telemetry = true,                         -- false: no span / telemetry data
---   }
+--     model = "models/neon/neon.json" | <Model>, -- path, or gen.model.load's result
+--     provider = "providers/neon.lua" | <spec>,  -- path, or a spec table
+--     ops = { "get_project", ... } | nil,        -- keep only these (method or model names)
+--     telemetry = true,                          -- false: no span / telemetry data
+--     model_name = "servers" | nil,              -- one model of a multi-model package:
+--   }                                            -- module <spec.name>.servers
 --   -- files = { ["init.lua"] = source, ["service.lua"] = ..., ["types.lua"] = ...,
 --   --           ["README.md"] = ... }, plus files.order (the names, sorted)
 --   gen.write(files, "clients/neon")
@@ -16,6 +17,10 @@
 -- errors), ops.lua (3: pagination; 6: operations), shapes.lua (5: shapes), types.lua and
 -- the README (7, our equivalent of the aliases and footer). Everything that can be
 -- checked is checked here; generation stops on the first batch of problems.
+--
+-- Packages (task 10): gen.package_layout maps a package's model files to modules (one
+-- model: `<lua>`; several: `<lua>.<model>` plus the index gen.index writes), and
+-- `model_name` generates one model as such a module (gen.provider.for_model).
 local compat = require("distilled.compat")
 local model_mod = require("distilled.gen.model")
 local provider_mod = require("distilled.gen.provider")
@@ -25,6 +30,7 @@ local gen_errors = require("distilled.gen.errors")
 local ops_mod = require("distilled.gen.ops")
 local types_mod = require("distilled.gen.types")
 local writer = require("distilled.gen.writer")
+local emit = require("distilled.gen.emit")
 
 local gen = {}
 
@@ -48,6 +54,70 @@ local function fail(problems)
   end
   table.sort(problems)
   return nil, compat.concat(problems, "\n")
+end
+
+-- Names a package index (gen.index) uses for itself: no model may take them.
+gen.INDEX_RESERVED = { new = true, services = true }
+
+--- gen.lua_package_name(pkg) -> the Lua module name of a Distilled package
+-- (`fly-io` -> `fly_io`, `mongodb-atlas` -> `mongodb_atlas`).
+function gen.lua_package_name(pkg)
+  return (string.gsub(pkg, "-", "_"))
+end
+
+--- gen.lua_model_name(stem) -> the Lua name of a model, from its file name without
+-- `.json` (`server_actions`, `dnsClient` -> `dns_client`, `combos-rfq` -> `combos_rfq`).
+-- The rule of Distilled's tag slugs (packages/hetzner/scripts/convert.ts `toSlug`): split
+-- camel boundaries, every other character run becomes `_`, lower-case. Digits stay in
+-- their word (`v1alpha1`, `k8s_v1`, `s3files` are unchanged), unlike naming.snake_case.
+function gen.lua_model_name(stem)
+  local s = string.gsub(stem, "([a-z0-9])([A-Z])", "%1_%2")
+  s = string.gsub(s, "[^A-Za-z0-9]+", "_")
+  s = string.gsub(string.gsub(s, "^_+", ""), "_+$", "")
+  return string.lower(s)
+end
+
+--- gen.package_layout(pkg, stems) -> layout | nil, message
+-- How a package's models map to modules. One model: `clients/<lua>/`, module `<lua>`.
+-- Several: `clients/<lua>/<model>/`, module `<lua>.<model>`, and an index at
+-- `clients/<lua>/init.lua` (gen.index). Returns { lua, multi, models = { { stem, name,
+-- module, dir } } } sorted by name; two stems with the same Lua name fail.
+function gen.package_layout(pkg, stems)
+  local lua = gen.lua_package_name(pkg)
+  if not naming.is_identifier(lua) or string.find(lua, "%u") then
+    return nil, "package " .. tostring(pkg) .. " has no Lua module name (" .. lua .. ")"
+  end
+  local layout = { lua = lua, multi = #stems > 1, models = {} }
+  local seen, problems = {}, {}
+  for _, stem in ipairs(stems) do
+    local name = gen.lua_model_name(stem)
+    if layout.multi and not provider_mod.is_model_name(name) then
+      problems[#problems + 1] = "model " .. stem .. ": its Lua name " .. name .. " is not usable"
+    elseif layout.multi and gen.INDEX_RESERVED[name] then
+      problems[#problems + 1] = "model " .. stem .. " collides with the package index's " .. name
+    elseif seen[name] then
+      problems[#problems + 1] = "models "
+        .. seen[name]
+        .. " and "
+        .. stem
+        .. " both become "
+        .. name
+    end
+    seen[name] = seen[name] or stem
+    layout.models[#layout.models + 1] = {
+      stem = stem,
+      name = name,
+      module = layout.multi and (lua .. "." .. name) or lua,
+      dir = layout.multi and name or "",
+    }
+  end
+  if #problems > 0 then
+    return fail(problems)
+  end
+  table.sort(layout.models, function(a, b)
+    return a.name < b.name
+  end)
+  return layout
 end
 
 -- Resolve `--ops` names (method names or model names) to operations; unknown names fail
@@ -114,6 +184,24 @@ function gen.plan(args)
     if not spec then
       return nil, err
     end
+  end
+  if args.model_name ~= nil then
+    -- one model of a multi-model package: module <package>.<model> (gen.package_layout)
+    if not provider_mod.is_model_name(args.model_name) then
+      return nil, "model name " .. tostring(args.model_name) .. " is not a Lua model name"
+    end
+    if gen.INDEX_RESERVED[args.model_name] then
+      return nil,
+        "model "
+          .. args.model_name
+          .. " collides with the package index's "
+          .. args.model_name
+          .. " (gen.INDEX_RESERVED)"
+    end
+    if spec.models.skip[args.model_name] then
+      return nil, "model " .. args.model_name .. " is in the provider spec's models.skip"
+    end
+    spec = provider_mod.for_model(spec, args.model_name)
   end
   local telemetry = args.telemetry ~= false
   local ctx = {
@@ -432,24 +520,13 @@ function gen.plan(args)
     return naming.local_name(a) < naming.local_name(b)
   end)
 
-  -- type names the client definitions take for themselves
-  local taken =
-    { Client = "the client class", Options = "the client options", Module = "the module" }
-  for _, d in ipairs(error_classes) do
-    taken[d.tag .. "Error"] = "the error class " .. d.tag
+  -- type names the client definitions take for themselves: a shape with such a name is
+  -- typed <Name>Shape in types.lua (naming.type_names, task 11)
+  local error_tags = {}
+  for i, d in ipairs(error_classes) do
+    error_tags[i] = d.tag
   end
-  for _, id in ipairs(registry_ids) do
-    local name = naming.local_name(id)
-    if taken[name] then
-      problems[#problems + 1] = id
-        .. ": its type name "
-        .. spec.name
-        .. "."
-        .. name
-        .. " is "
-        .. taken[name]
-    end
-  end
+  ctx.type_names = naming.type_names(registry_ids, naming.client_type_names(error_tags))
 
   -- 5. shape nodes
   local nodes = {}
@@ -546,6 +623,234 @@ function gen.write(files, dir)
     f:close()
   end
   return true
+end
+
+--- gen.index(args) -> files | nil, message
+-- The package index of a multi-model package, `clients/<lua>/init.lua` (plus README.md):
+--
+--   args = { provider = <spec or path>, services = { { name = "servers", title =
+--            "HetznerServers", operations = 6, source = "servers.json", hash = "..." } } }
+--
+-- What it returns at run time (the index loads nothing until a service is used):
+--   index.services         the service names, sorted
+--   index.<name>           the service's client class, require("<lua>.<name>") on first use
+--   index.new(options)     a table of clients, one per service, each built on first use
+--                          as index.<name>.new(options) (so they share host and secrets)
+function gen.index(args)
+  if type(args) ~= "table" or type(args.services) ~= "table" then
+    error("distilled.gen.index: expected { provider, services }", 2)
+  end
+  local spec, err = args.provider, nil
+  if type(spec) == "string" then
+    spec, err = provider_mod.load(spec)
+  elseif type(spec) == "table" and not spec.__validated then
+    spec, err = provider_mod.validate(spec)
+  end
+  if not spec then
+    return nil, err
+  end
+  local services = {}
+  for _, svc in ipairs(args.services) do
+    services[#services + 1] = svc
+  end
+  if #services == 0 then
+    return nil, "package " .. spec.name .. ": no service to index"
+  end
+  table.sort(services, function(a, b)
+    return a.name < b.name
+  end)
+  local problems = {}
+  for i, svc in ipairs(services) do
+    if not provider_mod.is_model_name(svc.name) then
+      problems[#problems + 1] = "service " .. tostring(svc.name) .. " is not a Lua model name"
+    elseif gen.INDEX_RESERVED[svc.name] then
+      problems[#problems + 1] = "service " .. svc.name .. " collides with the index's own field"
+    elseif i > 1 and services[i - 1].name == svc.name then
+      problems[#problems + 1] = "service " .. svc.name .. " is listed twice"
+    end
+  end
+  if #problems > 0 then
+    return fail(problems)
+  end
+  local name, title = spec.name, spec.title
+  local function field(n)
+    return naming.is_identifier(n) and ("." .. n) or ("[" .. emit.string(n) .. "]")
+  end
+  local total = 0
+  for _, svc in ipairs(services) do
+    total = total + (svc.operations or 0)
+  end
+  local example = services[1]
+  local class_title = example.title or "Service"
+
+  local b = emit.buffer()
+  b:line(
+    "-- "
+      .. title
+      .. ": the package index ("
+      .. #services
+      .. " services, "
+      .. total
+      .. " operations)."
+  )
+  b:line("--")
+  b:line(
+    "-- Generated by distilled-lua (generator "
+      .. gen.VERSION
+      .. ") with provider spec "
+      .. name
+      .. "."
+  )
+  b:line("-- Do not edit: regenerate with bin/distilled-lua package.")
+  b:line("--")
+  b:lines_of(
+    emit.comment(
+      "Each service is its own client class in "
+        .. name
+        .. "/<service>/, loaded on first use. See README.md next to this file."
+    )
+  )
+  b:line("--")
+  b:line("--   local " .. name .. ' = require("' .. name .. '")')
+  b:line(
+    "--   local "
+      .. class_title
+      .. " = "
+      .. name
+      .. field(example.name)
+      .. ' -- = require("'
+      .. name
+      .. "."
+      .. example.name
+      .. '")'
+  )
+  b:line("--   local client = " .. class_title .. ".new({ host = ... })")
+  b:line("--   -- or one set of options for every service, each client built on first use:")
+  b:line("--   local clients = " .. name .. ".new({ host = ... })")
+  b:line("--   clients" .. field(example.name) .. ":<operation>({ ... })")
+  b:line("local MODULE = ... or " .. emit.string(name))
+  b:blank()
+  b:line("local index = {}")
+  b:blank()
+  b:lines_of(emit.comment('The services, sorted: index[name] is require(MODULE .. "." .. name).'))
+  b:line("index.services = {")
+  for _, svc in ipairs(services) do
+    b:line("  " .. emit.string(svc.name) .. ",")
+  end
+  b:line("}")
+  b:blank()
+  b:line("local known = {}")
+  b:line("for _, service in ipairs(index.services) do")
+  b:line("  known[service] = true")
+  b:line("end")
+  b:blank()
+  b:lines_of(
+    emit.comment(
+      "index.new(options) -> clients: clients[name] is index[name].new(options), built on "
+        .. "first use. Unknown names are nil."
+    )
+  )
+  b:line("function index.new(options)")
+  b:line("  local clients = {}")
+  b:line("  return setmetatable(clients, {")
+  b:line("    __index = function(_, service)")
+  b:line("      if not known[service] then")
+  b:line("        return nil")
+  b:line("      end")
+  b:line("      local client = index[service].new(options)")
+  b:line("      rawset(clients, service, client)")
+  b:line("      return client")
+  b:line("    end,")
+  b:line("  })")
+  b:line("end")
+  b:blank()
+  b:line("return setmetatable(index, {")
+  b:line("  __index = function(_, service)")
+  b:line("    if not known[service] then")
+  b:line("      return nil")
+  b:line("    end")
+  b:line('    local class = require(MODULE .. "." .. service)')
+  b:line("    rawset(index, service, class)")
+  b:line("    return class")
+  b:line("  end,")
+  b:line("})")
+
+  local r = {}
+  local function add(line)
+    r[#r + 1] = line or ""
+  end
+  add("# " .. title .. " clients (generated)")
+  add()
+  add(
+    "Generated by distilled-lua (generator "
+      .. gen.VERSION
+      .. ") with the provider spec `"
+      .. name
+      .. "`."
+  )
+  add("Do not edit; regenerate with `bin/distilled-lua package`.")
+  add()
+  add(
+    "One client class per service ("
+      .. #services
+      .. " services, "
+      .. total
+      .. " operations), each in `"
+      .. name
+      .. "/<service>/`"
+  )
+  add('with its own README.md. `require("' .. name .. '")` is an index that loads a service on')
+  add("first use.")
+  add()
+  add("```lua")
+  add("local " .. name .. ' = require("' .. name .. '")')
+  add(
+    "local "
+      .. class_title
+      .. " = "
+      .. name
+      .. field(example.name)
+      .. ' -- require("'
+      .. name
+      .. "."
+      .. example.name
+      .. '")'
+  )
+  add("local client = " .. class_title .. '.new({ host = require("distilled.host.popen")() })')
+  add()
+  add("-- one set of options for every service; each client is built on first use")
+  add("local clients = " .. name .. '.new({ host = require("distilled.host.popen")() })')
+  add("```")
+  add()
+  add("`" .. name .. ".services` lists the service names.")
+  add()
+  add("| Service | Module | Operations | Model |")
+  add("| --- | --- | --- | --- |")
+  for _, svc in ipairs(services) do
+    add(
+      "| ["
+        .. svc.name
+        .. "]("
+        .. svc.name
+        .. "/README.md) | `"
+        .. name
+        .. "."
+        .. svc.name
+        .. "` | "
+        .. tostring(svc.operations or "?")
+        .. " | `"
+        .. tostring(svc.source or "?")
+        .. "` ("
+        .. tostring(svc.hash or "?")
+        .. ") |"
+    )
+  end
+  local files = {
+    ["init.lua"] = b:text(),
+    ["README.md"] = compat.concat(r, "\n") .. "\n",
+    order = { "README.md", "init.lua" },
+  }
+  return files
 end
 
 return gen
