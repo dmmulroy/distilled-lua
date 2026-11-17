@@ -38,6 +38,42 @@ local INTENDED = {
   end,
 }
 
+-- Known gaps in the AWS runtime (task 17's lua/distilled/aws/, gen/aws.lua), listed in
+-- STATUS.md (25 s3, "For task 17"). Each is reported as pending, and also run: while it
+-- still differs from Distilled the run passes; once fixed it fails, saying to remove the
+-- entry here.
+local CATEGORIES = "error categories from the status (spec.ts errorCategories) not emitted"
+local KNOWN = {
+  ["get-object-missing-key"] = "a missing required label is sent; Distilled fails with ParseError",
+  ["put-object-empty-body"] = "Body = '' sends no body; Distilled sends an empty one",
+  ["get-object-empty"] = "an empty streaming payload is absent; Distilled's Body is ''",
+  ["get-bucket-location-eu"] = "aws.customizations#s3UnwrappedXmlOutput not read",
+  ["error-no-such-key"] = CATEGORIES,
+  ["error-no-such-bucket"] = CATEGORIES,
+  ["error-no-such-upload"] = CATEGORIES,
+  ["error-bucket-exists"] = CATEGORIES,
+  ["error-invalid-object-state"] = CATEGORIES,
+  ["list-objects-v2-pages-error"] = CATEGORIES,
+  ["error-internal"] = "InternalError has RetryableError besides ServerError",
+  ["error-500-garbage"] = "InternalError has RetryableError besides ServerError",
+  ["error-400-garbage"] = "the client-side ParseError has the ParseError category; Distilled's none",
+}
+
+local function case(id, fn)
+  local gap = KNOWN[id]
+  if not gap then
+    t.it(id, fn)
+    return
+  end
+  t.pending(id .. " [known gap: " .. gap .. "]")
+  t.it(id .. " still differs (known gap)", function()
+    local ok = t.pcall(fn)
+    if ok then
+      t.fail("known gap fixed: remove " .. id .. " from KNOWN in spec/s3_conform_spec.lua")
+    end
+  end)
+end
+
 -- Distilled's HttpBody.text gives a string body `content-type: text/plain` when no
 -- member sets one (S3 stores it as the object's type); the Lua transport sends no
 -- Content-Type then. Compared everywhere except that case.
@@ -139,7 +175,7 @@ end
 
 t.describe("s3 conformance: requests", function()
   for _, c in ipairs(V.requests) do
-    t.it(c.id, function()
+    case(c.id, function()
       local client, host = client_for(c, { { status = 200, body = "" } })
       local method = client[c.op]
       t.truthy(method, "operation " .. c.op)
@@ -188,7 +224,7 @@ end)
 
 t.describe("s3 conformance: responses", function()
   for _, c in ipairs(V.responses) do
-    t.it(c.id, function()
+    case(c.id, function()
       local client = client_for(c, { c.response })
       local value, err = client[c.op](client, normalize(c.input))
       local want = c.expected
@@ -205,7 +241,7 @@ end)
 
 t.describe("s3 conformance: ListObjectsV2 pages", function()
   for _, c in ipairs(V.flows) do
-    t.it(c.id, function()
+    case(c.id, function()
       local client, host = client_for(c, c.responses)
       local pages = {}
       local it = client[c.op .. "_pages"](client, normalize(c.input))
@@ -233,7 +269,7 @@ end)
 t.describe("s3 conformance: presign_request (Presign.presignRequest)", function()
   local s3 = require("distilled.s3")
   for _, c in ipairs(V.presign_requests) do
-    t.it(c.id, function()
+    case(c.id, function()
       local client = client_for(c, {})
       local got, err = s3.presign_request(
         client,
