@@ -390,7 +390,7 @@ end
 bigint.GENERATE_AFTER = 256
 
 local function compile(self)
-  if self.generate and not self.source then
+  if self.generate and not self.source and self.k <= bigint.CODEGEN_WIDE_LIMBS then
     local mul, mul_source = generate(self, false)
     local sqr, sqr_source = generate(self, true)
     self.mul, self.sqr = mul, sqr
@@ -404,7 +404,7 @@ Mont.compile = compile
 local function count_use(self)
   local uses = self.uses + 1
   self.uses = uses
-  if uses == bigint.GENERATE_AFTER then
+  if uses == bigint.GENERATE_AFTER and bigint.GENERATE then
     compile(self)
   end
 end
@@ -629,7 +629,7 @@ function Mont:pow(a, e)
   if nbits == 0 then
     return pad(self.one, self.k)
   end
-  if nbits >= 128 then -- a long exponent: at least 128 products follow
+  if nbits >= 128 and bigint.GENERATE then -- a long exponent: 128+ products follow
     compile(self)
   end
   local tbl = { [0] = self.one, a }
@@ -673,6 +673,13 @@ end
 -- version (about 3x faster in every runtime). 3k + 2 locals must stay under Lua's limit
 -- of 200, hence the bound. The source is kept on the context (ctx.source.mul / .sqr).
 ---------------------------------------------------------------------------------------
+
+--
+-- Not on LuaJIT: its trace compiler turns the loops into machine code but gives up on
+-- functions this long, so there the generated code is about 6x slower than the loops
+-- (measured, RS256-2048: 0.011 s with loops, 0.064 s generated). bigint.GENERATE is the
+-- default; ctx:compile() generates regardless (the spec tests both everywhere).
+bigint.GENERATE = rawget(_G, "jit") == nil
 
 bigint.CODEGEN_LIMBS = 60
 -- above CODEGEN_LIMBS the generated code indexes the operand tables (RSA-4096's CRT
@@ -857,7 +864,7 @@ function bigint.mont(m, opts)
   end
   ctx.r2 = v
   ctx.m_minus_2 = bigint.sub(m, { 2 })
-  ctx.generate = k <= bigint.CODEGEN_WIDE_LIMBS and not (opts and opts.generic)
+  ctx.generate = not (opts and opts.generic)
   return ctx
 end
 
