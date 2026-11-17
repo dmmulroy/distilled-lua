@@ -84,7 +84,15 @@
 6. `docs/generating.md` section 4: per-model credentials, `pagination.modes`, the new glue
    signatures and glue-side credential exchanges. `STATUS.md` section 27.
 
-## Commands run (final, after `git merge origin/main` at 6b42161)
+## After the last merge (task 25, at d478d13)
+
+`verify/dl gen-all` for the 11 packages: no diff. `verify/dl doctor`: ok. All 11 `gen-diff`s:
+ok. `verify/dl test`: lua 1847 passed, 20 pending; luajit 1847 passed, 20 pending; rex 1834
+passed, 26 pending. `verify/dl fmt --check` now fails only on `spec/golden/s3/presign.lua`
+and `spec/golden/s3/conform.lua` (stylua prefers single quotes). Those files are task 25's
+and are identical on main, so I left them alone.
+
+## Commands run (after `git merge origin/main` at 6b42161)
 
 ```text
 $ verify/dl models sync
