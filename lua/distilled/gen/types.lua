@@ -62,8 +62,14 @@ local RUNTIME_TYPES = [[
 ---@field close fun(self: distilled.Iterator<T>)
 ---@operator call: T?]]
 
+-- AWS documentation is HTML: gen/aws.lua's doc_text makes it a short plain text
+local doc_filter
+
 local function doc_lines(doc, indent)
   local out = {}
+  if doc_filter and type(doc) == "string" then
+    doc = doc_filter(doc)
+  end
   if type(doc) ~= "string" or doc == "" then
     return out
   end
@@ -151,6 +157,7 @@ end
 --- types.render(plan) -> source of types.lua
 function types.render(plan)
   local ctx, spec = plan.ctx, plan.provider
+  doc_filter = ctx.aws and require("distilled.gen.aws").doc_text or nil
   local prefix = spec.name
   local b = emit.buffer()
   b:line("---@meta")
@@ -181,10 +188,13 @@ function types.render(plan)
     local request_side = req[id] == true
     local doc = def.traits and def.traits["smithy.api#documentation"]
     b:lines_of(doc_lines(doc))
-    if def.type == "structure" then
+    -- an AWS union is a tagged struct: one optional field per member (gen/aws.lua)
+    if def.type == "structure" or (def.type == "union" and ctx.aws) then
       b:line("---@class " .. tname)
       for _, info in ipairs(shapes.members(ctx, def, id)) do
-        local desc = naming.one_line(info.doc)
+        local desc = naming.one_line(
+          (doc_filter and type(info.doc) == "string") and doc_filter(info.doc) or info.doc
+        )
         local line = "---@field "
           .. field_key(info.name)
           .. (info.required and "" or "?")

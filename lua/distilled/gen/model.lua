@@ -396,7 +396,7 @@ local function audit_traits(m, problems, warnings)
       return
     end
     for _, id in ipairs(m:keys(traits)) do
-      local known = traits_table.lookup(id)
+      local known = traits_table.lookup(id, m.is_aws)
       if not known then
         if traits_table.guarded(id) then
           problems[#problems + 1] = where
@@ -446,7 +446,11 @@ local function check_shapes(m, problems)
   local by_local = {}
   for _, id in ipairs(m.ids) do
     local def = m.shapes[id]
-    if type(def) ~= "table" or not SHAPE_TYPES[def.type] then
+    -- AWS models group operations into resources (lifecycle and identifiers only)
+    local aws_resource = m.is_aws and type(def) == "table" and def.type == "resource"
+    if aws_resource then
+      def = nil
+    elseif type(def) ~= "table" or not SHAPE_TYPES[def.type] then
       problems[#problems + 1] = id .. ": unsupported shape type " .. tostring(def and def.type)
     else
       local name = naming.local_name(id)
@@ -502,7 +506,9 @@ local function check_shapes(m, problems)
         for k, e in ipairs(def.errors or {}) do
           check_target(m, problems, id .. " errors[" .. k .. "]", e.target)
           local edef = m.shapes[e.target]
-          if edef and not (edef.traits and edef.traits["smithy.api#error"]) then
+          -- AWS models list errors patched in without the trait (Distilled's patches:
+          -- an empty RequestLimitExceeded, ec2's aws.codegen#errorTag shapes)
+          if edef and not m.is_aws and not (edef.traits and edef.traits["smithy.api#error"]) then
             problems[#problems + 1] = id
               .. ": error "
               .. e.target
@@ -519,7 +525,8 @@ local function check_shapes(m, problems)
         for k, e in ipairs(def.errors or {}) do
           check_target(m, problems, id .. " errors[" .. k .. "]", e.target)
         end
-        if def.resources and #def.resources > 0 then
+        -- resources only group operations; every operation shape is collected anyway
+        if def.resources and #def.resources > 0 and not m.is_aws then
           problems[#problems + 1] = id .. ": service resources are not supported"
         end
       end
@@ -554,6 +561,7 @@ function model.from_text(text, path)
     m.ids[#m.ids + 1] = id
   end
   local problems = {}
+  m.is_aws = require("distilled.gen.aws").is_aws_model(doc)
   check_shapes(m, problems)
   audit_traits(m, problems, m.warnings)
   if #problems > 0 then
