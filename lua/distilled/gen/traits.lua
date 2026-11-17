@@ -11,17 +11,26 @@ local traits = {}
 
 traits.TABLE = {
   -- operations
-  ["smithy.api#http"] = { handled = "ops.lua: method, uri, code, contentType, bodyMediaType" },
+  ["smithy.api#http"] = {
+    handled = "ops.lua: method, uri, code, contentType, bodyMediaType, and the extensions"
+      .. " baseUrl, server, accept, rawDownload (op.base_url, op.server, op.accept,"
+      .. " op.raw_download)",
+  },
   ["smithy.api#paginated"] = { handled = "ops.lua: pagination, validated against members" },
   ["smithy.api#documentation"] = { handled = "types.lua and README.md: descriptions" },
   ["com.distilled.openapi#contentType"] = {
     handled = "ops.lua: op.content_type (the same value as smithy.api#http contentType)",
   },
+  -- Streaming (traits.STREAMING): emitted only with allow_unsupported = { "streaming" }.
   ["com.distilled.openapi#streamWhen"] = {
-    fail = "streaming operations are not supported by distilled-lua",
+    handled = "ops.lua: streaming; the plain call is emitted (it keeps the operation's"
+      .. " output, as in Distilled), the stream variant is not",
   },
   ["com.distilled.grpc#serverStreaming"] = {
-    fail = "streaming operations are not supported by distilled-lua",
+    handled = 'ops.lua: streaming; op.unsupported = "streaming" (SdkError at call time)',
+  },
+  ["com.distilled.grpc#clientStreaming"] = {
+    handled = 'ops.lua: streaming; op.unsupported = "streaming" (SdkError at call time)',
   },
   ["distilled.errors#bodies"] = {
     handled = "types.lua: the documented body types of an error class (runtime keeps the"
@@ -104,6 +113,14 @@ traits.TABLE = {
     ignored = "timestamps are strings on the wire and in Lua (Distilled's JSON prelude)",
   },
   ["smithy.api#mediaType"] = { ignored = "a blob is bytes whatever its media type" },
+}
+
+-- Streaming traits: trait id -> true when only the stream variant needs streaming (the
+-- operation's plain call still works: streamWhen), false when every call streams.
+traits.STREAMING = {
+  ["com.distilled.openapi#streamWhen"] = true,
+  ["com.distilled.grpc#serverStreaming"] = false,
+  ["com.distilled.grpc#clientStreaming"] = false,
 }
 
 -- Namespaces where an unknown trait fails generation.

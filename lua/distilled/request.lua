@@ -39,6 +39,14 @@
 -- 11. `content_type = "multipart"`: the body is multipart/form-data (see
 --    multipart_parts below and distilled/multipart.lua), whatever the method, as in
 --    Distilled. The boundary comes from `random` (or `host.random`).
+-- 12. `op.accept` (smithy.api#http accept, MongoDB Atlas's versioned media types) is the
+--    Accept header, over the protocol's headers; a member bound to Accept still wins.
+-- 13. `op.unsupported` (a runtime gap the provider spec acknowledged, e.g. "streaming")
+--    fails every call with SdkError before anything is built.
+-- 14. A path placeholder no label member fills (the model lost the member: proxmox
+--    `{url_seq}`) is filled from the input key of that name, checked and encoded like a
+--    label, and that key is not sent in the body. Without it the call fails with
+--    InvalidInput (Distilled sends the placeholder as is).
 local schema = require("distilled.schema")
 local json = require("distilled.json")
 local secret = require("distilled.secret")
@@ -334,6 +342,16 @@ function request.build(args)
   if type(base_url) ~= "string" then
     misuse("base_url must be a string")
   end
+  if op.unsupported ~= nil then
+    return nil,
+      sdk_error(
+        op,
+        "distilled-lua cannot perform "
+          .. tostring(op.unsupported)
+          .. " operations yet (the client has it for completeness; the provider spec's"
+          .. " allow_unsupported emitted it)"
+      )
+  end
   local registry = args.registry
 
   -- the plan (Distilled fails here when the Http trait is missing)
@@ -380,10 +398,38 @@ function request.build(args)
       uri = url.fill(uri, wire, url.encode_component(text), false)
     end
   end
+  -- placeholders left in the path have no label member (14 above)
+  local path_keys = {}
+  for _, p in ipairs(url.placeholders(string.match(uri, "^[^?]*"))) do
+    local value = rawget(input, p.name)
+    if value == nil then
+      return nil,
+        invalid(
+          p.name,
+          "the path "
+            .. op.uri
+            .. " has a {"
+            .. p.name
+            .. "} that no input member fills; pass it as input."
+            .. p.name
+        )
+    end
+    local text = url.text(value)
+    local refused = invalid_label(p.name, text, p.greedy)
+    if refused then
+      return nil, refused
+    end
+    local encoded = p.greedy and url.encode_greedy_label(text) or url.encode_component(text)
+    uri = url.fill(uri, p.name, encoded, p.greedy)
+    path_keys[p.name] = true
+  end
 
   local headers = {}
   for name, value in pairs(args.headers or {}) do
     headers[string.lower(name)] = url.text(secret.unwrap(value))
+  end
+  if op.accept ~= nil then
+    headers["accept"] = op.accept
   end
   local member_content_type
   local map_member_header = args.map_member_header
@@ -456,7 +502,7 @@ function request.build(args)
   -- undeclared input keys pass through as body fields
   local unknown_key_to_wire = args.unknown_key_to_wire
   for _, key in ipairs(sorted_keys(input)) do
-    if not plan.known[key] then
+    if not plan.known[key] and not path_keys[key] then
       if type(key) ~= "string" then
         return nil,
           invalid(
