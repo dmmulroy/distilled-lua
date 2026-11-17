@@ -889,3 +889,174 @@ t.describe("generated namespacelabs clients (Connect JSON)", function()
     t.same(err.details, { { type = "x" } })
   end)
 end)
+
+---------------------------------------------------------------------------------------
+-- the generator side (gen/proto.lua): provider spec rpc, descriptors, failing early
+---------------------------------------------------------------------------------------
+local gen = require("distilled.gen")
+local gen_model = require("distilled.gen.model")
+local proto = require("distilled.gen.proto")
+
+local TINY_DIR = t.root .. "/spec/golden/protobuf"
+
+local function tiny_model(extra_ops, no_stream)
+  local shapes = {
+    ["t#Svc"] = {
+      type = "service",
+      version = "1",
+      operations = { { target = "t#Get" }, { target = "t#Watch" } },
+    },
+    ["t#Get"] = {
+      type = "operation",
+      input = { target = "t#GetReq" },
+      output = { target = "t#Thing" },
+      traits = { ["smithy.api#http"] = { method = "POST", uri = "/t.Svc/Get", code = 200 } },
+    },
+    ["t#Watch"] = {
+      type = "operation",
+      input = { target = "t#WatchReq" },
+      output = { target = "t#ThingStream" },
+      traits = {
+        ["smithy.api#http"] = { method = "POST", uri = "/t.Svc/Watch", code = 200 },
+        ["com.distilled.grpc#serverStreaming"] = {},
+      },
+    },
+    ["t#GetReq"] = {
+      type = "structure",
+      members = { id = { target = "smithy.api#String" } },
+      traits = { ["smithy.api#input"] = {} },
+    },
+    ["t#WatchReq"] = {
+      type = "structure",
+      members = { id = { target = "smithy.api#String" } },
+      traits = { ["smithy.api#input"] = {} },
+    },
+    ["t#GoneReq"] = {
+      type = "structure",
+      members = { id = { target = "smithy.api#String" } },
+      traits = { ["smithy.api#input"] = {} },
+    },
+    ["t#Thing"] = {
+      type = "structure",
+      members = { id = { target = "smithy.api#String" } },
+      traits = { ["smithy.api#output"] = {} },
+    },
+    ["t#ThingList"] = { type = "list", member = { target = "t#Thing" } },
+    ["t#ThingStream"] = {
+      type = "structure",
+      members = { items = { target = "t#ThingList", traits = { ["smithy.api#required"] = {} } } },
+      traits = { ["smithy.api#output"] = {} },
+    },
+  }
+  if no_stream then
+    shapes["t#Watch"].traits["com.distilled.grpc#serverStreaming"] = nil
+  end
+  for name, def in pairs(extra_ops or {}) do
+    shapes[name] = def
+    table.insert(shapes["t#Svc"].operations, { target = name })
+  end
+  return assert(
+    gen_model.from_text(json.encode({ smithy = "2.0", shapes = shapes }), TINY_DIR .. "/tiny.json")
+  )
+end
+
+local function tiny_spec(rpc_over)
+  local r = { wire = "grpc", descriptors = "tiny_descriptors.ts" }
+  for k, v in pairs(rpc_over or {}) do
+    r[k] = v
+  end
+  return {
+    name = "tiny",
+    title = "Tiny",
+    base_url = { default = "https://tiny.test", option = "base_url" },
+    auth = { kind = "bearer", from = "token", env = "TINY_TOKEN" },
+    unknown_tag = "UnknownTinyError",
+    parse_tag = "TinyParseError",
+    naming = { members = "wire" },
+    rpc = r,
+  }
+end
+
+t.describe("gen.proto", function()
+  t.it("parses descriptors.ts: single-quoted, double-quoted and plain JSON", function()
+    local d =
+      assert(proto.parse_descriptors('x = JSON.parse(\'{"messages":{},"methods":{}}\')', "a"))
+    t.same(d, { messages = {}, methods = {}, enums = {} })
+    d = assert(
+      proto.parse_descriptors('JSON.parse("{\\"messages\\":{\\"a\\":[]},\\"methods\\":{}}")', "b")
+    )
+    t.same(d.messages, { a = {} })
+    t.truthy(proto.parse_descriptors('{"messages":{},"methods":{},"enums":{}}', "c"))
+    local _, err = proto.parse_descriptors("export const x = 1", "d.ts")
+    t.match(err, "d.ts: no JSON.parse(", true)
+    _, err = proto.parse_descriptors('{"messages":{}}', "e.json")
+    t.match(err, "not a descriptor table", true)
+  end)
+
+  t.it("rejects a bad rpc section before generating", function()
+    local _, err = gen.generate({
+      model = tiny_model(),
+      provider = tiny_spec({ wire = "soap", headers = { { "x bad", "{no-name}" } }, colour = 1 }),
+    })
+    t.match(err, "rpc.wire must be grpc, grpc-web or connect", true)
+    t.match(err, "unknown key colour", true)
+    t.match(err, "x bad is not a header name", true)
+    t.match(err, "{no-name} is not an option name", true)
+    _, err = gen.generate({ model = tiny_model(), provider = tiny_spec({ descriptors = false }) })
+    t.match(err, "rpc.descriptors must name the descriptors file", true)
+  end)
+
+  t.it("emits only the reachable descriptors, and a gRPC client module", function()
+    local files = assert(gen.generate({ model = tiny_model(), provider = tiny_spec() }))
+    local d = assert(require("distilled.compat").load(files["descriptors.lua"], "descriptors"))()
+    t.same(
+      d.methods,
+      {
+        ["/t.Svc/Get"] = { "t.GetReq", "t.Thing" },
+        ["/t.Svc/Watch"] = { "t.GetReq", "t.Thing", 1 },
+      }
+    )
+    t.same(d.messages["t.Thing"][2], { 2, "state", "enum", "t.State" })
+    t.truthy(d.messages["t.Child"])
+    t.eq(d.messages["t.Unused"], nil)
+    t.truthy(d.enums["t.State"])
+    t.eq(d.enums["t.Other"], nil)
+    t.match(files["init.lua"], 'require("distilled.protocol.grpc")', true)
+    t.match(files["init.lua"], '{ "authorization", "Bearer {token}" }', true)
+    t.match(files["README.md"], "Binary gRPC", true)
+    t.eq(files["service.lua"]:find("unsupported", 1, true), nil)
+  end)
+
+  t.it("fails early on a method the descriptors lack or a streaming mismatch", function()
+    local _, err = gen.generate({
+      model = tiny_model({
+        ["t#Gone"] = {
+          type = "operation",
+          input = { target = "t#GoneReq" },
+          output = { target = "t#Thing" },
+          traits = { ["smithy.api#http"] = { method = "POST", uri = "/t.Svc/Gone", code = 200 } },
+        },
+      }),
+      provider = tiny_spec(),
+    })
+    t.match(err, "no gRPC method /t.Svc/Gone in", true)
+    _, err = gen.generate({ model = tiny_model(nil, true), provider = tiny_spec() })
+    t.match(err, "the descriptors say /t.Svc/Watch streams", true)
+    _, err =
+      gen.generate({ model = tiny_model(), provider = tiny_spec({ descriptors = "missing.ts" }) })
+    t.match(err, "cannot read the gRPC descriptors", true)
+  end)
+
+  t.it("connect: no descriptors; a server stream stays unsupported", function()
+    local spec = tiny_spec({ wire = "connect" })
+    spec.rpc.descriptors = nil
+    local _, err = gen.generate({ model = tiny_model(), provider = spec })
+    t.match(err, "streaming", true)
+    spec.allow_unsupported = { "streaming" }
+    local files = assert(gen.generate({ model = tiny_model(), provider = spec }))
+    t.eq(files["descriptors.lua"], nil)
+    t.match(files["init.lua"], 'require("distilled.protocol.connect")', true)
+    t.match(files["init.lua"], "empty_json_body = false", true)
+    t.match(files["service.lua"], 'unsupported = "streaming"', true)
+  end)
+end)
