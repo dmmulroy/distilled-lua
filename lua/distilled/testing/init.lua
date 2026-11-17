@@ -10,6 +10,9 @@
 --   host.sleep(0.5); host.now() == 0.5; host.sleeps == { 0.5 }
 --   host.random() -- deterministic for a seed, the same on every runtime
 --   host.transport -- the scripted transport (host.requests is its request list)
+--
+--   local st = testing.stream_transport{ responses = { { chunks = { "a\n", "b\n" } } } }
+--   st.stream(request) -> { status, headers, body = reader }   (distilled.testing.stream)
 local json = require("distilled.json")
 local errors = require("distilled.errors")
 local compat = require("distilled.compat")
@@ -160,6 +163,12 @@ function testing.host(opts)
   end
   host.exec = opts.exec
   return host
+end
+
+--- testing.stream_transport{ responses } -> a scripted streaming transport (task 29;
+-- distilled.testing.stream): transport.stream(request) -> { status, headers, body = reader }
+function testing.stream_transport(opts)
+  return require("distilled.testing.stream").transport(opts)
 end
 
 return testing

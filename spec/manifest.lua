@@ -80,6 +80,7 @@ return {
   "signed_rest_spec.lua",
   "sigv4_spec.lua",
   "slack_client_spec.lua",
+  "stream_core_spec.lua",
   "tencentcloud_conform_spec.lua",
   "tencentcloud_gen_spec.lua",
   "tencentcloud_protocol_spec.lua",

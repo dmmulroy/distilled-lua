@@ -28,6 +28,17 @@
 ---@field filename? string Defaults to the member's wire name
 ---@field content_type? string Defaults to application/octet-stream
 
+---A streaming response (`<op>_stream`): items as they arrive; `iter()` yields
+---`item, nil` per item and `false, err` once on a failure.
+---@class distilled.Stream<T>
+---@field status integer
+---@field headers table<string, string>
+---@field err? distilled.Error
+---@field next fun(self: distilled.Stream<T>): T?, distilled.Error?
+---@field iter fun(self: distilled.Stream<T>): fun(): T|false?, distilled.Error?
+---@field collect fun(self: distilled.Stream<T>, limit?: integer): T[]?, distilled.Error?
+---@field close fun(self: distilled.Stream<T>)
+
 ---JSON null (`distilled.null`): a value that is present and null, unlike nil.
 ---@class distilled.Null
 
@@ -3652,6 +3663,18 @@ function Client:get_log_group_fields(input) end
 ---@return distilled.Error? err
 function Client:get_log_object(input) end
 
+---Retrieves a large logging object (LLO) and streams it back. This API is used to fetch the content of large portions of log events that have been ingested through the PutOpenTelemetryLogs API. When log events contain fields that would cause the total event size to exceed 1MB, CloudWatch Logs automatically processes up to 10 fields, starting with the largest fields. Each field is truncated as needed...
+---
+---Each item as it arrives (`aws_eventstream`); `opts` = { timeout?, idle_timeout? } in seconds.
+---
+---`POST /`
+---Errors: AccessDeniedException, InvalidOperationException, InvalidParameterException, LimitExceededException, ResourceNotFoundException, InternalStreamingException.
+---@param input aws.cloudwatch_logs.GetLogObjectRequest
+---@param opts? { timeout?: number, idle_timeout?: number }
+---@return distilled.Stream<aws.cloudwatch_logs.GetLogObjectResponseStream>? stream
+---@return distilled.Error? err
+function Client:get_log_object_stream(input, opts) end
+
 ---Retrieves all of the fields and values of a single log event. All fields are retrieved, even if the original query that produced the logRecordPointer retrieved only a subset of fields. Fields are returned as field name/field value pairs.
 ---
 ---`POST /`
@@ -4142,6 +4165,18 @@ function Client:put_transformer(input) end
 ---@return aws.cloudwatch_logs.StartLiveTailResponse? value
 ---@return distilled.Error? err
 function Client:start_live_tail(input) end
+
+---Starts a Live Tail streaming session for one or more log groups. A Live Tail session returns a stream of log events that have been recently ingested in the log groups. For more information, see Use Live Tail to view logs in near real time.
+---
+---Each item as it arrives (`aws_eventstream`); `opts` = { timeout?, idle_timeout? } in seconds.
+---
+---`POST /`
+---Errors: AccessDeniedException, InvalidOperationException, InvalidParameterException, LimitExceededException, ResourceNotFoundException, SessionTimeoutException, SessionStreamingException.
+---@param input aws.cloudwatch_logs.StartLiveTailRequest
+---@param opts? { timeout?: number, idle_timeout?: number }
+---@return distilled.Stream<aws.cloudwatch_logs.StartLiveTailResponseStream>? stream
+---@return distilled.Error? err
+function Client:start_live_tail_stream(input, opts) end
 
 ---Starts a query of one or more log groups or data sources using CloudWatch Logs Insights. You specify the log groups or data sources and time range to query and the query string to use. You can query up to 10 data sources in a single query.
 ---

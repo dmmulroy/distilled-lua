@@ -28,6 +28,17 @@
 ---@field filename? string Defaults to the member's wire name
 ---@field content_type? string Defaults to application/octet-stream
 
+---A streaming response (`<op>_stream`): items as they arrive; `iter()` yields
+---`item, nil` per item and `false, err` once on a failure.
+---@class distilled.Stream<T>
+---@field status integer
+---@field headers table<string, string>
+---@field err? distilled.Error
+---@field next fun(self: distilled.Stream<T>): T?, distilled.Error?
+---@field iter fun(self: distilled.Stream<T>): fun(): T|false?, distilled.Error?
+---@field collect fun(self: distilled.Stream<T>, limit?: integer): T[]?, distilled.Error?
+---@field close fun(self: distilled.Stream<T>)
+
 ---JSON null (`distilled.null`): a value that is present and null, unlike nil.
 ---@class distilled.Null
 
@@ -263,5 +274,17 @@ function Client:invoke_endpoint_async(input) end
 ---@return aws.sagemaker_runtime.InvokeEndpointWithResponseStreamOutput? value
 ---@return distilled.Error? err
 function Client:invoke_endpoint_with_response_stream(input) end
+
+---Invokes a model at the specified endpoint to return the inference response as a stream. The inference stream provides the response payload incrementally as a series of parts. Before you can get an inference stream, you must have access to a model that's deployed using Amazon SageMaker AI hosting services, and the container for that model must support inference streaming.
+---
+---Each item as it arrives (`aws_eventstream`); `opts` = { timeout?, idle_timeout? } in seconds.
+---
+---`POST /endpoints/{EndpointName}/invocations-response-stream`
+---Errors: InternalFailure, InternalStreamFailure, ModelError, ModelStreamError, ServiceUnavailable, ValidationError.
+---@param input aws.sagemaker_runtime.InvokeEndpointWithResponseStreamInput
+---@param opts? { timeout?: number, idle_timeout?: number }
+---@return distilled.Stream<aws.sagemaker_runtime.ResponseStream>? stream
+---@return distilled.Error? err
+function Client:invoke_endpoint_with_response_stream_stream(input, opts) end
 
 return Module

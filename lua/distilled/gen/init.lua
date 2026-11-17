@@ -621,6 +621,10 @@ function gen.plan(args)
     if op.out.root then
       roots[#roots + 1] = op.out.root
     end
+    if op.stream_item_target then
+      -- a stream's frame shape (streamWhen items) may be named nowhere else (task 29)
+      roots[#roots + 1] = op.stream_item_target
+    end
   end
   for _, d in ipairs(error_classes) do
     for _, b in ipairs(d.bodies) do

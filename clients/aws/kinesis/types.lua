@@ -28,6 +28,17 @@
 ---@field filename? string Defaults to the member's wire name
 ---@field content_type? string Defaults to application/octet-stream
 
+---A streaming response (`<op>_stream`): items as they arrive; `iter()` yields
+---`item, nil` per item and `false, err` once on a failure.
+---@class distilled.Stream<T>
+---@field status integer
+---@field headers table<string, string>
+---@field err? distilled.Error
+---@field next fun(self: distilled.Stream<T>): T?, distilled.Error?
+---@field iter fun(self: distilled.Stream<T>): fun(): T|false?, distilled.Error?
+---@field collect fun(self: distilled.Stream<T>, limit?: integer): T[]?, distilled.Error?
+---@field close fun(self: distilled.Stream<T>)
+
 ---JSON null (`distilled.null`): a value that is present and null, unlike nil.
 ---@class distilled.Null
 
@@ -1482,6 +1493,18 @@ function Client:stop_stream_encryption(input) end
 ---@return aws.kinesis.SubscribeToShardOutput? value
 ---@return distilled.Error? err
 function Client:subscribe_to_shard(input) end
+
+---This operation establishes an HTTP/2 connection between the consumer you specify in the ConsumerARN parameter and the shard you specify in the ShardId parameter. After the connection is successfully established, Kinesis Data Streams pushes records from the shard to the consumer over this connection. Before you call this operation, call RegisterStreamConsumer to register the consumer with Kinesis D...
+---
+---Each item as it arrives (`aws_eventstream`); `opts` = { timeout?, idle_timeout? } in seconds.
+---
+---`POST /`
+---Errors: AccessDeniedException, DryRunOperationException, InvalidArgumentException, LimitExceededException, ResourceInUseException, ResourceNotFoundException, KMSDisabledException, KMSInvalidStateException, KMSAccessDeniedException, KMSNotFoundException, KMSOptInRequired, KMSThrottlingException, InternalFailureException.
+---@param input aws.kinesis.SubscribeToShardInput
+---@param opts? { timeout?: number, idle_timeout?: number }
+---@return distilled.Stream<aws.kinesis.SubscribeToShardEventStream>? stream
+---@return distilled.Error? err
+function Client:subscribe_to_shard_stream(input, opts) end
 
 ---Adds or updates tags for the specified Kinesis resource. Each tag is a label consisting of a user-defined key and value. Tags can help you manage, identify, organize, search for, and filter resources. You can assign up to 50 tags to a Kinesis resource.
 ---

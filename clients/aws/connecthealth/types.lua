@@ -28,6 +28,17 @@
 ---@field filename? string Defaults to the member's wire name
 ---@field content_type? string Defaults to application/octet-stream
 
+---A streaming response (`<op>_stream`): items as they arrive; `iter()` yields
+---`item, nil` per item and `false, err` once on a failure.
+---@class distilled.Stream<T>
+---@field status integer
+---@field headers table<string, string>
+---@field err? distilled.Error
+---@field next fun(self: distilled.Stream<T>): T?, distilled.Error?
+---@field iter fun(self: distilled.Stream<T>): fun(): T|false?, distilled.Error?
+---@field collect fun(self: distilled.Stream<T>, limit?: integer): T[]?, distilled.Error?
+---@field close fun(self: distilled.Stream<T>)
+
 ---JSON null (`distilled.null`): a value that is present and null, unlike nil.
 ---@class distilled.Null
 
@@ -739,6 +750,18 @@ function Client:list_tags_for_resource(input) end
 ---@return aws.connecthealth.StartMedicalScribeListeningSessionOutput? value
 ---@return distilled.Error? err
 function Client:start_medical_scribe_listening_session(input) end
+
+---Starts a new Medical Scribe listening session for real-time audio transcription
+---
+---Each item as it arrives (`aws_eventstream`); `opts` = { timeout?, idle_timeout? } in seconds.
+---
+---`POST /medical-scribe-stream/`
+---Errors: AccessDeniedException, InternalServerException, ResourceNotFoundException, ServiceQuotaExceededException, ThrottlingException, ValidationException.
+---@param input aws.connecthealth.StartMedicalScribeListeningSessionInput
+---@param opts? { timeout?: number, idle_timeout?: number }
+---@return distilled.Stream<aws.connecthealth.MedicalScribeOutputStream>? stream
+---@return distilled.Error? err
+function Client:start_medical_scribe_listening_session_stream(input, opts) end
 
 ---Starts a new patient insights job.
 ---

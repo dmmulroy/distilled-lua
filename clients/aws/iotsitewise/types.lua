@@ -28,6 +28,17 @@
 ---@field filename? string Defaults to the member's wire name
 ---@field content_type? string Defaults to application/octet-stream
 
+---A streaming response (`<op>_stream`): items as they arrive; `iter()` yields
+---`item, nil` per item and `false, err` once on a failure.
+---@class distilled.Stream<T>
+---@field status integer
+---@field headers table<string, string>
+---@field err? distilled.Error
+---@field next fun(self: distilled.Stream<T>): T?, distilled.Error?
+---@field iter fun(self: distilled.Stream<T>): fun(): T|false?, distilled.Error?
+---@field collect fun(self: distilled.Stream<T>, limit?: integer): T[]?, distilled.Error?
+---@field close fun(self: distilled.Stream<T>)
+
 ---JSON null (`distilled.null`): a value that is present and null, unlike nil.
 ---@class distilled.Null
 
@@ -5101,6 +5112,18 @@ function Client:get_search_results_items(input) end
 ---@return aws.iotsitewise.InvokeAssistantResponse? value
 ---@return distilled.Error? err
 function Client:invoke_assistant(input) end
+
+---Invokes SiteWise Assistant to start or continue a conversation.
+---
+---Each item as it arrives (`aws_eventstream`); `opts` = { timeout?, idle_timeout? } in seconds.
+---
+---`POST /assistant/invocation`
+---Errors: AccessDeniedException, ConflictingOperationException, InternalFailureException, InvalidRequestException, LimitExceededException, ResourceNotFoundException, ThrottlingException.
+---@param input aws.iotsitewise.InvokeAssistantRequest
+---@param opts? { timeout?: number, idle_timeout?: number }
+---@return distilled.Stream<aws.iotsitewise.ResponseStream>? stream
+---@return distilled.Error? err
+function Client:invoke_assistant_stream(input, opts) end
 
 ---Retrieves a paginated list of access policies for an identity (an IAM Identity Center user, an IAM Identity Center group, or an IAM user) or an IoT SiteWise Monitor resource (a portal or project).
 ---

@@ -28,6 +28,17 @@
 ---@field filename? string Defaults to the member's wire name
 ---@field content_type? string Defaults to application/octet-stream
 
+---A streaming response (`<op>_stream`): items as they arrive; `iter()` yields
+---`item, nil` per item and `false, err` once on a failure.
+---@class distilled.Stream<T>
+---@field status integer
+---@field headers table<string, string>
+---@field err? distilled.Error
+---@field next fun(self: distilled.Stream<T>): T?, distilled.Error?
+---@field iter fun(self: distilled.Stream<T>): fun(): T|false?, distilled.Error?
+---@field collect fun(self: distilled.Stream<T>, limit?: integer): T[]?, distilled.Error?
+---@field close fun(self: distilled.Stream<T>)
+
 ---JSON null (`distilled.null`): a value that is present and null, unlike nil.
 ---@class distilled.Null
 
@@ -1223,5 +1234,17 @@ function Client:update_fhir_datastore(input) end
 ---@return aws.healthlake.UpdateProfileWithAgentResponse? value
 ---@return distilled.Error? err
 function Client:update_profile_with_agent(input) end
+
+---Updates a data transformation profile using chat-based interaction with an agent. Supports multi-turn conversations for iteratively customizing profiles.
+---
+---Each item as it arrives (`aws_eventstream`); `opts` = { timeout?, idle_timeout? } in seconds.
+---
+---`POST /`
+---Errors: AccessDeniedException, InternalServerException, ResourceNotFoundException, ThrottlingException, ValidationException.
+---@param input aws.healthlake.UpdateProfileWithAgentRequest
+---@param opts? { timeout?: number, idle_timeout?: number }
+---@return distilled.Stream<aws.healthlake.AgentOutputMessageStream>? stream
+---@return distilled.Error? err
+function Client:update_profile_with_agent_stream(input, opts) end
 
 return Module

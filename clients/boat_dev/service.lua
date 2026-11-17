@@ -480,6 +480,33 @@ shapes.CommandStartedResponse = {
     { name = "errLogPath", schema = S.string },
   },
 }
+shapes.CommandStreamFrame = {
+  t = "struct",
+  name = "CommandStreamFrame",
+  members = {
+    { name = "type", schema = S.ref("CommandStreamFrameType"), required = true },
+    { name = "commandId", schema = S.string },
+    { name = "data", schema = S.string },
+    { name = "exitCode", schema = S.number, nullable = true },
+    { name = "signal", schema = S.string, nullable = true },
+    { name = "oomKilled", schema = S.boolean },
+    { name = "success", schema = S.boolean },
+    { name = "timedOut", schema = S.boolean },
+    { name = "stdoutTruncated", schema = S.boolean },
+    { name = "stderrTruncated", schema = S.boolean },
+    { name = "cwd", schema = S.string },
+    { name = "startedAt", schema = S.string },
+    { name = "finishedAt", schema = S.string },
+    { name = "error", schema = S.string },
+    { name = "message", schema = S.string },
+    { name = "retryable", schema = S.boolean },
+  },
+}
+shapes.CommandStreamFrameType = {
+  t = "enum",
+  base = "string",
+  values = { "started", "stdout", "stderr", "exit", "error" },
+}
 shapes.ConfigureSshKeyRequest = {
   t = "struct",
   name = "ConfigureSshKeyRequest",

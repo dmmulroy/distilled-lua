@@ -28,6 +28,17 @@
 ---@field filename? string Defaults to the member's wire name
 ---@field content_type? string Defaults to application/octet-stream
 
+---A streaming response (`<op>_stream`): items as they arrive; `iter()` yields
+---`item, nil` per item and `false, err` once on a failure.
+---@class distilled.Stream<T>
+---@field status integer
+---@field headers table<string, string>
+---@field err? distilled.Error
+---@field next fun(self: distilled.Stream<T>): T?, distilled.Error?
+---@field iter fun(self: distilled.Stream<T>): fun(): T|false?, distilled.Error?
+---@field collect fun(self: distilled.Stream<T>, limit?: integer): T[]?, distilled.Error?
+---@field close fun(self: distilled.Stream<T>)
+
 ---JSON null (`distilled.null`): a value that is present and null, unlike nil.
 ---@class distilled.Null
 
@@ -1530,6 +1541,18 @@ function Client:converse(input) end
 ---@return distilled.Error? err
 function Client:converse_stream(input) end
 
+---Sends messages to the specified Amazon Bedrock model and returns the response in a stream. ConverseStream provides a consistent API that works with all Amazon Bedrock models that support messages. This allows you to write code once and use it with different models. Should a model have unique inference parameters, you can also pass those unique parameters to the model.
+---
+---Each item as it arrives (`aws_eventstream`); `opts` = { timeout?, idle_timeout? } in seconds.
+---
+---`POST /model/{modelId}/converse-stream`
+---Errors: AccessDeniedException, InternalServerException, ModelErrorException, ModelNotReadyException, ModelTimeoutException, ResourceNotFoundException, ServiceUnavailableException, ThrottlingException, ValidationException, ModelStreamErrorException.
+---@param input aws.bedrock_runtime.ConverseStreamRequest
+---@param opts? { timeout?: number, idle_timeout?: number }
+---@return distilled.Stream<aws.bedrock_runtime.ConverseStreamOutput>? stream
+---@return distilled.Error? err
+function Client:converse_stream_stream(input, opts) end
+
 ---Returns the token count for a given inference request. This operation helps you estimate token usage before sending requests to foundation models by returning the token count that would be used if the same input were sent to the model in an inference request.
 ---
 ---`POST /model/{modelId}/count-tokens`
@@ -1575,6 +1598,18 @@ function Client:invoke_model(input) end
 ---@return distilled.Error? err
 function Client:invoke_model_with_bidirectional_stream(input) end
 
+---Invoke the specified Amazon Bedrock model to run inference using the bidirectional stream. The response is returned in a stream that remains open for 8 minutes. A single session can contain multiple prompts and responses from the model. The prompts to the model are provided as audio files and the model's responses are spoken back to the user and transcribed.
+---
+---Each item as it arrives (`aws_eventstream`); `opts` = { timeout?, idle_timeout? } in seconds.
+---
+---`POST /model/{modelId}/invoke-with-bidirectional-stream`
+---Errors: AccessDeniedException, InternalServerException, ModelErrorException, ModelNotReadyException, ModelStreamErrorException, ModelTimeoutException, ResourceNotFoundException, ServiceQuotaExceededException, ServiceUnavailableException, ThrottlingException, ValidationException.
+---@param input aws.bedrock_runtime.InvokeModelWithBidirectionalStreamRequest
+---@param opts? { timeout?: number, idle_timeout?: number }
+---@return distilled.Stream<aws.bedrock_runtime.InvokeModelWithBidirectionalStreamOutput>? stream
+---@return distilled.Error? err
+function Client:invoke_model_with_bidirectional_stream_stream(input, opts) end
+
 ---Invoke the specified Amazon Bedrock model to run inference using the prompt and inference parameters provided in the request body. The response is returned in a stream.
 ---
 ---`POST /model/{modelId}/invoke-with-response-stream`
@@ -1583,6 +1618,18 @@ function Client:invoke_model_with_bidirectional_stream(input) end
 ---@return aws.bedrock_runtime.InvokeModelWithResponseStreamResponse? value
 ---@return distilled.Error? err
 function Client:invoke_model_with_response_stream(input) end
+
+---Invoke the specified Amazon Bedrock model to run inference using the prompt and inference parameters provided in the request body. The response is returned in a stream.
+---
+---Each item as it arrives (`aws_eventstream`); `opts` = { timeout?, idle_timeout? } in seconds.
+---
+---`POST /model/{modelId}/invoke-with-response-stream`
+---Errors: AccessDeniedException, InternalServerException, ModelErrorException, ModelNotReadyException, ModelStreamErrorException, ModelTimeoutException, ResourceNotFoundException, ServiceQuotaExceededException, ServiceUnavailableException, ThrottlingException, ValidationException.
+---@param input aws.bedrock_runtime.InvokeModelWithResponseStreamRequest
+---@param opts? { timeout?: number, idle_timeout?: number }
+---@return distilled.Stream<aws.bedrock_runtime.ResponseStream>? stream
+---@return distilled.Error? err
+function Client:invoke_model_with_response_stream_stream(input, opts) end
 
 ---Lists asynchronous invocations.
 ---

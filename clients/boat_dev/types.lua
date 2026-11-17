@@ -375,6 +375,31 @@
 ---@field logPath? string Stdout log file on the sandbox (~/.ascii/processes/<pid>.log).
 ---@field errLogPath? string Stderr log file on the sandbox.
 
+---One line of a streamed command (`POST /sandboxes/{sandboxId}/commands` with `stream: true`, application/x-ndjson).
+---- `started`: first line. `commandId`.
+---- `stdout` / `stderr`: a chunk of output in `data`.
+---- `exit`: last line when the command ended. The synchronous result without stdout/stderr: `success`, `exitCode`, `signal`, `oomKilled`, `timedOut`, ...
+---- `error`: last line on a failure. `error`, `message`, `retryable`.
+---@class boat_dev.CommandStreamFrame
+---@field type boat_dev.CommandStreamFrameType
+---@field commandId? string started: the command's record in the command history.
+---@field data? string stdout/stderr: the chunk of output, UTF-8.
+---@field exitCode? number|distilled.Null
+---@field signal? string|distilled.Null
+---@field oomKilled? boolean True when the memory ceiling killed the command or one of its processes and the command failed.
+---@field success? boolean
+---@field timedOut? boolean
+---@field stdoutTruncated? boolean
+---@field stderrTruncated? boolean
+---@field cwd? string
+---@field startedAt? string
+---@field finishedAt? string
+---@field error? string
+---@field message? string
+---@field retryable? boolean error: true when the command provably never ran (the sandbox is still restoring its disk), so sending it again is safe.
+
+---@alias boat_dev.CommandStreamFrameType "started"|"stdout"|"stderr"|"exit"|"error"
+
 ---@class boat_dev.ConfigureSshKeyRequest
 ---@field sandboxId string Public Sandbox id returned by create/list/get sandbox calls.
 ---@field key string Public SSH key in OpenSSH format. Private keys are rejected.

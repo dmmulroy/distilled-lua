@@ -28,6 +28,17 @@
 ---@field filename? string Defaults to the member's wire name
 ---@field content_type? string Defaults to application/octet-stream
 
+---A streaming response (`<op>_stream`): items as they arrive; `iter()` yields
+---`item, nil` per item and `false, err` once on a failure.
+---@class distilled.Stream<T>
+---@field status integer
+---@field headers table<string, string>
+---@field err? distilled.Error
+---@field next fun(self: distilled.Stream<T>): T?, distilled.Error?
+---@field iter fun(self: distilled.Stream<T>): fun(): T|false?, distilled.Error?
+---@field collect fun(self: distilled.Stream<T>, limit?: integer): T[]?, distilled.Error?
+---@field close fun(self: distilled.Stream<T>)
+
 ---JSON null (`distilled.null`): a value that is present and null, unlike nil.
 ---@class distilled.Null
 
@@ -749,6 +760,18 @@ function Client:get_medical_scribe_stream(input) end
 ---@return distilled.Error? err
 function Client:start_call_analytics_stream_transcription(input) end
 
+---Starts a bidirectional HTTP/2 or WebSocket stream where audio is streamed to Amazon Transcribe and the transcription results are streamed to your application. Use this operation for Call Analytics transcriptions.
+---
+---Each item as it arrives (`aws_eventstream`); `opts` = { timeout?, idle_timeout? } in seconds.
+---
+---`POST /call-analytics-stream-transcription`
+---Errors: BadRequestException, ConflictException, InternalFailureException, LimitExceededException, ServiceUnavailableException.
+---@param input aws.transcribe_streaming.StartCallAnalyticsStreamTranscriptionRequest
+---@param opts? { timeout?: number, idle_timeout?: number }
+---@return distilled.Stream<aws.transcribe_streaming.CallAnalyticsTranscriptResultStream>? stream
+---@return distilled.Error? err
+function Client:start_call_analytics_stream_transcription_stream(input, opts) end
+
 ---Starts a bidirectional HTTP/2 stream, where audio is streamed to Amazon Web Services HealthScribe and the transcription results are streamed to your application.
 ---
 ---`POST /medical-scribe-stream`
@@ -757,6 +780,18 @@ function Client:start_call_analytics_stream_transcription(input) end
 ---@return aws.transcribe_streaming.StartMedicalScribeStreamResponse? value
 ---@return distilled.Error? err
 function Client:start_medical_scribe_stream(input) end
+
+---Starts a bidirectional HTTP/2 stream, where audio is streamed to Amazon Web Services HealthScribe and the transcription results are streamed to your application.
+---
+---Each item as it arrives (`aws_eventstream`); `opts` = { timeout?, idle_timeout? } in seconds.
+---
+---`POST /medical-scribe-stream`
+---Errors: BadRequestException, ConflictException, InternalFailureException, LimitExceededException, ServiceUnavailableException.
+---@param input aws.transcribe_streaming.StartMedicalScribeStreamRequest
+---@param opts? { timeout?: number, idle_timeout?: number }
+---@return distilled.Stream<aws.transcribe_streaming.MedicalScribeResultStream>? stream
+---@return distilled.Error? err
+function Client:start_medical_scribe_stream_stream(input, opts) end
 
 ---Starts a bidirectional HTTP/2 or WebSocket stream where audio is streamed to Amazon Transcribe Medical and the transcription results are streamed to your application.
 ---
@@ -767,6 +802,18 @@ function Client:start_medical_scribe_stream(input) end
 ---@return distilled.Error? err
 function Client:start_medical_stream_transcription(input) end
 
+---Starts a bidirectional HTTP/2 or WebSocket stream where audio is streamed to Amazon Transcribe Medical and the transcription results are streamed to your application.
+---
+---Each item as it arrives (`aws_eventstream`); `opts` = { timeout?, idle_timeout? } in seconds.
+---
+---`POST /medical-stream-transcription`
+---Errors: BadRequestException, ConflictException, InternalFailureException, LimitExceededException, ServiceUnavailableException.
+---@param input aws.transcribe_streaming.StartMedicalStreamTranscriptionRequest
+---@param opts? { timeout?: number, idle_timeout?: number }
+---@return distilled.Stream<aws.transcribe_streaming.MedicalTranscriptResultStream>? stream
+---@return distilled.Error? err
+function Client:start_medical_stream_transcription_stream(input, opts) end
+
 ---Starts a bidirectional HTTP/2 or WebSocket stream where audio is streamed to Amazon Transcribe and the transcription results are streamed to your application.
 ---
 ---`POST /stream-transcription`
@@ -775,5 +822,17 @@ function Client:start_medical_stream_transcription(input) end
 ---@return aws.transcribe_streaming.StartStreamTranscriptionResponse? value
 ---@return distilled.Error? err
 function Client:start_stream_transcription(input) end
+
+---Starts a bidirectional HTTP/2 or WebSocket stream where audio is streamed to Amazon Transcribe and the transcription results are streamed to your application.
+---
+---Each item as it arrives (`aws_eventstream`); `opts` = { timeout?, idle_timeout? } in seconds.
+---
+---`POST /stream-transcription`
+---Errors: BadRequestException, ConflictException, InternalFailureException, LimitExceededException, ServiceUnavailableException.
+---@param input aws.transcribe_streaming.StartStreamTranscriptionRequest
+---@param opts? { timeout?: number, idle_timeout?: number }
+---@return distilled.Stream<aws.transcribe_streaming.TranscriptResultStream>? stream
+---@return distilled.Error? err
+function Client:start_stream_transcription_stream(input, opts) end
 
 return Module

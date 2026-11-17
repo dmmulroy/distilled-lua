@@ -28,6 +28,17 @@
 ---@field filename? string Defaults to the member's wire name
 ---@field content_type? string Defaults to application/octet-stream
 
+---A streaming response (`<op>_stream`): items as they arrive; `iter()` yields
+---`item, nil` per item and `false, err` once on a failure.
+---@class distilled.Stream<T>
+---@field status integer
+---@field headers table<string, string>
+---@field err? distilled.Error
+---@field next fun(self: distilled.Stream<T>): T?, distilled.Error?
+---@field iter fun(self: distilled.Stream<T>): fun(): T|false?, distilled.Error?
+---@field collect fun(self: distilled.Stream<T>, limit?: integer): T[]?, distilled.Error?
+---@field close fun(self: distilled.Stream<T>)
+
 ---JSON null (`distilled.null`): a value that is present and null, unlike nil.
 ---@class distilled.Null
 
@@ -2928,6 +2939,18 @@ function Client:close() end
 ---@return distilled.Error? err
 function Client:agentic_retrieve_stream(input) end
 
+---Retrieves information from one or more knowledge bases using an agentic approach. Agentic retrieval uses a foundation model to intelligently decompose complex queries into sub-queries and iteratively retrieve relevant information from your knowledge bases. This approach improves retrieval accuracy for complex, multi-step questions that a single retrieval pass might not fully address.
+---
+---Each item as it arrives (`aws_eventstream`); `opts` = { timeout?, idle_timeout? } in seconds.
+---
+---`POST /agenticRetrieveStream`
+---Errors: AccessDeniedException, BadGatewayException, ConflictException, DependencyFailedException, InternalServerException, ResourceNotFoundException, ServiceQuotaExceededException, ThrottlingException, ValidationException.
+---@param input aws.bedrock_agent_runtime.AgenticRetrieveStreamRequest
+---@param opts? { timeout?: number, idle_timeout?: number }
+---@return distilled.Stream<aws.bedrock_agent_runtime.AgenticRetrieveStreamResponseOutput>? stream
+---@return distilled.Error? err
+function Client:agentic_retrieve_stream_stream(input, opts) end
+
 ---Checks whether a user has access to a specific document by verifying against the ingested access control list (ACL) in a knowledge base. Use this operation to validate that document-level access control is working as expected after ingestion. To use this operation, you must have the bedrock:CheckIngestedDocumentAcl permission.
 ---
 ---`POST /knowledgebases/{knowledgeBaseId}/datasources/{dataSourceId}/check-ingested-document-acl`
@@ -3083,6 +3106,18 @@ function Client:get_session(input) end
 ---@return distilled.Error? err
 function Client:invoke_agent(input) end
 
+---Amazon Bedrock Agents (now Amazon Bedrock Agents Classic) is no longer open to new customers. For capabilities similar to Bedrock Agents Classic, explore Amazon Bedrock AgentCore. Existing customers can continue to use the service as normal. For more information, see Amazon Bedrock Agents Classic availability change. Sends a prompt for the agent to process and respond to. Note the following fields...
+---
+---Each item as it arrives (`aws_eventstream`); `opts` = { timeout?, idle_timeout? } in seconds.
+---
+---`POST /agents/{agentId}/agentAliases/{agentAliasId}/sessions/{sessionId}/text`
+---Errors: AccessDeniedException, BadGatewayException, ConflictException, DependencyFailedException, InternalServerException, ModelNotReadyException, ResourceNotFoundException, ServiceQuotaExceededException, ThrottlingException, ValidationException.
+---@param input aws.bedrock_agent_runtime.InvokeAgentRequest
+---@param opts? { timeout?: number, idle_timeout?: number }
+---@return distilled.Stream<aws.bedrock_agent_runtime.ResponseStream>? stream
+---@return distilled.Error? err
+function Client:invoke_agent_stream(input, opts) end
+
 ---Invokes an alias of a flow to run the inputs that you specify and return the output of each node as a stream. If there's an error, the error is returned. For more information, see Test a flow in Amazon Bedrock in the Amazon Bedrock User Guide.
 ---
 ---`POST /flows/{flowIdentifier}/aliases/{flowAliasIdentifier}`
@@ -3092,6 +3127,18 @@ function Client:invoke_agent(input) end
 ---@return distilled.Error? err
 function Client:invoke_flow(input) end
 
+---Invokes an alias of a flow to run the inputs that you specify and return the output of each node as a stream. If there's an error, the error is returned. For more information, see Test a flow in Amazon Bedrock in the Amazon Bedrock User Guide.
+---
+---Each item as it arrives (`aws_eventstream`); `opts` = { timeout?, idle_timeout? } in seconds.
+---
+---`POST /flows/{flowIdentifier}/aliases/{flowAliasIdentifier}`
+---Errors: AccessDeniedException, BadGatewayException, ConflictException, DependencyFailedException, InternalServerException, ResourceNotFoundException, ServiceQuotaExceededException, ThrottlingException, ValidationException.
+---@param input aws.bedrock_agent_runtime.InvokeFlowRequest
+---@param opts? { timeout?: number, idle_timeout?: number }
+---@return distilled.Stream<aws.bedrock_agent_runtime.FlowResponseStream>? stream
+---@return distilled.Error? err
+function Client:invoke_flow_stream(input, opts) end
+
 ---Invokes an inline Amazon Bedrock agent using the configurations you provide with the request.
 ---
 ---`POST /agents/{sessionId}`
@@ -3100,6 +3147,18 @@ function Client:invoke_flow(input) end
 ---@return aws.bedrock_agent_runtime.InvokeInlineAgentResponse? value
 ---@return distilled.Error? err
 function Client:invoke_inline_agent(input) end
+
+---Invokes an inline Amazon Bedrock agent using the configurations you provide with the request.
+---
+---Each item as it arrives (`aws_eventstream`); `opts` = { timeout?, idle_timeout? } in seconds.
+---
+---`POST /agents/{sessionId}`
+---Errors: AccessDeniedException, BadGatewayException, ConflictException, DependencyFailedException, InternalServerException, ResourceNotFoundException, ServiceQuotaExceededException, ThrottlingException, ValidationException.
+---@param input aws.bedrock_agent_runtime.InvokeInlineAgentRequest
+---@param opts? { timeout?: number, idle_timeout?: number }
+---@return distilled.Stream<aws.bedrock_agent_runtime.InlineAgentResponseStream>? stream
+---@return distilled.Error? err
+function Client:invoke_inline_agent_stream(input, opts) end
 
 ---Lists events that occurred during a flow execution. Events provide detailed information about the execution progress, including node inputs and outputs, flow inputs and outputs, condition results, and failure events.
 ---
@@ -3264,6 +3323,18 @@ function Client:list_tags_for_resource(input) end
 ---@return distilled.Error? err
 function Client:optimize_prompt(input) end
 
+---Optimizes a prompt for the task that you specify. For more information, see Optimize a prompt in the Amazon Bedrock User Guide.
+---
+---Each item as it arrives (`aws_eventstream`); `opts` = { timeout?, idle_timeout? } in seconds.
+---
+---`POST /optimize-prompt`
+---Errors: AccessDeniedException, BadGatewayException, DependencyFailedException, InternalServerException, ThrottlingException, ValidationException.
+---@param input aws.bedrock_agent_runtime.OptimizePromptRequest
+---@param opts? { timeout?: number, idle_timeout?: number }
+---@return distilled.Stream<aws.bedrock_agent_runtime.OptimizedPromptStream>? stream
+---@return distilled.Error? err
+function Client:optimize_prompt_stream(input, opts) end
+
 ---Add an invocation step to an invocation in a session. An invocation step stores fine-grained state checkpoints, including text and images, for each interaction. For more information about sessions, see Store and retrieve conversation history and context with Amazon Bedrock sessions.
 ---
 ---`PUT /sessions/{sessionIdentifier}/invocationSteps/`
@@ -3348,6 +3419,18 @@ function Client:retrieve_and_generate(input) end
 ---@return aws.bedrock_agent_runtime.RetrieveAndGenerateStreamResponse? value
 ---@return distilled.Error? err
 function Client:retrieve_and_generate_stream(input) end
+
+---Queries a knowledge base and generates responses based on the retrieved results, with output in streaming format.
+---
+---Each item as it arrives (`aws_eventstream`); `opts` = { timeout?, idle_timeout? } in seconds.
+---
+---`POST /retrieveAndGenerateStream`
+---Errors: AccessDeniedException, BadGatewayException, ConflictException, DependencyFailedException, InternalServerException, ResourceNotFoundException, ServiceQuotaExceededException, ThrottlingException, ValidationException.
+---@param input aws.bedrock_agent_runtime.RetrieveAndGenerateStreamRequest
+---@param opts? { timeout?: number, idle_timeout?: number }
+---@return distilled.Stream<aws.bedrock_agent_runtime.RetrieveAndGenerateStreamResponseOutput>? stream
+---@return distilled.Error? err
+function Client:retrieve_and_generate_stream_stream(input, opts) end
 
 ---Starts an execution of an Amazon Bedrock flow. Unlike flows that run until completion or time out after five minutes, flow executions let you run flows asynchronously for longer durations. Flow executions also yield control so that your application can perform other tasks.
 ---

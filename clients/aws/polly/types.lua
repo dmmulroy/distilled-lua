@@ -28,6 +28,17 @@
 ---@field filename? string Defaults to the member's wire name
 ---@field content_type? string Defaults to application/octet-stream
 
+---A streaming response (`<op>_stream`): items as they arrive; `iter()` yields
+---`item, nil` per item and `false, err` once on a failure.
+---@class distilled.Stream<T>
+---@field status integer
+---@field headers table<string, string>
+---@field err? distilled.Error
+---@field next fun(self: distilled.Stream<T>): T?, distilled.Error?
+---@field iter fun(self: distilled.Stream<T>): fun(): T|false?, distilled.Error?
+---@field collect fun(self: distilled.Stream<T>, limit?: integer): T[]?, distilled.Error?
+---@field close fun(self: distilled.Stream<T>)
+
 ---JSON null (`distilled.null`): a value that is present and null, unlike nil.
 ---@class distilled.Null
 
@@ -628,6 +639,18 @@ function Client:put_lexicon(input) end
 ---@return aws.polly.StartSpeechSynthesisStreamOutput? value
 ---@return distilled.Error? err
 function Client:start_speech_synthesis_stream(input) end
+
+---Synthesizes UTF-8 input, plain text, or SSML over a bidirectional streaming connection. Specify synthesis parameters in HTTP/2 headers, send text incrementally as events on the input stream, and receive synthesized audio as it becomes available.
+---
+---Each item as it arrives (`aws_eventstream`); `opts` = { timeout?, idle_timeout? } in seconds.
+---
+---`POST /v1/synthesisStream`
+---Errors: ServiceFailureException, ServiceQuotaExceededException, ThrottlingException, ValidationException.
+---@param input aws.polly.StartSpeechSynthesisStreamInput
+---@param opts? { timeout?: number, idle_timeout?: number }
+---@return distilled.Stream<aws.polly.StartSpeechSynthesisStreamEventStream>? stream
+---@return distilled.Error? err
+function Client:start_speech_synthesis_stream_stream(input, opts) end
 
 ---Allows the creation of an asynchronous synthesis task, by starting a new SpeechSynthesisTask. This operation requires all the standard information needed for speech synthesis, plus the name of an Amazon S3 bucket for the service to store the output of the synthesis task and two optional parameters (OutputS3KeyPrefix and SnsTopicArn). Once the synthesis task is created, this operation will return a...
 ---

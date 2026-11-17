@@ -28,6 +28,17 @@
 ---@field filename? string Defaults to the member's wire name
 ---@field content_type? string Defaults to application/octet-stream
 
+---A streaming response (`<op>_stream`): items as they arrive; `iter()` yields
+---`item, nil` per item and `false, err` once on a failure.
+---@class distilled.Stream<T>
+---@field status integer
+---@field headers table<string, string>
+---@field err? distilled.Error
+---@field next fun(self: distilled.Stream<T>): T?, distilled.Error?
+---@field iter fun(self: distilled.Stream<T>): fun(): T|false?, distilled.Error?
+---@field collect fun(self: distilled.Stream<T>, limit?: integer): T[]?, distilled.Error?
+---@field close fun(self: distilled.Stream<T>)
+
 ---JSON null (`distilled.null`): a value that is present and null, unlike nil.
 ---@class distilled.Null
 
@@ -3782,6 +3793,18 @@ function Client:invoke_agent_runtime(input) end
 ---@return distilled.Error? err
 function Client:invoke_agent_runtime_command(input) end
 
+---Executes a command in a runtime session container and streams the output back to the caller. This operation allows you to run shell commands within the agent runtime environment and receive real-time streaming responses including standard output and standard error.
+---
+---Each item as it arrives (`aws_eventstream`); `opts` = { timeout?, idle_timeout? } in seconds.
+---
+---`POST /runtimes/{agentRuntimeArn}/commands`
+---Errors: AccessDeniedException, InternalServerException, ResourceNotFoundException, RetryableConflictException, RuntimeClientError, ServiceQuotaExceededException, ThrottlingException, ValidationException.
+---@param input aws.bedrock_agentcore.InvokeAgentRuntimeCommandRequest
+---@param opts? { timeout?: number, idle_timeout?: number }
+---@return distilled.Stream<aws.bedrock_agentcore.InvokeAgentRuntimeCommandStreamOutput>? stream
+---@return distilled.Error? err
+function Client:invoke_agent_runtime_command_stream(input, opts) end
+
 ---Invokes an operating system-level action on a browser session in Amazon Bedrock AgentCore. This operation provides direct OS-level control over browser sessions, enabling mouse actions, keyboard input, and screenshots that the WebSocket-based Chrome DevTools Protocol (CDP) cannot handle — such as interacting with print dialogs, context menus, and JavaScript alerts.
 ---
 ---`POST /browsers/{browserIdentifier}/sessions/invoke`
@@ -3800,6 +3823,18 @@ function Client:invoke_browser(input) end
 ---@return distilled.Error? err
 function Client:invoke_code_interpreter(input) end
 
+---Executes code within an active code interpreter session in Amazon Bedrock AgentCore. This operation processes the provided code, runs it in a secure environment, and returns the execution results including output, errors, and generated visualizations.
+---
+---Each item as it arrives (`aws_eventstream`); `opts` = { timeout?, idle_timeout? } in seconds.
+---
+---`POST /code-interpreters/{codeInterpreterIdentifier}/tools/invoke`
+---Errors: AccessDeniedException, ConflictException, InternalServerException, ResourceNotFoundException, ServiceQuotaExceededException, ThrottlingException, ValidationException.
+---@param input aws.bedrock_agentcore.InvokeCodeInterpreterRequest
+---@param opts? { timeout?: number, idle_timeout?: number }
+---@return distilled.Stream<aws.bedrock_agentcore.CodeInterpreterStreamOutput>? stream
+---@return distilled.Error? err
+function Client:invoke_code_interpreter_stream(input, opts) end
+
 ---Operation to invoke a Harness.
 ---
 ---`POST /harnesses/invoke`
@@ -3808,6 +3843,18 @@ function Client:invoke_code_interpreter(input) end
 ---@return aws.bedrock_agentcore.InvokeHarnessResponse? value
 ---@return distilled.Error? err
 function Client:invoke_harness(input) end
+
+---Operation to invoke a Harness.
+---
+---Each item as it arrives (`aws_eventstream`); `opts` = { timeout?, idle_timeout? } in seconds.
+---
+---`POST /harnesses/invoke`
+---Errors: AccessDeniedException, InternalServerException, ResourceNotFoundException, RuntimeClientError, ServiceQuotaExceededException, ThrottlingException, ValidationException.
+---@param input aws.bedrock_agentcore.InvokeHarnessRequest
+---@param opts? { timeout?: number, idle_timeout?: number }
+---@return distilled.Stream<aws.bedrock_agentcore.InvokeHarnessStreamOutput>? stream
+---@return distilled.Error? err
+function Client:invoke_harness_stream(input, opts) end
 
 ---Searches the web and returns a ranked list of results. Each result includes a text extract from the page.
 ---

@@ -44,8 +44,8 @@ function M.collect(text, content_type)
     return nil
   end
   local items = json.array({})
-  for line in string.gmatch(text, "[^\n]+") do
-    line = string.gsub(line, "\r$", "")
+  for raw in string.gmatch(text, "[^\n]+") do
+    local line = string.gsub(raw, "\r$", "")
     if non_empty(line) then
       local v = json.decode(line)
       if v == nil then
