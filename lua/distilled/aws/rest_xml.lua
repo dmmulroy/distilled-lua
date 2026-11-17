@@ -5,6 +5,8 @@
 -- errors as <ErrorResponse><Error> or <Error>, an empty error body named after its
 -- status, and S3's HTML error pages. Same interface as aws/json_protocols.lua.
 local codec = require("distilled.aws.codec")
+-- compat.concat: gopher-lua's table.concat fails past ~2,500 items (a long list)
+local compat = require("distilled.compat")
 local http = require("distilled.aws.http")
 local json = require("distilled.json")
 local url = require("distilled.url")
@@ -72,7 +74,7 @@ serialize_value = function(node, value, tag, ns, registry, depth)
       for i = 1, #value do
         parts[i] = serialize_value(node.item, value[i], item_tag, item_ns, registry, depth + 1)
       end
-      return element(tag, table.concat(parts), ns)
+      return element(tag, compat.concat(parts), ns)
     end
     local parts = {}
     for i = 1, #value do
@@ -85,7 +87,7 @@ serialize_value = function(node, value, tag, ns, registry, depth)
         depth + 1
       )
     end
-    return table.concat(parts)
+    return compat.concat(parts)
   end
   return serialize_object(node, value, tag, ns, registry, depth)
 end
@@ -110,7 +112,7 @@ serialize_object = function(node, value, tag, ns, registry, depth)
           for i = 1, #v do
             parts[i] = serialize_value(target.item, v[i], name, mns, registry, depth + 1)
           end
-          elems[#elems + 1] = table.concat(parts)
+          elems[#elems + 1] = compat.concat(parts)
         else
           elems[#elems + 1] = serialize_value(m.schema, v, name, mns, registry, depth + 1)
         end
@@ -118,10 +120,10 @@ serialize_object = function(node, value, tag, ns, registry, depth)
     end
   end
   if not tag then
-    return table.concat(elems)
+    return compat.concat(elems)
   end
-  local attr_text = (ns or "") .. (#attrs > 0 and (" " .. table.concat(attrs, " ")) or "")
-  return "<" .. tag .. attr_text .. ">" .. table.concat(elems) .. "</" .. tag .. ">"
+  local attr_text = (ns or "") .. (#attrs > 0 and (" " .. compat.concat(attrs, " ")) or "")
+  return "<" .. tag .. attr_text .. ">" .. compat.concat(elems) .. "</" .. tag .. ">"
 end
 
 serialize_map = function(node, value, tag, flattened, ns, registry, depth)
@@ -142,13 +144,13 @@ serialize_map = function(node, value, tag, flattened, ns, registry, depth)
     for i, e in ipairs(entries) do
       out[i] = element(tag, e, ns)
     end
-    return table.concat(out)
+    return compat.concat(out)
   end
   local wrapped = {}
   for i, e in ipairs(entries) do
     wrapped[i] = "<entry>" .. e .. "</entry>"
   end
-  return element(tag, table.concat(wrapped), ns)
+  return element(tag, compat.concat(wrapped), ns)
 end
 
 -- The namespace of a document root: its shape's, or the service's.

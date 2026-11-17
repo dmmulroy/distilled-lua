@@ -14,6 +14,8 @@
 --
 -- Same interface as aws/json_protocols.lua (encode, read, read_error).
 local codec = require("distilled.aws.codec")
+-- compat.concat: gopher-lua's table.concat fails past ~2,500 items (a long list)
+local compat = require("distilled.compat")
 local json = require("distilled.json")
 local url = require("distilled.url")
 local xml = require("distilled.xml")
@@ -173,7 +175,7 @@ local function query_protocol(ec2)
       path = "/",
       query = {},
       headers = { ["Content-Type"] = "application/x-www-form-urlencoded" },
-      body = table.concat(params, "&"),
+      body = compat.concat(params, "&"),
     }
   end
 

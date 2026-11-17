@@ -9,6 +9,8 @@
 -- { [Name] = value }, body, streaming_input }; aws/protocol.lua turns it into the
 -- transport's request after endpoint resolution and signing.
 local codec = require("distilled.aws.codec")
+-- compat.concat: gopher-lua's table.concat fails past ~2,500 items (a long list)
+local compat = require("distilled.compat")
 local errors = require("distilled.errors")
 local json = require("distilled.json")
 local url = require("distilled.url")
@@ -32,7 +34,7 @@ function http.encode_greedy_label(s)
   for _, seg in ipairs(require("distilled.aws.endpoint").split(s, "/")) do
     out[#out + 1] = http.encode_label(seg)
   end
-  return table.concat(out, "/")
+  return compat.concat(out, "/")
 end
 
 local function invalid_input(member, message)
@@ -89,7 +91,7 @@ function http.format_header_list(values, quote)
     end
     parts[i] = text
   end
-  return table.concat(parts, ", ")
+  return compat.concat(parts, ", ")
 end
 
 --- http.split_header(value) -> values: split on commas outside quoted strings, trimmed,
@@ -408,7 +410,7 @@ function http.query_string(pairs_list)
       parts[#parts + 1] = url.encode_component(k)
     end
   end
-  return table.concat(parts, "&")
+  return compat.concat(parts, "&")
 end
 
 return http
