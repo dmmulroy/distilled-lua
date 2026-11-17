@@ -1133,6 +1133,14 @@ return {
       },
       ["op"] = "InvokeModelWithResponseStream",
       ["request"] = {
+        ["body_hex"] = "7b2270726f6d7074223a226869227d",
+        ["headers"] = {
+          ["authorization"] = "AWS4-HMAC-SHA256 Credential=AKIAIOSFODNN7EXAMPLE/20231114/us-east-1/bedrock/aws4_request, SignedHeaders=host;x-amz-date, Signature=15d969b0f106061ec13da2b9a43ed22b836c7bde3cc45f26a86aa923f19ad1c9",
+          ["content-length"] = "15",
+          ["content-type"] = "application/octet-stream",
+          ["user-agent"] = "distilled-aws/1.0",
+          ["x-amz-date"] = "20231114T221320Z",
+        },
         ["method"] = "POST",
         ["url"] = "https://bedrock-runtime.us-east-1.amazonaws.com/model/anthropic.claude/invoke-with-response-stream",
       },
@@ -1182,6 +1190,14 @@ return {
       },
       ["op"] = "InvokeModelWithResponseStream",
       ["request"] = {
+        ["body_hex"] = "7b7d",
+        ["headers"] = {
+          ["authorization"] = "AWS4-HMAC-SHA256 Credential=AKIAIOSFODNN7EXAMPLE/20231114/us-east-1/bedrock/aws4_request, SignedHeaders=host;x-amz-date, Signature=9b97951f97b31339d21de32a14763a3d980ab96eba254797bd502d23fb41b713",
+          ["content-length"] = "2",
+          ["content-type"] = "application/octet-stream",
+          ["user-agent"] = "distilled-aws/1.0",
+          ["x-amz-date"] = "20231114T221320Z",
+        },
         ["method"] = "POST",
         ["url"] = "https://bedrock-runtime.us-east-1.amazonaws.com/model/m/invoke-with-response-stream",
       },
@@ -1262,6 +1278,14 @@ return {
       },
       ["op"] = "ConverseStream",
       ["request"] = {
+        ["body_hex"] = "7b226d65737361676573223a5b7b22726f6c65223a2275736572222c22636f6e74656e74223a5b7b2274657874223a2268656c6c6f227d5d7d5d7d",
+        ["headers"] = {
+          ["authorization"] = "AWS4-HMAC-SHA256 Credential=AKIAIOSFODNN7EXAMPLE/20231114/us-east-1/bedrock/aws4_request, SignedHeaders=host;x-amz-date, Signature=27089758b7bc56f730bc00b1d59d2b3ac8d13529354525f46d393da599e771c9",
+          ["content-length"] = "59",
+          ["content-type"] = "application/json",
+          ["user-agent"] = "distilled-aws/1.0",
+          ["x-amz-date"] = "20231114T221320Z",
+        },
         ["method"] = "POST",
         ["url"] = "https://bedrock-runtime.us-east-1.amazonaws.com/model/m/converse-stream",
       },
@@ -1299,6 +1323,14 @@ return {
       },
       ["op"] = "ConverseStream",
       ["request"] = {
+        ["body_hex"] = "7b226d65737361676573223a5b5d7d",
+        ["headers"] = {
+          ["authorization"] = "AWS4-HMAC-SHA256 Credential=AKIAIOSFODNN7EXAMPLE/20231114/us-east-1/bedrock/aws4_request, SignedHeaders=host;x-amz-date, Signature=b8d71c8d3f78368b0f2cef8e47e01f439eeab8ca746400fb2955bd991b6e88ca",
+          ["content-length"] = "15",
+          ["content-type"] = "application/json",
+          ["user-agent"] = "distilled-aws/1.0",
+          ["x-amz-date"] = "20231114T221320Z",
+        },
         ["method"] = "POST",
         ["url"] = "https://bedrock-runtime.us-east-1.amazonaws.com/model/m/converse-stream",
       },
@@ -1337,6 +1369,14 @@ return {
       },
       ["op"] = "ConverseStream",
       ["request"] = {
+        ["body_hex"] = "7b226d65737361676573223a5b5d7d",
+        ["headers"] = {
+          ["authorization"] = "AWS4-HMAC-SHA256 Credential=AKIAIOSFODNN7EXAMPLE/20231114/us-east-1/bedrock/aws4_request, SignedHeaders=host;x-amz-date, Signature=b8d71c8d3f78368b0f2cef8e47e01f439eeab8ca746400fb2955bd991b6e88ca",
+          ["content-length"] = "15",
+          ["content-type"] = "application/json",
+          ["user-agent"] = "distilled-aws/1.0",
+          ["x-amz-date"] = "20231114T221320Z",
+        },
         ["method"] = "POST",
         ["url"] = "https://bedrock-runtime.us-east-1.amazonaws.com/model/m/converse-stream",
       },
@@ -1374,6 +1414,14 @@ return {
       },
       ["op"] = "ConverseStream",
       ["request"] = {
+        ["body_hex"] = "7b226d65737361676573223a5b5d7d",
+        ["headers"] = {
+          ["authorization"] = "AWS4-HMAC-SHA256 Credential=AKIAIOSFODNN7EXAMPLE/20231114/us-east-1/bedrock/aws4_request, SignedHeaders=host;x-amz-date, Signature=b8d71c8d3f78368b0f2cef8e47e01f439eeab8ca746400fb2955bd991b6e88ca",
+          ["content-length"] = "15",
+          ["content-type"] = "application/json",
+          ["user-agent"] = "distilled-aws/1.0",
+          ["x-amz-date"] = "20231114T221320Z",
+        },
         ["method"] = "POST",
         ["url"] = "https://bedrock-runtime.us-east-1.amazonaws.com/model/m/converse-stream",
       },
@@ -1405,6 +1453,14 @@ return {
       },
       ["op"] = "ConverseStream",
       ["request"] = {
+        ["body_hex"] = "7b226d65737361676573223a5b5d7d",
+        ["headers"] = {
+          ["authorization"] = "AWS4-HMAC-SHA256 Credential=AKIAIOSFODNN7EXAMPLE/20231114/us-east-1/bedrock/aws4_request, SignedHeaders=host;x-amz-date, Signature=b8d71c8d3f78368b0f2cef8e47e01f439eeab8ca746400fb2955bd991b6e88ca",
+          ["content-length"] = "15",
+          ["content-type"] = "application/json",
+          ["user-agent"] = "distilled-aws/1.0",
+          ["x-amz-date"] = "20231114T221320Z",
+        },
         ["method"] = "POST",
         ["url"] = "https://bedrock-runtime.us-east-1.amazonaws.com/model/m/converse-stream",
       },
@@ -1433,6 +1489,14 @@ return {
       },
       ["op"] = "ConverseStream",
       ["request"] = {
+        ["body_hex"] = "7b226d65737361676573223a5b5d7d",
+        ["headers"] = {
+          ["authorization"] = "AWS4-HMAC-SHA256 Credential=AKIAIOSFODNN7EXAMPLE/20231114/us-east-1/bedrock/aws4_request, SignedHeaders=host;x-amz-date, Signature=b8d71c8d3f78368b0f2cef8e47e01f439eeab8ca746400fb2955bd991b6e88ca",
+          ["content-length"] = "15",
+          ["content-type"] = "application/json",
+          ["user-agent"] = "distilled-aws/1.0",
+          ["x-amz-date"] = "20231114T221320Z",
+        },
         ["method"] = "POST",
         ["url"] = "https://bedrock-runtime.us-east-1.amazonaws.com/model/m/converse-stream",
       },
@@ -1465,6 +1529,14 @@ return {
       },
       ["op"] = "ConverseStream",
       ["request"] = {
+        ["body_hex"] = "7b226d65737361676573223a5b5d7d",
+        ["headers"] = {
+          ["authorization"] = "AWS4-HMAC-SHA256 Credential=AKIAIOSFODNN7EXAMPLE/20231114/us-east-1/bedrock/aws4_request, SignedHeaders=host;x-amz-date, Signature=b8d71c8d3f78368b0f2cef8e47e01f439eeab8ca746400fb2955bd991b6e88ca",
+          ["content-length"] = "15",
+          ["content-type"] = "application/json",
+          ["user-agent"] = "distilled-aws/1.0",
+          ["x-amz-date"] = "20231114T221320Z",
+        },
         ["method"] = "POST",
         ["url"] = "https://bedrock-runtime.us-east-1.amazonaws.com/model/m/converse-stream",
       },
@@ -1514,6 +1586,15 @@ return {
       },
       ["op"] = "SubscribeToShard",
       ["request"] = {
+        ["body_hex"] = "7b22436f6e73756d657241524e223a2261726e3a6177733a6b696e657369733a75732d656173742d313a3132333435363738393031323a73747265616d2f732f636f6e73756d65722f633a31222c2253686172644964223a22736861726449642d303030303030303030303030222c225374617274696e67506f736974696f6e223a7b2254797065223a224c4154455354227d7d",
+        ["headers"] = {
+          ["authorization"] = "AWS4-HMAC-SHA256 Credential=AKIAIOSFODNN7EXAMPLE/20231114/us-east-1/kinesis/aws4_request, SignedHeaders=host;x-amz-date;x-amz-target, Signature=e4193051707f8182abdbea15b4c8f65a102c5fab2c61b6c680584a9b43e77c9f",
+          ["content-length"] = "148",
+          ["content-type"] = "application/x-amz-json-1.1",
+          ["user-agent"] = "distilled-aws/1.0",
+          ["x-amz-date"] = "20231114T221320Z",
+          ["x-amz-target"] = "Kinesis_20131202.SubscribeToShard",
+        },
         ["method"] = "POST",
         ["url"] = "https://123456789012.data-kinesis.us-east-1.amazonaws.com/",
       },
@@ -1549,6 +1630,15 @@ return {
       },
       ["op"] = "SubscribeToShard",
       ["request"] = {
+        ["body_hex"] = "7b22436f6e73756d657241524e223a2261726e3a6177733a6b696e657369733a75732d656173742d313a3132333435363738393031323a73747265616d2f732f636f6e73756d65722f633a31222c2253686172644964223a2273222c225374617274696e67506f736974696f6e223a7b2254797065223a224c4154455354227d7d",
+        ["headers"] = {
+          ["authorization"] = "AWS4-HMAC-SHA256 Credential=AKIAIOSFODNN7EXAMPLE/20231114/us-east-1/kinesis/aws4_request, SignedHeaders=host;x-amz-date;x-amz-target, Signature=e96df60919aae199ac161e09527c4a2ef83f502a7fe9ee786d5265474d8acb95",
+          ["content-length"] = "129",
+          ["content-type"] = "application/x-amz-json-1.1",
+          ["user-agent"] = "distilled-aws/1.0",
+          ["x-amz-date"] = "20231114T221320Z",
+          ["x-amz-target"] = "Kinesis_20131202.SubscribeToShard",
+        },
         ["method"] = "POST",
         ["url"] = "https://123456789012.data-kinesis.us-east-1.amazonaws.com/",
       },
@@ -1605,6 +1695,14 @@ return {
       },
       ["op"] = "InvokeWithResponseStream",
       ["request"] = {
+        ["body_hex"] = "7b7d",
+        ["headers"] = {
+          ["authorization"] = "AWS4-HMAC-SHA256 Credential=AKIAIOSFODNN7EXAMPLE/20231114/us-east-1/lambda/aws4_request, SignedHeaders=host;x-amz-date, Signature=53f5207148ba1a4436165eb86909483cc80c72dc9eea48d094241af843cdf736",
+          ["content-length"] = "2",
+          ["content-type"] = "application/octet-stream",
+          ["user-agent"] = "distilled-aws/1.0",
+          ["x-amz-date"] = "20231114T221320Z",
+        },
         ["method"] = "POST",
         ["url"] = "https://lambda.us-east-1.amazonaws.com/2021-11-15/functions/fn/response-streaming-invocations",
       },
@@ -1650,6 +1748,15 @@ return {
       },
       ["op"] = "SelectObjectContent",
       ["request"] = {
+        ["body_hex"] = "3c53656c6563744f626a656374436f6e74656e745265717565737420786d6c6e733d22687474703a2f2f73332e616d617a6f6e6177732e636f6d2f646f632f323030362d30332d30312f223e3c45787072657373696f6e3e73656c656374202a2066726f6d2053334f626a6563743c2f45787072657373696f6e3e3c45787072657373696f6e547970653e53514c3c2f45787072657373696f6e547970653e3c496e70757453657269616c697a6174696f6e3e3c4353563e3c2f4353563e3c2f496e70757453657269616c697a6174696f6e3e3c4f757470757453657269616c697a6174696f6e3e3c4353563e3c2f4353563e3c2f4f757470757453657269616c697a6174696f6e3e3c2f53656c6563744f626a656374436f6e74656e74526571756573743e",
+        ["headers"] = {
+          ["authorization"] = "AWS4-HMAC-SHA256 Credential=AKIAIOSFODNN7EXAMPLE/20231114/us-east-1/s3/aws4_request, SignedHeaders=host;x-amz-content-sha256;x-amz-date, Signature=c21e533bd2a795e1aa3cf485500c2656a3d618f2d3281910e1bd4f2b46f0ccd9",
+          ["content-length"] = "294",
+          ["content-type"] = "application/xml",
+          ["user-agent"] = "distilled-aws/1.0",
+          ["x-amz-content-sha256"] = "UNSIGNED-PAYLOAD",
+          ["x-amz-date"] = "20231114T221320Z",
+        },
         ["method"] = "POST",
         ["url"] = "https://s3.us-east-1.amazonaws.com/b/k.csv?select&select-type=2",
       },

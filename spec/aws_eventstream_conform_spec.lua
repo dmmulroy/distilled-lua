@@ -247,6 +247,21 @@ t.describe("aws event streams vs Distilled: output streams", function()
       t.truthy(req, "a request was sent")
       t.eq(req.method, c.request.method)
       t.eq(req.url, c.request.url)
+      -- the signed request: every header Distilled sends (the signature included), but
+      -- the user agent and the Content-Length the transport adds, and the signature of a
+      -- JSON body whose keys are in another order (sorted here, as in all AWS clients)
+      local body = hex.decode(c.request.body_hex or "")
+      for k, v in pairs(c.request.headers) do
+        -- a JSON body with its keys in another order is signed differently
+        local signed_body = k == "authorization" and req.body ~= body
+        if k ~= "user-agent" and k ~= "content-length" and not signed_body then
+          t.eq(req.headers[k], v, "header " .. k)
+        end
+      end
+      if req.body ~= body then
+        -- JSON documents: the same value (keys are sorted here)
+        t.same(json.decode(req.body or ""), json.decode(body), "request body")
+      end
       check_outcome(c, client, op, s, err)
       if s then
         s:close()

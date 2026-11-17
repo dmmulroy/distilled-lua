@@ -658,7 +658,14 @@ for (const c of outputCases) {
     }).pipe(Retry.none, Effect.provide(Layer.mergeAll(creds, Layer.succeed(HttpClient.HttpClient, client)))),
   );
   const entry = { id: c.id, service: c.service, op: c.op, input: c.input, response: { status, headers, body_hex: hex(bytes) } };
-  if (sent) entry.request = { method: sent.method, url: sent.url };
+  if (sent) {
+    const h = {};
+    for (const [k, v] of Object.entries(sent.headers)) h[k.toLowerCase()] = typeof v === "string" ? v : Redacted.value(v);
+    const b = sent.body;
+    const body =
+      b._tag === "Uint8Array" ? hex(b.body) : b._tag === "Empty" ? "" : typeof b.body === "string" ? hex(Buffer.from(b.body)) : undefined;
+    entry.request = { method: sent.method, url: sent.url, headers: h, body_hex: body };
+  }
   if (Exit.isSuccess(exit)) {
     entry.expected = { ok: true, member: exit.value.member, output: exit.value.output, events, error: streamError };
   } else {
