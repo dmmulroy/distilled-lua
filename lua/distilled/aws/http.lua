@@ -175,7 +175,7 @@ end
 -- (http.NOT_BASE64 when it is not base64)
 function http.read_header(member, value, registry)
   local node = codec.resolve(member.schema, registry)
-  if member.media_type and node and node.t == "string" then
+  if node and node.t == "string" and (member.media_type or node.media_type) then
     if not find(value, "^[A-Za-z0-9+/]*=?=?$") or #value % 4 ~= 0 then
       return NOT_BASE64
     end
@@ -257,7 +257,7 @@ function http.bind_input(op, node, input, env)
         if type(value) == "table" then
           local item = target and target.t == "list" and codec.resolve(target.item, registry)
           h = http.format_header_list(value, not (item and item.t == "timestamp"))
-        elseif m.media_type and target and target.t == "string" then
+        elseif target and target.t == "string" and (m.media_type or target.media_type) then
           h = codec.to_base64(value)
         else
           h = text_of(value)

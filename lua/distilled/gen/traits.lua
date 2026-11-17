@@ -179,13 +179,15 @@ traits.AWS = {
   ["smithy.api#eventHeader"] = aws_ignored("event streams are unsupported"),
   ["smithy.api#eventPayload"] = aws_ignored("event streams are unsupported"),
   ["smithy.api#requiresLength"] = aws_ignored("bodies are buffered strings: the length is known"),
-  ["smithy.api#requestCompression"] = aws_ignored("bodies are sent uncompressed"),
+  ["smithy.api#requestCompression"] = aws_handled(
+    "op.aws.gzip: gzip bodies of at least 10 KiB (aws/gzip.lua)"
+  ),
   ["smithy.api#auth"] = aws_handled("an empty list: op.aws.optional_auth"),
   ["smithy.api#optionalAuth"] = aws_handled("op.aws.optional_auth"),
   ["smithy.api#clientOptional"] = aws_handled("not required on input"),
   ["smithy.api#addedDefault"] = aws_ignored("a default added later: no behaviour"),
   ["smithy.api#default"] = aws_ignored("defaults are the service's; members stay optional"),
-  ["smithy.api#sparse"] = aws_ignored("null elements pass through"),
+  ["smithy.api#sparse"] = aws_handled("S.nullable list items / map values: nulls kept"),
   ["smithy.api#enum"] = aws_ignored("a string with enum values: the values are documentation"),
   ["smithy.api#cors"] = aws_ignored("browser CORS: no behaviour in Lua"),
   ["smithy.api#private"] = aws_ignored("no behaviour attached"),

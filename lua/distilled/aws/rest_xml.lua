@@ -190,6 +190,10 @@ function M.encode(p, op, input)
       end
     elseif type(pv) == "string" then
       request.body = pv
+      -- a string payload is text unless its @mediaType says otherwise
+      if headers["Content-Type"] == nil then
+        headers["Content-Type"] = pm.media_type or target.media_type or "text/plain"
+      end
     else
       headers["Content-Type"] = "application/xml"
       local payload_ns = (target and target.xmlns) and ns_attribute(target.xmlns) or input_ns

@@ -86,7 +86,7 @@ local NAMES = {
   "archil",
   "argocd",
   "auth0",
-  "aws",
+  "aws", -- task 17 (gen/aws.lua)
   "axiom",
   "boat_dev",
   "celld",
