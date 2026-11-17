@@ -16,6 +16,7 @@ return {
   "compat_spec.lua",
   "conform_diff_spec.lua",
   "conform_replay_spec.lua",
+  "connect_stream_spec.lua",
   "credentials_spec.lua",
   "crypto_pk_spec.lua",
   "crypto_spec.lua",
