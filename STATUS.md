@@ -784,8 +784,8 @@ See `tasks/15-xml.done.md`.
 
 Done (see `tasks/13-providers.done.md`).
 
-- Survey: `docs/providers-survey.md`, 106 packages: 18 A, 83 B, 5 C. 97 specs in
-  `providers/` (neon plus 96 new; 23 with a glue module in `providers/glue/`). Not
+- Survey: `docs/providers-survey.md`, 106 packages: 18 A, 83 B, 5 C. 98 specs in
+  `providers/` (neon, hetzner (task 10) and 96 new; 23 with a glue module in `providers/glue/`). Not
   written: hetzner (task 10 owns it), questrade (refresh token in a URL query), scaleway
   and slack (reasons in the survey).
 - New spec keys (`lua/distilled/gen/provider_ext.lua`, called from `provider.validate`):
@@ -825,10 +825,9 @@ writer declares task 12's `<server>_base_url` / template options for it too. sta
 glue reads `route.base_url` (the http trait's baseUrl), digitalocean's `route.server`.
 For task 10 (merged): `provider.for_model` passes a `models.override.<m>.base_url` on to
 the runtime data (`ext.override_base_url`).
-Model gaps that block whole-model generation (task 11/12 area):
-nullable list items / map values, http `accept` (mongodb-atlas), http `baseUrl`
-(stackit), http `server` (digitalocean), streaming (boat-dev), `distilled.errors#bodies`
-targeting `smithy.api#String` (workos, zendesk), type-name collisions with the client
-class (auth0, clerk, launchdarkly, grafana, redis_cloud), a crash in `gen/ops.lua:101`
-on stripe.json, nullable rawResponse members (discord, tailscale), cursor pagination
-without outputToken (resend).
+After the merge of main every package generates whole: `bin/distilled-lua package
+--models models/<pkg> --provider providers/<lua>.lua --out /tmp/...` for all 98 specs
+gives 1016 models ok, 0 failed, 2 skipped (models.skip). Two generator changes made that
+possible: an `error_classes` tag that a model also declares uses the model's class (Vercel,
+Whop, Starburst, Atlas declare PaymentRequired / PreconditionFailed in some models only),
+and `naming.operations` is not checked against a single model of a multi-model package (exa).
