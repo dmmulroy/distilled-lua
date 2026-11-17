@@ -250,9 +250,15 @@ function aws.op_facts(ctx, op)
     out.unwrapped_output = true
     any = true
   end
-  if traits["smithy.api#requestCompression"] ~= nil then
-    -- Distilled gzips these bodies (CloudWatch PutMetricData); sent uncompressed here
-    out.request_compression = false
+  local compression = traits["smithy.api#requestCompression"]
+  if type(compression) == "table" then
+    -- middleware/compression.ts: gzip bodies of at least 10 KiB (CloudWatch PutMetricData)
+    for _, e in ipairs(compression.encodings or {}) do
+      if e == "gzip" then
+        out.gzip = true
+        any = true
+      end
+    end
   end
   return any and out or nil
 end
@@ -390,6 +396,9 @@ function aws.node(ctx, id, def, node)
       node.item_id = naming.local_name(def.member.target)
     end
     node.item = element_with_format(ctx, def.member, node.item)
+    if traits["smithy.api#sparse"] ~= nil then
+      node.item = emit.call("S.nullable", node.item)
+    end
   elseif def.type == "map" then
     local kt = def.key and def.key.traits or {}
     local vt = def.value and def.value.traits or {}
@@ -408,6 +417,9 @@ function aws.node(ctx, id, def, node)
       node.value_xmlns = vns
     end
     node.value = element_with_format(ctx, def.value, node.value)
+    if traits["smithy.api#sparse"] ~= nil then
+      node.value = emit.call("S.nullable", node.value)
+    end
   elseif def.type == "timestamp" then
     if traits["smithy.api#timestampFormat"] ~= nil then
       node.format = traits["smithy.api#timestampFormat"]
@@ -575,6 +587,13 @@ function aws.error_class(ctx, id, d)
   end
   if #headers > 0 then
     wire.headers = emit.list(headers)
+  end
+  -- the error body's registry node: a JSON error body with fields beyond the message
+  -- decodes through it (gen/init.lua adds `root` to the registry roots)
+  local p = ctx.aws and ctx.aws.protocol
+  if #fields > 0 and (p == "awsJson1_0" or p == "awsJson1_1" or p == "restJson1") then
+    wire.shape = name
+    wire.root = id
   end
   d.aws = wire
   return d
@@ -829,6 +848,7 @@ function aws.client_file(plan)
     local w = d.aws or {}
     local e =
       { query_code = w.query_code, status = w.status, synthetic = w.synthetic, headers = w.headers }
+    e.shape = w.shape
     if next(e) ~= nil then
       errs[d.tag] = e
     end

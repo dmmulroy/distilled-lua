@@ -543,6 +543,9 @@ function gen.plan(args)
     for _, b in ipairs(d.bodies) do
       roots[#roots + 1] = b
     end
+    if d.aws and d.aws.root then
+      roots[#roots + 1] = d.aws.root
+    end
   end
   local reachable = m:reachable(roots)
   local registry_ids = {}

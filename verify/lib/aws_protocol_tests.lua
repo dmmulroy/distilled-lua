@@ -364,7 +364,9 @@ local function decode_entities(text)
 end
 
 --- M.canonical_xml(xml): canonicalXml of protocol-tests.test.ts
-function M.canonical_xml(xml)
+--- With `any_order`, same-named siblings are sorted too: a Lua table has no key order,
+--- so map entries are serialised in sorted key order, not the case's insertion order.
+function M.canonical_xml(xml, any_order)
   xml = string.gsub(xml, "<%?xml[^>]*%?>", "", 1)
   local root = { open = "", name = "", children = {} }
   local stack = { root }
@@ -425,6 +427,12 @@ function M.canonical_xml(xml)
       if x ~= y then
         return x < y
       end
+      if any_order then
+        local px, py = print_node(a[1], depth + 1), print_node(b[1], depth + 1)
+        if px ~= py then
+          return px < py
+        end
+      end
       return a[2] < b[2]
     end)
     local parts = {}
@@ -471,7 +479,7 @@ local function decode_pair(pair)
   return pct_decode(k) .. "=" .. pct_decode(v)
 end
 
-local function body_matches(actual, expected, media_type)
+local function body_matches(actual, expected, media_type, has_map)
   actual = actual or ""
   if media_type == "application/json" and expected ~= "" then
     local a = actual == "" and "" or json.decode(actual)
@@ -479,6 +487,9 @@ local function body_matches(actual, expected, media_type)
     return canonical(a) == canonical(e), canonical(a), canonical(e)
   elseif media_type == "application/xml" and expected ~= "" then
     local a, e = M.canonical_xml(actual), M.canonical_xml(expected)
+    if a ~= e and has_map then
+      return M.canonical_xml(actual, true) == M.canonical_xml(expected, true), a, e
+    end
     return a == e, a, e
   elseif media_type == "application/x-www-form-urlencoded" then
     local a, e = form_pairs(actual), form_pairs(expected)
@@ -533,7 +544,7 @@ local function client_for(class, canned, host, sent)
   })
 end
 
-local function check_request(c, req)
+local function check_request(c, req, has_map)
   local problems = {}
   local function fail(msg)
     problems[#problems + 1] = msg
@@ -604,12 +615,31 @@ local function check_request(c, req)
     end
   end
   if c.body ~= nil then
-    local ok, a, e = body_matches(body, c.body, c.bodyMediaType)
+    local ok, a, e = body_matches(body, c.body, c.bodyMediaType, has_map)
     if not ok then
       fail("body\n  got:  " .. tostring(a) .. "\n  want: " .. tostring(e))
     end
   end
   return problems
+end
+
+-- whether a shape reaches a map (explicit stack)
+local function reaches_map(shapes, id)
+  local seen, stack = {}, { id }
+  while #stack > 0 do
+    local cur = table.remove(stack)
+    local shape = shapes[cur]
+    if shape and not seen[cur] then
+      seen[cur] = true
+      if shape.type == "map" then
+        return true
+      end
+      for _, t in ipairs(refs_of(shape)) do
+        stack[#stack + 1] = t
+      end
+    end
+  end
+  return false
 end
 
 --- M.run{ path, services, filter, case } -> results
@@ -716,7 +746,10 @@ function M.run(opts)
                     { "no request sent: " .. tostring(err and err.message) }
                   )
                 else
-                  record(c.id .. " (request)", check_request(c, sent[1]))
+                  record(
+                    c.id .. " (request)",
+                    check_request(c, sent[1], reaches_map(sub, input_id))
+                  )
                 end
               end
             end
@@ -729,14 +762,9 @@ function M.run(opts)
                 body = c.body,
               })
               if value == nil then
-                record(
-                  c.id .. " (response)",
-                  {
-                    "failed: " .. tostring(err and err.tag) .. ": " .. tostring(
-                      err and err.message
-                    ),
-                  }
-                )
+                record(c.id .. " (response)", {
+                  "failed: " .. tostring(err and err.tag) .. ": " .. tostring(err and err.message),
+                })
               else
                 local actual = canonical(value)
                 local expected = canonical(to_runtime(sub, output_id, c.params or json.object({})))

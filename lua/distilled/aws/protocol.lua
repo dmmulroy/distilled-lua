@@ -426,6 +426,22 @@ function M.new(service, args)
     end
     local headers = request.headers
 
+    -- requestCompression (middleware/compression.ts): gzip a body of known size of at
+    -- least 10 KiB, appending "gzip" to any Content-Encoding the caller set
+    if op.aws and op.aws.gzip and type(request.body) == "string" then
+      local gzip = require("distilled.aws.gzip")
+      if #request.body >= gzip.MIN_COMPRESSION_SIZE_BYTES then
+        request.body = gzip.compress(request.body)
+        local name = "Content-Encoding"
+        for k in pairs(headers) do
+          if string.lower(k) == "content-encoding" then
+            name = k
+          end
+        end
+        headers[name] = headers[name] and (headers[name] .. ", gzip") or "gzip"
+      end
+    end
+
     -- httpChecksum (middleware/checksum.ts): Content-MD5, or the requested algorithm
     local checksum = op.aws and op.aws.checksum
     if checksum and request.body ~= nil and request.body ~= "" then
@@ -694,6 +710,16 @@ function M.new(service, args)
             data[h.name] = v == "true"
           else
             data[h.name] = v
+          end
+        end
+      end
+      -- a JSON error body decodes through the error's structure (jsonName, timestamps,
+      -- nested shapes); a body that does not fit keeps its wire values
+      if f.shape and p.registry[f.shape] then
+        local decoded = codec.decode(p.registry[f.shape], data, decode_env(p, false))
+        if type(decoded) == "table" then
+          for k, v in pairs(decoded) do
+            data[k] = v
           end
         end
       end

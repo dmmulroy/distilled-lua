@@ -202,9 +202,18 @@ local function body_capable(node)
   return false
 end
 
+local function payload_of(node)
+  for _, m in ipairs(node.members or {}) do
+    if m.bind == "payload" then
+      return m
+    end
+  end
+  return nil
+end
+
 local function is_structure(node, registry)
   node = codec.resolve(node, registry)
-  return node ~= nil and node.t == "struct" and not node.tagged_union
+  return node ~= nil and node.t == "struct" and not node.tagged_union and not node.union
 end
 
 function rest.encode(p, op, input)
@@ -248,7 +257,10 @@ function rest.encode(p, op, input)
     if not user_type then
       headers["Content-Type"] = "application/json"
     end
-  elseif body_capable(node) or (pm ~= nil and is_structure(pm.schema, registry)) then
+  elseif
+    body_capable(node)
+    or (payload_of(node) ~= nil and is_structure(payload_of(node).schema, registry))
+  then
     -- body-capable members exist but none were set: an explicit empty JSON document,
     -- as AWS SDK v3 / botocore send (resource-explorer-2 rejects an absent body)
     request.body = "{}"
