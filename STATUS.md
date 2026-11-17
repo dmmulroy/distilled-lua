@@ -1091,8 +1091,6 @@ requests byte for byte, 39 responses, the error module.
 - `operation.lua` refreshes credentials only for tag `Unauthorized`. A provider whose
   401s map to typed classes (Azure's `InvalidAuthenticationToken`) never refreshes.
   Proposed: refresh on `err.status == 401` (or AuthError with status 401).
-- `clients/hetzner/*/init.lua` on main are stale against main's generator (task 13's
-  list-of-pointers `text_at`): regenerating changes 30 files. Not mine; left alone.
 
 
 ## 26 clients
