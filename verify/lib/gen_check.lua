@@ -8,8 +8,11 @@
 -- `ref` anywhere in the registry and the op descriptors resolves; every op's errors are
 -- declared; every op builds a request from a minimal synthesized input through
 -- request.build. Failures are reported by operation name. Multipart operations (task 08)
--- must build too, with a multipart/form-data content type and a closed body. The
--- "acknowledged unsupported" count stays in the summary for future gaps; it is 0 today.
+-- must build too, with a multipart/form-data content type and a closed body. An op with
+-- `unsupported` (a gap the provider spec acknowledged, task 12: "streaming") must be
+-- refused by request.build with SdkError; it counts as "acknowledged unsupported". Every
+-- path placeholder gets a value, also for label members the model does not mark required
+-- and placeholders with no member (task 12, proxmox `{url_seq}`).
 local rex_api = rawget(_G, "rex")
 local args = {}
 if rex_api then
@@ -139,8 +142,23 @@ if service then
       end
     end
     local input, ierr = synth.input(op, registry)
+    if input then
+      for inner in string.gmatch(string.match(op.uri, "^[^?]*"), "{([^}]*)}") do
+        local key = string.gsub(inner, "%+$", "")
+        if input[key] == nil then
+          input[key] = "x"
+        end
+      end
+    end
     if not input then
       fail("op " .. name .. ": cannot synthesize an input: " .. ierr)
+    elseif op.unsupported ~= nil then
+      local req, err = request.build({ op = op, input = input, registry = registry })
+      if req or type(err) ~= "table" or err.tag ~= "SdkError" then
+        fail("op " .. name .. ": unsupported (" .. tostring(op.unsupported) .. ") but built")
+      else
+        ops_skipped = ops_skipped + 1
+      end
     else
       local req, err = request.build({
         op = op,
