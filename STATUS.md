@@ -924,6 +924,68 @@ models"). infisical's client now loads on luajit, and `require` takes 74 ms in R
   in one statement (LuaJIT's 65,536 limit).
 - `types.lua` is not split (12 MB for infisical); it is only read by LuaLS.
 
+
+## 24 pk-crypto
+
+**Done.** See `tasks/24-pk-crypto.done.md` and `verify/features/crypto.md` (section
+"Public-key crypto and JOSE").
+
+### APIs others can use (proposed for `docs/interfaces.md`)
+
+- `distilled.crypto.pem`: `private_key(input)`, `public_key(input)` (PEM text, DER, or
+  a secret; PKCS #1, PKCS #8, SEC1, SPKI), `decode`, `encode`.
+- `distilled.crypto.rsa`: `sign(key, msg [, hash])`, `verify(key, msg, sig [, hash])`,
+  `private_key{ n, e, d [, p, q, dp, dq, qi] }`, `public_key{ n, e }`.
+- `distilled.crypto.ecdsa`: `sign(key, msg [, { hash, format = "raw"|"der", low_s }])
+  -> sig, recovery_id`, `sign_digest`, `verify`, `verify_digest`, `recover(curve,
+  digest, sig, recid)`, `private_key(curve, d [, point])`, `public_key(curve, point)`,
+  `point_bytes`, `der_to_raw`, `raw_to_der`. Curves "P-256", "secp256k1".
+- `distilled.crypto.ed25519`: `private_key(seed32)`, `public_key(bytes32)`, `sign`,
+  `verify`.
+- `distilled.crypto.jws`: `object(k, v, ...)` (ordered JSON; nil values dropped),
+  `json`, `compact{ key, alg?, header?, payload }`, `flattened{...}` (ACME), `decode`,
+  `verify(token, key [, algorithms])`, `public_jwk`, `jwk(key, { private })`,
+  `thumbprint`, `key_from_jwk`, `b64`, `b64_decode`, `sign_bytes`, `verify_bytes`.
+- `distilled.crypto.jwt`: `encode{ key, alg?, header?, claims }`, `decode`,
+  `verify(token, key, { now, leeway, algorithms })`.
+- Keys are `distilled.crypto.key` objects whose private parts sit in the metatable.
+  Parse a key once and keep the object: Montgomery contexts, generated code and point
+  tables are cached on it.
+- Recipes for the GitHub App, GCP, Coinbase (ES256 and EdDSA), DPoP and ACME tokens,
+  each tested byte for byte against the TypeScript output, are in
+  `verify/features/crypto.md` and `spec/crypto_pk_spec.lua` ("tokens as Distilled's
+  packages mint them"). The provider tasks only need to supply the clock and the nonce.
+
+### Decisions
+
+- Not constant time (documented). Pure Lua, one implementation. The only per-runtime
+  switch is `bigint.GENERATE` (generated straight-line Montgomery products on lua and
+  gopher-lua, loops on LuaJIT, where the loops are 6x faster). The spec tests both on
+  every runtime.
+- Errors are `InvalidInput` with messages that name the format and never the bytes.
+  Callers (GitHub `GithubAppAuthError`, GCP `GCPCredentialsError`, Coinbase
+  `ConfigError`) wrap them in their own error the way the TS packages do.
+- `jws.verify` with PEM text and no `algorithms` never accepts HS*: that prevents
+  HMAC/public-key algorithm confusion. An HMAC token needs `algorithms = { "HS256" }`.
+- ECDSA's default is high-S allowed (RFC 6979 and node:crypto). `low_s = true` is for
+  Ethereum and Bitcoin. An EC key whose file carries a public point must match d
+  (checked when the key is loaded).
+- RSA moduli 1024-4400 bits. PSS, P-384/521, and RSA key generation are not implemented
+  (no package needs them).
+
+### Outside my file list
+
+- `verify/dl`: `pk-bench` and `pk-vectors` commands plus their help lines (additions
+  only, next to task 14's `crypto-bench`/`crypto-vectors`). New helpers:
+  `verify/lib/pk_bench.lua`, `verify/lib/pk_vectors.mjs`, `verify/lib/pk_published.mjs`.
+- `lua/distilled/crypto/key.lua` (new; the key object shared by rsa/ecdsa/ed25519).
+- Proposed, not done: `distilled.crypto` (task 14's `init.lua`) could lazy-load `pem`,
+  `jws`, `jwt`, `rsa`, `ecdsa`, `ed25519` the way it does `hex`/`base64`;
+  `docs/interfaces.md` could gain a section from the API list above.
+- Random bytes for key generation, Coinbase nonces and DPoP `jti` need a host field,
+  as task 14 proposed. `ecdsa.private_key(curve, random32)` turns them into a key.
+
+
 ## 19 cloudflare
 
 **Done.** See `tasks/19-cloudflare.done.md` and `verify/features/cloudflare.md`. 130
@@ -976,3 +1038,4 @@ over 536 operations of all 130 models, 0 mismatches (`spec/cloudflare_conform_sp
   ctx.cloudflare` or a nil-safe field.
 - New `verify/conform/cloudflare/` (cases.lua, ts.mjs, compare.lua, intended.lua,
   run.lua, lib.lua, and the saved cases.jsonl and ref.jsonl).
+||||||| a40fc47
