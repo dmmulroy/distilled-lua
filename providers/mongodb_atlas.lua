@@ -37,6 +37,7 @@ return {
   },
   error_envelope = { message = { "/detail", "/reason" } },
   unknown_fields = { errorCode = "/errorCode", reason = "/reason", detail = "/detail" },
+  -- the Atlas model declares PaymentRequired too; its class is then the model's
   error_classes = { PaymentRequired = { categories = { "BadRequestError" } } },
   status_map = { [402] = "PaymentRequired" },
   unknown_tag = "UnknownMongodbAtlasError",

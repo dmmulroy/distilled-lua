@@ -234,7 +234,9 @@ function gen.plan(args)
     for _, op in ipairs(m.operations) do
       known = known or op.name == k
     end
-    if not known then
+    -- one model of a multi-model package: the operation may be another model's (exa's
+    -- ListWebsetsItems is in exa.api only), which this model cannot check
+    if not known and not spec.model_name then
       return nil, "provider spec naming.operations names an unknown operation " .. k
     end
   end
@@ -432,19 +434,17 @@ function gen.plan(args)
     error_tags_set[d.tag] = true
   end
   local builtin = require("distilled.errors").classes
-  -- provider spec error_classes (task 13): tags of their own, usable in status_map
+  -- provider spec error_classes (task 13): tags of their own, usable in status_map. A
+  -- model that declares an error of the same tag uses its own class for it (Vercel's
+  -- PaymentRequired is in some models only); a built-in or reserved tag is an error.
   local provider_tags = {}
   for _, c in ipairs(spec.error_classes or {}) do
     provider_tags[c.tag] = true
-    if error_tags_set[c.tag] or builtin[c.tag] or reserved_tags[c.tag] then
+    if builtin[c.tag] or reserved_tags[c.tag] then
       problems[#problems + 1] = "provider spec error_classes."
         .. c.tag
         .. " has the tag of "
-        .. (
-          error_tags_set[c.tag] and "a model error"
-          or builtin[c.tag] and "a built-in error"
-          or ("the provider's " .. reserved_tags[c.tag])
-        )
+        .. (builtin[c.tag] and "a built-in error" or ("the provider's " .. reserved_tags[c.tag]))
     end
   end
   for _, name in ipairs(spec.public_operations or {}) do

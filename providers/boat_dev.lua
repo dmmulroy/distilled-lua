@@ -16,6 +16,8 @@ return {
   auth = { kind = "bearer", from = "api_key", env = "BOAT_API_KEY" },
   options = { org = { env = "BOAT_ORG", doc = "organization (X-Boat-Org)" } },
   headers = { ["X-Boat-Org"] = "{org}" },
+  -- the streaming operations (command attach and output) fail with SdkError when called
+  allow_unsupported = { "streaming" },
   unknown_tag = "UnknownBoatError",
   parse_tag = "BoatParseError",
 }

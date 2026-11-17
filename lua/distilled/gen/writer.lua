@@ -204,9 +204,14 @@ function writer.client(plan)
     protocol_args.glue = emit.raw("glue")
   end
 
-  local provider_errors = {}
+  -- error_classes the model does not declare itself (a model error of the same tag, in
+  -- some models of a package, is the class: status_map below prefers service.errors)
+  local provider_errors, provider_classes = {}, {}
   for _, c in ipairs(spec.error_classes or {}) do
-    provider_errors[c.tag] = true
+    if not plan.error_tags_set[c.tag] then
+      provider_errors[c.tag] = true
+      provider_classes[#provider_classes + 1] = c
+    end
   end
   if spec.error_envelope or spec.status_map or next(provider_errors) then
     b:line('local errors = require("distilled.errors")')
@@ -253,7 +258,7 @@ function writer.client(plan)
       emit.comment("Error classes of the provider spec (statuses the shared map has no class for).")
     )
     b:line("local provider_errors = {}")
-    for _, c in ipairs(spec.error_classes) do
+    for _, c in ipairs(provider_classes) do
       b:lines_of(emit.assign(
         "provider_errors." .. c.tag,
         emit.call("errors.define", {

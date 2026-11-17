@@ -1059,6 +1059,16 @@ t.describe("providers: the new keys are validated strictly", function()
     })
     t.eq(files, nil)
     t.match(gerr, "error_classes.NotFound has the tag of", true)
+    -- a model error of the same tag is the class (Vercel's PaymentRequired in some models)
+    local files3 = must(fx.generate({
+      provider = fx.provider({
+        error_classes = { Throttled = {}, Gone = { categories = { "NotFoundError" } } },
+        status_map = { [429] = "Throttled", [410] = "Gone" },
+      }),
+    }))
+    t.no_match(files3["init.lua"], "provider_errors.Throttled", true)
+    t.match(files3["init.lua"], "status_map[429] = service.errors.Throttled", true)
+    t.match(files3["init.lua"], "status_map[410] = provider_errors.Gone", true)
     local files2, gerr2 =
       fx.generate({ provider = fx.provider({ public_operations = { "Nope" } }) })
     t.eq(files2, nil)
