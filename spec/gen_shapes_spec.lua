@@ -149,11 +149,12 @@ t.describe("gen.shapes: naming policy and refusals", function()
     t.match(err, "ex.api#TagList: nullable list items", true)
   end)
 
-  t.it("refuses a label member missing from the URI, and a placeholder with no member", function()
+  t.it("refuses a label member missing from the URI", function()
     local _, err = fx.generate({
       replace = { { '"uri": "/things/{thing_id}"', '"uri": "/things/{id}"' } },
     })
     t.match(err, "label member thing_id has no {thing_id}", true)
-    t.match(err, "{id} in /things/{id} has no label member", true)
+    -- a placeholder with no member is a warning since task 12 (spec/gen_ops_spec.lua)
+    t.no_match(err, "{id} in /things/{id} has no label member", true)
   end)
 end)

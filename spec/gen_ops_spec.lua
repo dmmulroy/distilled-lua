@@ -286,10 +286,10 @@ t.describe("gen.ops: http trait and selection", function()
   t.it("refuses an unsupported http key and method", function()
     local _, err = fx.generate({
       replace = {
-        { '"uri": "/names", "code": 200', '"uri": "/names", "code": 200, "server": "x"' },
+        { '"uri": "/names", "code": 200', '"uri": "/names", "code": 200, "apiVersion": "x"' },
       },
     })
-    t.match(err, "smithy.api#http has unsupported key server", true)
+    t.match(err, "smithy.api#http has unsupported key apiVersion", true)
     _, err = fx.generate({
       replace = { { '"method": "GET", "uri": "/names"', '"method": "TRACE", "uri": "/names"' } },
     })
