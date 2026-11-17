@@ -121,8 +121,36 @@ local function check_module(module, fail)
       end
     end
     local names = {}
-    for name in pairs(registry) do
-      names[#names + 1] = name
+    if service.shape_chunks then
+      -- a large model's split layout (task 18): shapes load on first use, one file at a
+      -- time. Nothing is loaded yet; an unknown name is nil; every file's shapes resolve
+      -- through the registry (which loads that file) to the same node.
+      for _, m in ipairs(service.shape_chunks) do
+        if package.loaded[m] ~= nil then
+          fail("service: requiring it loaded the shape file " .. m)
+        end
+      end
+      if registry["no such shape \0"] ~= nil then
+        fail("service: an unknown shape name is not nil")
+      end
+      for _, m in ipairs(service.shape_chunks) do
+        local ok, chunk = compat.pcall(require, m)
+        if not ok or type(chunk) ~= "table" then
+          fail("service: shape file " .. m .. " does not load: " .. tostring(chunk))
+        else
+          for name, node in pairs(chunk) do
+            names[#names + 1] = name
+            if registry[name] ~= node then
+              fail("service: shape " .. tostring(name) .. " of " .. m .. " is not registry's")
+            end
+          end
+        end
+      end
+      notes[#notes + 1] = #service.shape_chunks .. " shape files"
+    else
+      for name in pairs(registry) do
+        names[#names + 1] = name
+      end
     end
     table.sort(names)
     for _, name in ipairs(names) do
