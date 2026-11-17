@@ -219,9 +219,10 @@ local function first_line(s)
   return string.match(tostring(s), "^([^\n]*)") or tostring(s)
 end
 
--- A directory --out may replace: absent, empty, or a package this CLI generated.
+-- A directory --out may replace: absent, empty, or a package this CLI generated (or one
+-- holding only the generated GraphQL client of a mixed package, graphql/: task 16).
 local function replaceable(dir)
-  local f = io.open(dir .. "/init.lua", "rb")
+  local f = io.open(dir .. "/init.lua", "rb") or io.open(dir .. "/graphql/init.lua", "rb")
   if f then
     local head = f:read(600) or ""
     f:close()
@@ -250,13 +251,37 @@ local function cmd_package(args)
     end
   end
   local gen = require("distilled.gen")
+  local models_dir = string.gsub(o.models, "/+$", "")
+  local pkg = string.match(models_dir, "([^/]+)$")
+  local stems = list_models(models_dir)
+  -- GraphQL (task 16): <models>/graphql/<pkg>.json is a GraphQL model; alone it is the
+  -- whole package (o.provider is then a GraphQL spec), else it becomes <out>/graphql/
+  local gql = require("distilled.gen.graphql")
+  local gql_model = gql.find_model(models_dir, pkg)
+  if #stems == 0 and gql_model then
+    local out = string.gsub(o.out, "/+$", "")
+    if not replaceable(out) then
+      die(out .. " exists and is not a generated package; refusing to replace it")
+    end
+    local stage = out .. ".staging"
+    os.execute("rm -rf " .. shell_quote(stage))
+    mkdir_p(stage)
+    local ok, line = gql.package_into(stage, gql_model, o.provider, not o["no-telemetry"], pkg)
+    print(line)
+    if not ok then
+      os.execute("rm -rf " .. shell_quote(stage))
+      os.exit(1)
+    end
+    os.execute(
+      "rm -rf " .. shell_quote(out) .. " && mv " .. shell_quote(stage) .. " " .. shell_quote(out)
+    )
+    print(string.format("package %s: 1 ok, 0 failed, 0 skipped; graphql -> %s", pkg, out))
+    return
+  end
   local spec, serr = gen.provider.load(o.provider)
   if not spec then
     die("generation failed:\n" .. serr)
   end
-  local models_dir = string.gsub(o.models, "/+$", "")
-  local pkg = string.match(models_dir, "([^/]+)$")
-  local stems = list_models(models_dir)
   if #stems == 0 then
     die("no models in " .. models_dir .. " (verify/dl models sync " .. tostring(pkg) .. ")")
   end
@@ -366,6 +391,31 @@ local function cmd_package(args)
         end
       end
       collectgarbage()
+    end
+  end
+  if gql_model and not only then
+    local gql_spec = gql.find_spec(o.provider, spec.name)
+    if not gql_spec then
+      counts.failed = counts.failed + 1
+      print(
+        "FAIL "
+          .. pkg
+          .. "/graphql: no GraphQL provider spec (providers/graphql/"
+          .. spec.name
+          .. ".lua)"
+      )
+    else
+      mkdir_p(stage .. "/graphql")
+      local ok, line =
+        gql.package_into(stage .. "/graphql", gql_model, gql_spec, not o["no-telemetry"], pkg)
+      if ok then
+        counts.ok = counts.ok + 1
+      else
+        counts.failed = counts.failed + 1
+      end
+      if not o.quiet or not ok then
+        print(line)
+      end
     end
   end
   if counts.ok == 0 then
