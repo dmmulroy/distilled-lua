@@ -1145,6 +1145,59 @@ requests byte for byte, 39 responses, the error module.
   Proposed: refresh on `err.status == 401` (or AuthError with status 401).
 
 
+## 19 cloudflare
+
+**Done.** See `tasks/19-cloudflare.done.md` and `verify/features/cloudflare.md`. 130
+models (129 v4 services plus `k2`) generate into `clients/cloudflare/` (3,128 operations
+and 25 opAlias methods). They load and build every request under lua, luajit and rex
+(`verify/dl gen-diff cloudflare`). Conformance against Distilled's TS SDK: 3,090 cases
+over 536 operations of all 130 models, 0 mismatches (`spec/cloudflare_conform_spec.lua`,
+`verify/conform/cloudflare/`).
+
+### Decisions others should know
+
+- Member names stay as the wire spells them (`naming.members = "wire"`). The models'
+  pagination traits are written in Distilled's camelCase TS names (`perPage`,
+  `resultInfo.page`); `gen/cloudflare.lua` translates them back. Paginated outputs get a
+  `result_info` member, filled from the envelope.
+- `protocol = "distilled.protocol.cloudflare"` in the provider spec: the module is
+  callable (`require(mod)(service, spec)`). It is `rest.new` with its own encode and
+  decode.
+- Pagination: `trait.strategy = "cloudflare"` selects `paginate.strategies
+  ["cloudflare.page"]` (pagination.ts). Other modes fall back to the core ones. A
+  strategy step may return `false` to end a traversal without a page (stop
+  `page_not_advancing`). Neon's modes are unchanged.
+- Response validation treats every Cloudflare union as `unknown`. That is Distilled's
+  unionStyle `opaque-cases`: `S.Unknown.pipe(T.UnionCases(...))`. It is done with a lazy
+  validation view of the registry in `protocol/cloudflare.lua`. Decoding still picks an
+  arm.
+- Distilled's `validatePaginated`: an unusable pagination trait is dropped with a
+  generator warning, not a failure.
+- opAliases (model metadata) are emitted as second methods on the target operation, as
+  generator.ts `export const alias = target`.
+
+### Contract proposals (orchestrator)
+
+- `errors.match`: Distilled's `matchTypedError` builds the class with `code: best.code ??
+  0`, while ours leaves `code` nil. A status-only match on an envelope-less 404 shows the
+  difference. The Cloudflare protocol sets 0 itself. Proposal: core does it, for every
+  protocol.
+- `validate.check`: an `opaque` union flag (accept any value) would replace the
+  Cloudflare registry view.
+
+### Edits outside my file list
+
+- `verify/dl` `cmd_models`: `models sync <pkg>` also copies `manual-specs/*.json` when
+  the package's `scripts/generate.ts` reads `manualSpecsDir` (Cloudflare's `k2`; AWS has
+  the same layout).
+- `spec/provider_spec.lua`: `"cloudflare"` added to the provider list (one line), or the
+  listing test fails.
+- Hooks in `gen/init.lua`, `gen/ops.lua`, `gen/shapes.lua`, `gen/traits.lua` and
+  `gen/writer.lua` (Cloudflare support, allowed by the brief). Each one is `if
+  ctx.cloudflare` or a nil-safe field.
+- New `verify/conform/cloudflare/` (cases.lua, ts.mjs, compare.lua, intended.lua,
+  run.lua, lib.lua, and the saved cases.jsonl and ref.jsonl).
+
 ## 26 clients
 
 **Done.** See `tasks/26-clients.done.md`. 89 REST packages generated and committed

@@ -230,6 +230,14 @@ function gen.plan(args)
     -- ARM ids that differ only in case (one per api-version) get distinct names
     name_overrides = azure.operation_names(m, spec)
   end
+  -- Cloudflare's v4 envelope models (gen/cloudflare.lua): model rewrites and hooks
+  local cloudflare = require("distilled.gen.cloudflare")
+  if cloudflare.applies(m, spec) then
+    local ok, cerr = cloudflare.prepare(ctx)
+    if not ok then
+      return nil, cerr
+    end
+  end
   if m.is_aws then
     -- AWS models (gen/aws.lua): protocol, service facts, the telemetry the runtime skips
     local aws_ctx, aerr = require("distilled.gen.aws").context(m, spec)
@@ -327,7 +335,11 @@ function gen.plan(args)
               bind = "body"
             end
             if bind == "label" then
-              if not placeholder[mem.name] then
+              -- a label may name the operation's own host instead (Cloudflare's host)
+              local host_label = ctx.host_labels
+                and ctx.host_labels[op.id]
+                and ctx.host_labels[op.id][mem.name]
+              if not placeholder[mem.name] and not host_label then
                 problems[#problems + 1] = op.id
                   .. ": label member "
                   .. mem.name
@@ -389,6 +401,10 @@ function gen.plan(args)
   end
   if #problems > 0 then
     return fail(problems)
+  end
+
+  if ctx.cloudflare then
+    cloudflare.after_select(ctx, plan_ops)
   end
 
   -- request-reachable shapes (for the @default rule)

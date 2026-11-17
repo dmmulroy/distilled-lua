@@ -95,6 +95,7 @@ local NAMES = {
   "chronosphere",
   "clerk",
   "clickhouse_cloud",
+  "cloudflare",
   "coinflow",
   "convex",
   "coolify",

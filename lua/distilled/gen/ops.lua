@@ -307,7 +307,11 @@ function ops.pagination(ctx, op)
     end
   end
   local mode = pg.mode or "token"
-  local fields = CORE_STRATEGY_FIELDS[mode]
+  if not CORE_STRATEGY_FIELDS[mode] then
+    return false, where .. ": smithy.api#paginated mode " .. tostring(mode) .. " is not known"
+  end
+  -- a provider strategy may need fewer fields (Cloudflare's page mode: inputToken only)
+  local fields = (ctx.strategy_fields and ctx.strategy_fields[mode]) or CORE_STRATEGY_FIELDS[mode]
   if not fields then
     return false, where .. ": smithy.api#paginated mode " .. tostring(mode) .. " is not known"
   end
@@ -356,7 +360,11 @@ function ops.pagination(ctx, op)
   end
   -- a provider strategy for the mode (task 27, Distilled's paginationProfiles): Scaleway
   -- pages by total count (paginate.lua strategies.total_count)
-  local out = { mode = (ctx.provider.pagination.modes or {})[mode] or mode }
+  -- and Cloudflare's (gen/cloudflare.lua: trait.strategy picks strategies["cloudflare.<mode>"])
+  local out = {
+    mode = (ctx.provider.pagination.modes or {})[mode] or mode,
+    strategy = ctx.pagination_strategy,
+  }
   if pg.inputToken then
     out.input_token = lua_path(ctx, op.input, pg.inputToken)
   end
@@ -947,6 +955,10 @@ function ops.descriptor(ctx, op)
     pagination_methods = ops.renamed_page_methods(op),
     retry = op.retry,
     span = op.span,
+    -- provider fields (Cloudflare: host, jurisdiction, fallback_wire; gen/cloudflare.lua)
+    host = op.extra and op.extra.host,
+    jurisdiction = op.extra and op.extra.jurisdiction,
+    fallback_wire = op.extra and op.extra.fallback_wire,
     -- AWS operations: host prefix, static context params, checksums (gen/aws.lua)
     aws = ctx.aws and require("distilled.gen.aws").op_facts(ctx, op) or nil,
   }

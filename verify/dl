@@ -884,18 +884,26 @@ cmd_models() {
     fi
     dst="$ROOT/models/$pkg"
     mkdir -p "$dst"
+    # Hand-written models next to the converted ones (cloudflare's k2, aws's simpledb):
+    # Distilled's generate reads them too (scripts/generate.ts manualSpecsDir).
+    manual=""
+    if [ -d "$PACKAGES/$pkg/manual-specs" ] &&
+      grep -q manualSpecsDir "$PACKAGES/$pkg/scripts/generate.ts" 2>/dev/null; then
+      manual="$PACKAGES/$pkg/manual-specs"
+    fi
     new=0
     changed=0
     same=0
     removed=0
     for f in "$dst"/*.json; do
       [ -f "$f" ] || continue
-      if [ ! -f "$src/$(basename "$f")" ]; then
+      if [ ! -f "$src/$(basename "$f")" ] && { [ -z "$manual" ] || [ ! -f "$manual/$(basename "$f")" ]; }; then
         rm -f "$f"
         removed=$((removed + 1))
       fi
     done
-    for f in "$src"/*.json; do
+    for f in "$src"/*.json ${manual:+"$manual"/*.json}; do
+      [ -f "$f" ] || continue
       b=$(basename "$f")
       if [ ! -f "$dst/$b" ]; then
         new=$((new + 1))

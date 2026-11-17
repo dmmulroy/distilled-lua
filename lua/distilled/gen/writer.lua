@@ -568,6 +568,9 @@ end
 
 --- writer.client(plan) -> source of init.lua
 function writer.client(plan)
+  if plan.ctx.cloudflare then
+    return require("distilled.gen.cloudflare").client(plan)
+  end
   local spec = plan.provider
   if spec.rpc then
     return require("distilled.gen.rpc").client(plan) -- RPC models (task 22)
@@ -909,7 +912,9 @@ function writer.readme(plan)
   add()
   add("local " .. spec.title .. ' = require("' .. spec.name .. '")')
   add("local client = " .. spec.title .. ".new({")
-  if spec.auth.kind == "basic" then
+  if plan.ctx.cloudflare then
+    add("  api_token = token, -- default: $CLOUDFLARE_API_TOKEN")
+  elseif spec.auth.kind == "basic" then
     add("  " .. spec.auth.username .. " = user,")
     add("  " .. spec.auth.password .. " = password,")
   elseif spec.auth.kind ~= "none" then
@@ -922,13 +927,12 @@ function writer.readme(plan)
   add()
   add("| Option | Meaning |")
   add("| --- | --- |")
-  if spec.runtime then
+  if plan.ctx.cloudflare then
+    require("distilled.gen.cloudflare").readme_options(plan, add)
+  elseif spec.runtime then
     for _, line in ipairs(writer.option_rows(spec)) do
       add(line)
     end
-  end
-  if spec.runtime then
-    -- rows written above
   elseif spec.auth.kind ~= "none" then
     add(
       "| `"

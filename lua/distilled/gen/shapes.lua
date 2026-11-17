@@ -117,7 +117,16 @@ function shapes.members(ctx, def, owner_id)
       required = traits["smithy.api#required"] ~= nil
         or (traits[T_DEFAULT] ~= nil and response_only)
         or (items_root ~= nil and items_root == lua_name),
-      nullable = traits[T_NULLABLE] ~= nil,
+      -- ctx.nullable_owners (Cloudflare's optionalsNullable): every optional body member
+      -- of a response-reachable shape also accepts null
+      nullable = traits[T_NULLABLE] ~= nil
+        or (
+          ctx.nullable_owners ~= nil
+          and owner_id ~= nil
+          and ctx.nullable_owners[owner_id] == true
+          and traits["smithy.api#required"] == nil
+          and bind == "body"
+        ),
       sensitive = traits[T_SENSITIVE] ~= nil
         or (
           target_def ~= nil
@@ -254,6 +263,9 @@ function shapes.member_value(ctx, info)
   end
   if info.string_encoded then
     v.string_encoded = true
+  end
+  if ctx.member_hook then
+    ctx.member_hook(info, v)
   end
   if ctx.aws then
     -- AWS serialization traits (xmlName, ec2QueryName, timestampFormat, ...): gen/aws.lua

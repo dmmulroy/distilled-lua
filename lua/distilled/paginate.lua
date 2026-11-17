@@ -507,6 +507,80 @@ strategies.keyset = {
   end,
 }
 
+-- Provider strategies: `trait.strategy = "<provider>"` picks strategies["<provider>.<mode>"]
+-- when there is one, else the core mode (Distilled: a PaginationStrategy that dispatches on
+-- the mode, falling back to paginateWithDefaults).
+
+-- Cloudflare's page mode (packages/cloudflare/src/pagination.ts paginatePageByItems):
+-- request page N and stop on the first page with no items; `result_info.page` reports the
+-- CURRENT page, so there is no next token. A request schema without the page parameter
+-- gets page 1 forever: when the server reports another page than the one asked for, stop
+-- without emitting the duplicate. When result_info shows the listing is exhausted, stop
+-- without asking for the empty page: total_pages says this was the last page, or the page
+-- came back short of per_page (else the requested page size) and the items seen reach
+-- total_count. A short page alone is not trusted (endpoints cap page sizes below what they
+-- report), so the count check needs both signals.
+strategies["cloudflare.page"] = {
+  start = function(input, trait)
+    if not trait.input_token then
+      return missing("Cloudflare page pagination requires an input_token")
+    end
+    local start = rawget(input, trait.input_token)
+    start = type(start) == "number" and start or 1
+    local size = trait.page_size and rawget(input, trait.page_size) or nil
+    return {
+      page = start,
+      start = start,
+      seen = 0,
+      input = input,
+      page_size = type(size) == "number" and size or nil,
+    }
+  end,
+  step = function(state, call, trait)
+    local page, err, meta = call(with_key(state.input, trait.input_token, state.page))
+    if page == nil then
+      return nil, err, meta
+    end
+    local items = get_path(page, trait.items or "result")
+    local reported = get_path(page, "result_info.page")
+    if state.page ~= state.start and type(reported) == "number" and reported ~= state.page then
+      -- the server ignored the page parameter: this page is a duplicate
+      state.done, state.stop = true, "page_not_advancing"
+      return false, nil, meta
+    end
+    local count = 0
+    if type(items) == "table" and items ~= null then
+      count = #items
+    end
+    local seen = state.seen + count
+    local info = get_path(page, "result_info")
+    if not is_object_like(info) then
+      info = nil
+    end
+    local per_page = info and rawget(info, "per_page")
+    if type(per_page) ~= "number" then
+      per_page = state.page_size
+    end
+    local total_pages = info and rawget(info, "total_pages")
+    local total_count = info and rawget(info, "total_count")
+    local last = (type(total_pages) == "number" and state.page >= total_pages)
+      or (
+        type(total_count) == "number"
+        and type(per_page) == "number"
+        and count < per_page
+        and seen >= total_count
+      )
+    state.page = state.page + 1
+    state.seen = seen
+    if count == 0 then
+      state.done, state.stop = true, "empty_page"
+    elseif last then
+      state.done, state.stop = true, "last_page"
+    end
+    return page, nil, meta
+  end,
+}
+
 ---------------------------------------------------------------------------------------
 -- the iterator object
 ---------------------------------------------------------------------------------------
@@ -593,7 +667,8 @@ function Iterator:_next_page()
   local trait = self._trait
   if not self._state then
     local mode = trait.mode or "token"
-    local strategy = strategies[mode]
+    local strategy = (trait.strategy and strategies[trait.strategy .. "." .. mode])
+      or strategies[mode]
     if not strategy then
       return self:_fail(
         errors.new("SdkError", { message = "unknown pagination mode " .. tostring(mode) })
@@ -646,6 +721,12 @@ function Iterator:_next_page()
     page, err = r[2], r[3]
   else
     page, err = step()
+  end
+  if page == false then
+    -- the strategy ended the traversal without a page (a duplicate it will not emit)
+    self.stop = state.stop
+    self:_finish(state.stop)
+    return nil
   end
   if page == nil then
     return self:_fail(err or errors.new("SdkError", { message = "a page call returned nothing" }))
