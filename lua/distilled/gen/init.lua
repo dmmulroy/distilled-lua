@@ -388,7 +388,7 @@ function gen.plan(args)
       op.retry = retry
     end
     local unsupported, uerr = ops_mod.streaming(ctx, op)
-    if spec.rpc then
+    if spec.proto then
       -- gRPC server streams are collected from one response (task 23)
       unsupported, uerr = proto.streaming(ctx, op, unsupported, uerr)
     end
@@ -402,7 +402,7 @@ function gen.plan(args)
     return fail(problems)
   end
 
-  if spec.rpc then
+  if spec.proto then
     proto.prepare_model(m, spec) -- the provider's error matchers trait (task 23)
   end
 
@@ -621,8 +621,8 @@ function gen.plan(args)
     selected_all = args.ops == nil,
     generator_version = gen.VERSION,
   }
-  if spec.rpc then
-    -- gRPC descriptors and the rpc settings (task 23)
+  if spec.proto then
+    -- gRPC descriptors and the proto settings (task 23)
     local ok, perr = proto.plan(result)
     if not ok then
       return nil, perr
@@ -652,7 +652,7 @@ function gen.generate(args)
   end
   files["types.lua"] = types_mod.render(plan)
   files["README.md"] = writer.readme(plan)
-  if plan.provider.rpc then
+  if plan.provider.proto then
     -- proto-sourced providers (task 23): the gRPC / Connect client and its descriptors
     local spec = plan.provider
     files["init.lua"] = proto.client(

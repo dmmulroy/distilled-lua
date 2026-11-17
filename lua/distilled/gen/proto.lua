@@ -1,8 +1,8 @@
--- Proto-sourced providers (task 23): the provider spec's `rpc` section, the gRPC
+-- Proto-sourced providers (task 23): the provider spec's `proto` section, the gRPC
 -- descriptors each generated client carries, and the client module (init.lua) that
 -- wires distilled.protocol.grpc or distilled.protocol.connect.
 --
---   rpc = {
+--   proto = {
 --     wire = "grpc" | "grpc-web" | "connect",
 --     descriptors = "descriptors.ts",       -- grpc wires: Distilled's src/descriptors.ts
 --                                           -- (or a .json of it), relative to the model's
@@ -29,7 +29,8 @@
 --   }
 --
 -- The top-level `auth` and `base_url` keys still apply: they become options (and an
--- authorization header) under the rpc ones, which win by name.
+-- authorization header) under the proto ones, which win by name. (The `rpc` key is
+-- task 22's: operations without http traits, gen/rpc.lua.)
 local compat = require("distilled.compat")
 local emit = require("distilled.gen.emit")
 local json = require("distilled.json")
@@ -205,23 +206,23 @@ local function check_one_of(where, list, p)
   end
 end
 
---- proto.validate(rpc, spec) -> normalized rpc | nil, problems (a list)
+--- proto.validate(proto_spec, spec) -> normalized proto_spec | nil, problems (a list)
 -- spec is the provider spec validated so far (auth, base_url).
 function proto.validate(r, spec)
   local p = {}
   if type(r) ~= "table" then
-    return nil, { "provider spec rpc must be a table" }
+    return nil, { "provider spec proto must be a table" }
   end
-  unknown_keys("provider spec rpc", r, KEYS, p)
+  unknown_keys("provider spec proto", r, KEYS, p)
   if not WIRES[r.wire] then
-    p[#p + 1] = "provider spec rpc.wire must be grpc, grpc-web or connect"
+    p[#p + 1] = "provider spec proto.wire must be grpc, grpc-web or connect"
   end
   if r.wire == "connect" then
     if r.descriptors ~= nil or r.http2 ~= nil then
-      p[#p + 1] = "provider spec rpc: descriptors and http2 are for the grpc wires"
+      p[#p + 1] = "provider spec proto: descriptors and http2 are for the grpc wires"
     end
   elseif type(r.descriptors) ~= "string" or r.descriptors == "" then
-    p[#p + 1] = "provider spec rpc.descriptors must name the descriptors file (descriptors.ts)"
+    p[#p + 1] = "provider spec proto.descriptors must name the descriptors file (descriptors.ts)"
   end
   if
     r.error_matchers_trait ~= nil
@@ -230,32 +231,32 @@ function proto.validate(r, spec)
       or not string.find(r.error_matchers_trait, "#", 1, true)
     )
   then
-    p[#p + 1] = "provider spec rpc.error_matchers_trait must be a trait id (ns#name)"
+    p[#p + 1] = "provider spec proto.error_matchers_trait must be a trait id (ns#name)"
   end
   if r.http2 ~= nil and type(r.http2) ~= "boolean" and not naming.is_identifier(r.http2) then
-    p[#p + 1] = "provider spec rpc.http2 must be a boolean or an option name"
+    p[#p + 1] = "provider spec proto.http2 must be a boolean or an option name"
   end
   if r.options ~= nil then
-    check_options("provider spec rpc.options", r.options, p, false)
+    check_options("provider spec proto.options", r.options, p, false)
   end
   if r.base_url ~= nil then
-    check_base_url("provider spec rpc.base_url", r.base_url, p)
+    check_base_url("provider spec proto.base_url", r.base_url, p)
   end
   if r.headers ~= nil then
-    check_headers("provider spec rpc.headers", r.headers, p)
+    check_headers("provider spec proto.headers", r.headers, p)
   end
   if r.require_one_of ~= nil then
-    check_one_of("provider spec rpc.require_one_of", r.require_one_of, p)
+    check_one_of("provider spec proto.require_one_of", r.require_one_of, p)
   end
   if r.empty_json_body ~= nil and type(r.empty_json_body) ~= "boolean" then
-    p[#p + 1] = "provider spec rpc.empty_json_body must be a boolean"
+    p[#p + 1] = "provider spec proto.empty_json_body must be a boolean"
   end
   if r.error_envelope ~= nil then
     if type(r.error_envelope) ~= "table" then
-      p[#p + 1] = "provider spec rpc.error_envelope must be { code, message }"
+      p[#p + 1] = "provider spec proto.error_envelope must be { code, message }"
     else
       unknown_keys(
-        "provider spec rpc.error_envelope",
+        "provider spec proto.error_envelope",
         r.error_envelope,
         { code = true, message = true },
         p
@@ -266,7 +267,7 @@ function proto.validate(r, spec)
         if v ~= nil then
           for _, ptr in ipairs(list) do
             if not is_pointer(ptr) then
-              p[#p + 1] = "provider spec rpc.error_envelope." .. k .. " must be JSON pointers"
+              p[#p + 1] = "provider spec proto.error_envelope." .. k .. " must be JSON pointers"
             end
           end
         end
@@ -275,22 +276,22 @@ function proto.validate(r, spec)
   end
   if r.unknown_fields ~= nil then
     if type(r.unknown_fields) ~= "table" then
-      p[#p + 1] = "provider spec rpc.unknown_fields must be { field = pointer }"
+      p[#p + 1] = "provider spec proto.unknown_fields must be { field = pointer }"
     else
       for k, v in pairs(r.unknown_fields) do
         if not naming.is_identifier(k) or not is_pointer(v) then
-          p[#p + 1] = "provider spec rpc.unknown_fields must be { field = pointer }"
+          p[#p + 1] = "provider spec proto.unknown_fields must be { field = pointer }"
         end
       end
     end
   end
   if r.models ~= nil then
     if type(r.models) ~= "table" then
-      p[#p + 1] = "provider spec rpc.models must be { [model] = { ... } }"
+      p[#p + 1] = "provider spec proto.models must be { [model] = { ... } }"
     else
       for _, name in ipairs(sorted_keys(r.models)) do
         local mo = r.models[name]
-        local w = "provider spec rpc.models." .. tostring(name)
+        local w = "provider spec proto.models." .. tostring(name)
         if type(mo) ~= "table" then
           p[#p + 1] = w .. " must be a table"
         else
@@ -314,9 +315,14 @@ function proto.validate(r, spec)
       end
     end
   end
-  if spec.status_map ~= nil or spec.classify_error ~= nil or spec.protocol ~= nil then
-    p[#p + 1] =
-      "provider spec rpc: status_map, classify_error and protocol are not supported with rpc"
+  if
+    spec.status_map ~= nil
+    or spec.classify_error ~= nil
+    or spec.protocol ~= nil
+    or spec.rpc ~= nil
+  then
+    p[#p + 1] = "provider spec proto: status_map, classify_error, protocol and rpc (task 22's) "
+      .. "are not supported with proto"
   end
   if #p > 0 then
     return nil, p
@@ -326,7 +332,7 @@ end
 
 -- the effective settings, header rules, base URL and one-of list for a model
 function proto.effective(spec)
-  local r = spec.rpc
+  local r = spec.proto
   local mo = (r.models or {})[spec.model_name or ""] or {}
   local settings, headers = {}, {}
   local auth = spec.auth
@@ -545,7 +551,7 @@ end
 --- proto.prepare_model(m, spec): the provider's error matchers trait read as
 -- com.distilled.openapi#errorMatchers (Distilled's SdkSpec.errorMatchersTrait)
 function proto.prepare_model(m, spec)
-  local trait = spec.rpc and spec.rpc.error_matchers_trait
+  local trait = spec.proto and spec.proto.error_matchers_trait
   if not trait then
     return
   end
@@ -565,7 +571,7 @@ end
 -- gRPC server-streaming operations are callable on the grpc wires: the call collects the
 -- stream from one HTTP response ({ items }). Client streaming stays unsupported.
 function proto.streaming(ctx, op, unsupported, err)
-  local r = ctx.provider.rpc
+  local r = ctx.provider.proto
   if
     r
     and r.wire ~= "connect"
@@ -581,7 +587,7 @@ end
 -- operation has its method, and keeps the subset this client needs (plan.proto)
 function proto.plan(plan)
   local spec = plan.provider
-  local r = spec.rpc
+  local r = spec.proto
   local eff = proto.effective(spec)
   plan.proto = { effective = eff }
   if r.wire == "connect" then
@@ -688,7 +694,7 @@ end
 --- proto.client(plan, header) -> init.lua source
 function proto.client(plan, header)
   local spec = plan.provider
-  local r = spec.rpc
+  local r = spec.proto
   local eff = plan.proto.effective
   local b = emit.buffer()
   b:lines_of(header)
@@ -711,7 +717,7 @@ function proto.client(plan, header)
   b:blank()
   b:lines_of(
     emit.comment(
-      "The client's options (provider spec rpc.options): environment variables in order, "
+      "The client's options (provider spec proto.options): environment variables in order, "
         .. "then the default, whose {name}s are other options."
     )
   )
@@ -806,7 +812,7 @@ end
 --- proto.readme(plan) -> markdown section on the client's options and wire
 function proto.readme(plan)
   local spec = plan.provider
-  local r = spec.rpc
+  local r = spec.proto
   local eff = plan.proto.effective
   local out = {}
   local function add(s)
@@ -850,7 +856,7 @@ function proto.readme(plan)
   return compat.concat(out, "\n")
 end
 
---- proto.patch_types(plan, text) -> types.lua with a field per rpc option
+--- proto.patch_types(plan, text) -> types.lua with a field per proto option
 function proto.patch_types(plan, text)
   local spec = plan.provider
   local prefix = string.match(text, "%-%-%-@class ([%w_.]+)%.Options\n")

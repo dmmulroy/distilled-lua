@@ -19,7 +19,7 @@ return {
   unknown_tag = "UnknownBoxdError",
   parse_tag = "BoxdParseError",
   naming = { members = "wire" },
-  rpc = {
+  proto = {
     wire = "grpc-web",
     descriptors = "descriptors.ts",
     options = {

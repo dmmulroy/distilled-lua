@@ -30,7 +30,7 @@ return {
   unknown_tag = "UnknownModalError",
   parse_tag = "ModalParseError",
   naming = { members = "wire" },
-  rpc = {
+  proto = {
     wire = "grpc",
     descriptors = "descriptors.ts",
     error_matchers_trait = "com.modal.protocols#errorMatchers",

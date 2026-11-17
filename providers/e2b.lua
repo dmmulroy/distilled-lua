@@ -54,7 +54,7 @@ return {
   unknown_tag = "UnknownE2BError",
   parse_tag = "E2BParseError",
   naming = { members = "wire" },
-  rpc = {
+  proto = {
     wire = "connect",
     options = {
       api_key = { secret = true, env = "E2B_API_KEY", doc = "the team API key (X-API-Key)" },

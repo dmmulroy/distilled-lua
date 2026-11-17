@@ -15,7 +15,7 @@ local rpc = require("distilled.protocol.rpc")
 local MODULE = ... or "e2b.webhooks"
 local service = require(MODULE .. ".service")
 
--- The client's options (provider spec rpc.options): environment variables in order, then the
+-- The client's options (provider spec proto.options): environment variables in order, then the
 -- default, whose {name}s are other options.
 local settings = {
   access_token = { secret = true, env = { "E2B_ACCESS_TOKEN" } },

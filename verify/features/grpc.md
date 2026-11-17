@@ -36,24 +36,24 @@ over Connect JSON. namespacelabs (Connect JSON too) uses task 13's REST provider
 - **`distilled.protocol.connect`** (used by e2b) is `rest.new` with two additions:
   - `empty_json_body` defaults to true;
   - a `prepare` hook derives the settings.
-- **`distilled.protocol.rpc`** is the runtime for a provider spec's `rpc` section:
+- **`distilled.protocol.rpc`** is the runtime for a provider spec's `proto` section:
   - `prepare` handles environment variables in order, defaults that name other options, `required` and `require_one_of`;
   - `base_url` handles templates, `by_prefix` and `when`/`cases`, and checks host parts;
   - `headers` (rules with `unless`);
   - `envelope`, `unknown_error` and `when_set`.
 - **Generator** (`gen/proto.lua`, hooked into `gen/init.lua` and `gen/provider.lua`):
-  - It validates the provider spec's `rpc` section.
+  - It validates the provider spec's `proto` section (`rpc` is task 22's key).
   - It reads Distilled's `src/descriptors.ts`. `dl models sync` copies it to `models/<pkg>/`.
   - It emits `descriptors.lua` with only the messages and enums the client's methods reach.
   - It writes an `init.lua` that wires grpc or connect, extends `README.md` and adds the option fields to `types.lua`.
-  - It reads `rpc.error_matchers_trait` (`com.modal.protocols#errorMatchers`) as error matchers.
+  - It reads `proto.error_matchers_trait` (`com.modal.protocols#errorMatchers`) as error matchers.
   - gRPC server streams become callable operations.
   - **Generation fails early** when:
     - a method is missing from the descriptors;
     - the streaming flag disagrees between the model and the descriptors;
     - a referenced message is missing;
     - the descriptors file is unreadable;
-    - the `rpc` spec is bad.
+    - the `proto` spec is bad.
 
 ## How a user reaches it
 
@@ -79,7 +79,7 @@ local inst = Compute.new({}):create_instance({ ... })   -- https://<region>.comp
   - The vectors cover 212 encode, 218 decode and 11 frame cases, plus hand-written edge cases.
 - `verify/dl test grpc_spec` covers:
   - the protocol over a scripted transport (frames, headers, status sources, error mapping, streams, malformed replies, retries);
-  - `rpc` settings;
+  - `distilled.protocol.rpc` settings;
   - every generated client: modal, boxd, e2b control plane, envd and volume content, and namespacelabs host routing and errors;
   - `gen.proto` (descriptor parsing, validation, reachable subset, failing early).
   - With `--http`, the same cases also run against `dl serve` through curl.

@@ -15,7 +15,7 @@ local rpc = require("distilled.protocol.rpc")
 local MODULE = ... or "e2b.volume_content"
 local service = require(MODULE .. ".service")
 
--- The client's options (provider spec rpc.options): environment variables in order, then the
+-- The client's options (provider spec proto.options): environment variables in order, then the
 -- default, whose {name}s are other options.
 local settings = {
   domain = { default = "e2b.app", env = { "E2B_DOMAIN" } },

@@ -15,7 +15,7 @@ local rpc = require("distilled.protocol.rpc")
 local MODULE = ... or "boxd"
 local service = require(MODULE .. ".service")
 
--- The client's options (provider spec rpc.options): environment variables in order, then the
+-- The client's options (provider spec proto.options): environment variables in order, then the
 -- default, whose {name}s are other options.
 local settings = {
   base_url = { default = "https://boxd.sh:9443", env = { "BOXD_BASE_URL", "BOXD_API_URL" } },

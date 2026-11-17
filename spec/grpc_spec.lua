@@ -891,7 +891,7 @@ t.describe("generated namespacelabs clients (Connect JSON)", function()
 end)
 
 ---------------------------------------------------------------------------------------
--- the generator side (gen/proto.lua): provider spec rpc, descriptors, failing early
+-- the generator side (gen/proto.lua): provider spec proto, descriptors, failing early
 ---------------------------------------------------------------------------------------
 local gen = require("distilled.gen")
 local gen_model = require("distilled.gen.model")
@@ -973,7 +973,7 @@ local function tiny_spec(rpc_over)
     unknown_tag = "UnknownTinyError",
     parse_tag = "TinyParseError",
     naming = { members = "wire" },
-    rpc = r,
+    proto = r,
   }
 end
 
@@ -998,12 +998,16 @@ t.describe("gen.proto", function()
       model = tiny_model(),
       provider = tiny_spec({ wire = "soap", headers = { { "x bad", "{no-name}" } }, colour = 1 }),
     })
-    t.match(err, "rpc.wire must be grpc, grpc-web or connect", true)
+    t.match(err, "proto.wire must be grpc, grpc-web or connect", true)
     t.match(err, "unknown key colour", true)
     t.match(err, "x bad is not a header name", true)
     t.match(err, "{no-name} is not an option name", true)
     _, err = gen.generate({ model = tiny_model(), provider = tiny_spec({ descriptors = false }) })
-    t.match(err, "rpc.descriptors must name the descriptors file", true)
+    t.match(err, "proto.descriptors must name the descriptors file", true)
+    local both = tiny_spec()
+    both.rpc = { protocol = "x.y", trait = "a.b#c", method = "POST", uri = "/" }
+    _, err = gen.generate({ model = tiny_model(), provider = both })
+    t.match(err, "rpc (task 22's) are not supported with proto", true)
   end)
 
   t.it("emits only the reachable descriptors, and a gRPC client module", function()
@@ -1046,7 +1050,7 @@ t.describe("gen.proto", function()
 
   t.it("connect: no descriptors; a server stream stays unsupported", function()
     local spec = tiny_spec({ wire = "connect" })
-    spec.rpc.descriptors = nil
+    spec.proto.descriptors = nil
     local _, err = gen.generate({ model = tiny_model(), provider = spec })
     t.match(err, "streaming", true)
     spec.allow_unsupported = { "streaming" }
