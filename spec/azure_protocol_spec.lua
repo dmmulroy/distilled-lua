@@ -569,6 +569,22 @@ t.describe("azure protocol: retries and credentials", function()
     t.eq(host.requests[2].headers.authorization, "Bearer tok-2")
   end)
 
+  t.it("InvalidAuthenticationToken (a typed 401) does not refresh the token", function()
+    local n = { calls = 0 }
+    local c, host = new(Resources, {
+      { status = 401, body = arm_error("InvalidAuthenticationToken", "The token is invalid.") },
+    }, {
+      bearer_token = function()
+        n.calls = n.calls + 1
+        return "tok"
+      end,
+    })
+    local v, err = c:get_resource_group(rg)
+    t.fails_with("InvalidAuthenticationToken", v, err)
+    t.eq(#host.requests, 1)
+    t.eq(n.calls, 1)
+  end)
+
   t.it("a function source is resolved once and reused while it works", function()
     local n = { calls = 0 }
     local c = new(Resources, { ok({}), ok({}) }, {

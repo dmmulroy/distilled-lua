@@ -984,3 +984,54 @@ models"). infisical's client now loads on luajit, and `require` takes 74 ms in R
   `docs/interfaces.md` could gain a section from the API list above.
 - Random bytes for key generation, Coinbase nonces and DPoP `jti` need a host field,
   as task 14 proposed. `ecdsa.private_key(curve, random32)` turns them into a key.
+
+## 20 azure
+
+**Done** (see `tasks/20-azure.done.md` and `verify/features/azure.md`). 223 of 223 models
+generate, 13,869 operations (every TS operation of those models, by name), all build in
+lua, luajit and Rex (`dl gen-diff azure` ok); conformance against Distilled: 1,170
+requests byte for byte, 39 responses, the error module.
+
+### What others can use
+
+- `require("distilled.protocol.azure")`: `azure.new(service, { provider, unknown_tag,
+  parse_tag })` (the module is callable, for the provider spec `protocol` key) wraps
+  `rest.new`: it overrides `protocol.encode` (options resolved with
+  `rest.compile_provider` on every request, then rest's encode) and `protocol.decode`
+  (its own failure path, rest's success path). A template for other bespoke protocols
+  that are "rest plus a few rules".
+- `require("distilled.azure.errors")` (classes, `codes`, `matchers`, `parse_arm`,
+  `class_for`), `require("distilled.azure.credentials")` (`cli`, `managed_identity`
+  token sources).
+- `dl azure-errors`, `dl azure-ref` (Node regenerations; deterministic).
+
+### Generator changes (outside "Azure only", all small; orchestrator please note)
+
+- `gen/ops.lua`: http key `apiVersion` and op field `api_version` (via
+  `gen/azure.lua`, which fails generation for a non-Azure protocol).
+- `gen/init.lua`: the Azure hook after the ctx (greedy leading labels, case-collision
+  names passed to `naming.operation_names` as overrides). Near task 19's cloudflare hook
+  (merge: both stay, in either order).
+- `gen/writer.lua`: a provider spec with both `protocol` and task-13 keys passes
+  `provider = <runtime data>` to the protocol module (no other spec has both today, so
+  no committed client changes).
+- `gen/naming.lua` (`naming.rtrim`, used by `one_line`) and `gen/types.lua`
+  (`doc_lines`): trailing Unicode whitespace is stripped (U+202F in Azure docs broke
+  `stylua --check`). No committed client changed (checked by regenerating all of them).
+- `gen/traits.lua`: the `com.distilled.openapi#apiVersion` entry.
+- `verify/dl`: `azure-errors`, `azure-ref` commands and help lines only.
+
+### Problems found for others
+
+- `verify/lib/parity.lua` counts `^ops.X = ` in `service.lua` only; since task 18 a
+  split service keeps its ops in `service/ops_NNN.lua`, so parity under-counts (azure
+  shows 9,282 instead of 13,869). Proposed: count those files too. I did not commit
+  `verify/features/parity.md`.
+- `t.pending(...)` called inside a running `t.it` does nothing (the test passes
+  silently): `spec/tencentcloud_protocol_spec.lua`'s HTTP case does this. Check
+  `serve.url()` at describe time and call `t.pending` there (as `azure_protocol_spec`).
+- `operation.lua` refreshes credentials only for tag `Unauthorized`. A provider whose
+  401s map to typed classes (Azure's `InvalidAuthenticationToken`) never refreshes.
+  Proposed: refresh on `err.status == 401` (or AuthError with status 401).
+- `clients/hetzner/*/init.lua` on main are stale against main's generator (task 13's
+  list-of-pointers `text_at`): regenerating changes 30 files. Not mine; left alone.
