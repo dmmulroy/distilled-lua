@@ -97,7 +97,7 @@ local PROBES = {
   { "records", { 32000, 65537 }, slow = true },
   { "locals", { 200, 201 } },
   { "upvalues", { 60, 61, 199 } },
-  { "nesting", { 100, 190, 199, 200 } },
+  { "nesting", { 100, 190, 199, 200, 250 } },
   { "long_string", { 16 * 1024 * 1024 } },
 }
 

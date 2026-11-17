@@ -5,6 +5,8 @@
 # and load time and memory (lua, luajit, rex) of both outputs.
 #
 #   sh verify/lib/big_models.sh infisical/infisical stripe/stripe ...
+#   sh verify/lib/big_models.sh syn:2000:8   (a synthetic model, verify/lib/big_synth.lua:
+#                                            2000 operations, 8 members per shape)
 #   DL_BEFORE_REF=<ref> (default c09d560, main when task 18 started)
 #   DL_BIG_RUNTIMES="lua luajit rex"   DL_BIG_OUT=<dir> (default /tmp/dl-big-models)
 #
@@ -52,6 +54,23 @@ for pm in "$@"; do
 return { name = "$name", base_url = "https://example.invalid", auth = { kind = "bearer", from = "api_key", env = "X_KEY" }, unknown_tag = "UnknownErr", parse_tag = "ParseErr", naming = { members = "wire" } }
 P
   model="$ROOT/models/$p/$m.json"
+  case $pm in
+    syn:*)
+      ops=$(echo "$pm" | cut -d: -f2)
+      members=$(echo "$pm" | cut -d: -f3)
+      name="syn_${ops}_${members:-4}"
+      W="$OUT/$name"
+      R="$W/report.txt"
+      rm -rf "$W"
+      mkdir -p "$W"
+      model="$W/synthetic.json"
+      (cd "$ROOT" && luajit -e "package.path='lua/?.lua;lua/?/init.lua;./?.lua;'..package.path
+        io.write(require('verify.lib.big_synth').text({ ops = $ops, members = ${members:-4} }))") >"$model"
+      sed "s/name = \"[a-z0-9_]*\"/name = \"$name\"/" >"$W/provider.lua" <<P
+return { name = "x", base_url = "https://example.invalid", auth = { kind = "bearer", from = "api_key", env = "X_KEY" }, unknown_tag = "UnknownErr", parse_tag = "ParseErr", naming = { members = "wire" } }
+P
+      ;;
+  esac
   [ -f "$model" ] || { echo "$pm: no model $model (verify/dl models sync $p)"; continue; }
   cp "$model" "$W/model.json"
   note="as is"
