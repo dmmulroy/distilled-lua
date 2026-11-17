@@ -47,9 +47,9 @@ $ verify/dl doctor
 
 $ verify/dl test
 == summary
-  lua: ok 1933 passed, 6 pending [Lua 5.5]
-  luajit: ok 1933 passed, 6 pending [luajit]
-  rex: ok 1920 passed, 11 pending [rex]
+  lua: ok 2109 passed, 21 pending [Lua 5.5]
+  luajit: ok 2109 passed, 21 pending [luajit]
+  rex: ok 2096 passed, 26 pending [rex]
 
 $ verify/dl test --http            (before the last merge; azure_protocol re-run after it)
   lua: ok 1973 passed [Lua 5.5]
@@ -72,7 +72,7 @@ ok   diff: clients/azure matches a fresh generation
 ok   stylua --check: generated Lua is formatted
 ok gen-check Lua 5.5: 223 services, 82376 shapes, 113654 refs resolved, 13869/13869 ops built, 0 acknowledged unsupported; service load 290.1 ms; client loads
 ok gen-check luajit: ... 13869/13869 ops built ...; service load 315.6 ms; client loads
-ok gen-check rex: ... 13869/13869 ops built ...; service load 1490.7 ms; client loads
+ok gen-check rex: ... 13869/13869 ops built ...; service load 1546.9 ms; client loads
 gen-diff azure: ok
 
 $ verify/dl azure-ref && verify/dl azure-errors && git status --short
