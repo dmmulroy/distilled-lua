@@ -69,7 +69,7 @@
   them. That is how K2 arrives.
 - `verify/features/cloudflare.md`, and the STATUS.md section "19 cloudflare".
 
-## Commands run (final state, after `git merge origin/main`)
+## Commands run (final state, after `git merge origin/main` at 535c691, task 22)
 
 ```text
 $ verify/dl doctor
@@ -77,9 +77,9 @@ $ verify/dl doctor
 doctor: ok
 
 $ verify/dl test
-  lua: ok 1530 passed, 4 pending [Lua 5.5]
-  luajit: ok 1530 passed, 4 pending [luajit]
-  rex: ok 1517 passed, 9 pending [rex]
+  lua: ok 1677 passed, 5 pending [Lua 5.5]
+  luajit: ok 1677 passed, 5 pending [luajit]
+  rex: ok 1664 passed, 10 pending [rex]
 
 $ verify/dl test cloudflare
   lua: ok 82 passed [Lua 5.5]
@@ -93,7 +93,7 @@ ok   diff: clients/cloudflare matches a fresh generation
 ok   stylua --check: generated Lua is formatted
 ok gen-check Lua 5.5: 130 services, 64288 shapes, 65533 refs resolved, 3153/3153 ops built, 0 acknowledged unsupported; service load 91.7 ms; client loads
 ok gen-check luajit: 130 services, 64288 shapes, 65533 refs resolved, 3153/3153 ops built, 0 acknowledged unsupported; service load 90.4 ms; client loads
-ok gen-check rex: 130 services, 64288 shapes, 65533 refs resolved, 3153/3153 ops built, 0 acknowledged unsupported; service load 486.1 ms; client loads
+ok gen-check rex: 130 services, 64288 shapes, 65533 refs resolved, 3153/3153 ops built, 0 acknowledged unsupported; service load 927.9 ms; client loads
 gen-diff cloudflare: ok
 
 $ lua verify/conform/cloudflare/cases.lua .
