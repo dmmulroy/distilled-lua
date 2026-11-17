@@ -664,3 +664,54 @@ t.describe("azure protocol: retries and credentials", function()
     t.match(text, azure.PROVIDER.oauth.token_url, true)
   end)
 end)
+
+t.describe("azure over HTTP (dl serve)", function()
+  local serve = require("verify.lib.serve")
+  local name =
+    "a call through the real transport: api-version, auth, a 429 retried, the 202 headers"
+  if not serve.url() then
+    t.pending(name .. " (DL_SERVE_URL is not set: run verify/dl test --http)")
+    return
+  end
+  t.it(name, function()
+    local h = require("verify.lib.canary").host()
+    local s = serve.client(h.transport)
+    s.reset()
+    local path = "/az/subscriptions/" .. SUB .. "/resourcegroups/my-rg"
+    s.script(path, {
+      {
+        status = 429,
+        json = { error = { code = "SomeThrottle", message = "slow" } },
+        headers = { ["retry-after"] = "0" },
+      },
+      {
+        status = 202,
+        body = "",
+        headers = { location = "https://poll.test/op/1", ["retry-after"] = "5" },
+      },
+    })
+    local c = Resources.new({
+      host = h,
+      bearer_token = TOKEN,
+      subscription_id = SUB,
+      api_base_url = serve.url() .. "/az",
+      retry = { base_ms = 10, max_retries = 2 },
+    })
+    local v, err = c:delete_resource_group({ resourceGroupName = "my-rg" })
+    t.eq(err, nil)
+    t.eq(v.location, "https://poll.test/op/1")
+    t.eq(v.retryAfter, 5)
+    local seen = s.requests()
+    t.eq(#seen, 2)
+    local r = seen[2]
+    t.eq(r.method, "DELETE")
+    t.eq(r.path, path)
+    t.eq(r.query, "api-version=2025-04-01")
+    local hd = {}
+    for k, x in pairs(r.headers) do
+      hd[string.lower(k)] = x
+    end
+    t.eq(hd.authorization, "Bearer " .. TOKEN)
+    t.eq(hd.accept, "application/json")
+  end)
+end)
