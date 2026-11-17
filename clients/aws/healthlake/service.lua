@@ -1603,7 +1603,11 @@ ops.update_profile_with_agent = {
     attributes = { ["url.template"] = "/update-profile-with-agent" },
   },
   aws = { host_prefix = "datatransformation." },
-  unsupported = "event streams",
+  stream = {
+    item = S.ref("AgentOutputMessageStream"),
+    framing = "aws_eventstream",
+    member = "AgentResponse",
+  },
 }
 
 return {

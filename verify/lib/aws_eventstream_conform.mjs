@@ -383,6 +383,411 @@ for (const c of signCases) {
 }
 
 // ---------------------------------------------------------------------------------------
+// operations: Distilled's generated clients over a stub HttpClient
+// ---------------------------------------------------------------------------------------
+
+const HttpClient = await import(E + "http/HttpClient.js");
+const HttpClientResponse = await import(E + "http/HttpClientResponse.js");
+const Exit = await import(E + "Exit.js");
+const Layer = await import(E + "Layer.js");
+const Redacted = await import(E + "Redacted.js");
+const Stream = await import(E + "Stream.js");
+const Credentials = await import(path.join(P, "s3/src/credentials.ts"));
+const Retry = await import(path.join(P, "aws/src/retry.ts"));
+
+const FIXED_MS = 1700000000 * 1000;
+const RealDate = Date;
+globalThis.Date = class extends RealDate {
+  constructor(...args) {
+    super(...(args.length === 0 ? [FIXED_MS] : args));
+  }
+  static now() {
+    return FIXED_MS;
+  }
+};
+
+// values as the spec compares them: bytes { $hex }, secrets { $redacted }, dates seconds
+const view = (v) => {
+  if (v === null || v === undefined) return v;
+  if (v instanceof RealDate) return v.getTime() / 1000;
+  if (v instanceof Uint8Array) return { $hex: hex(v) };
+  if (Redacted.isRedacted(v)) return { $redacted: view(Redacted.value(v)) };
+  if (Array.isArray(v)) return v.map(view);
+  if (typeof v === "object") {
+    const out = {};
+    for (const [k, x] of Object.entries(v)) {
+      const p = view(x);
+      if (p !== undefined) out[k] = p;
+    }
+    return out;
+  }
+  return v;
+};
+const errorView = (e) => {
+  if (!e || typeof e !== "object") return { tag: String(e) };
+  const fields = {};
+  for (const [k, v] of Object.entries(e)) {
+    if (k !== "stack" && k !== "_tag" && k !== "cause" && k !== "message") fields[k] = view(v);
+  }
+  return { tag: e._tag, message: e.message, fields };
+};
+// case input -> TS input: { $hex } becomes bytes
+const toInput = (v) => {
+  if (v === null || typeof v !== "object") return v;
+  if (Array.isArray(v)) return v.map(toInput);
+  const keys = Object.keys(v);
+  if (keys.length === 1 && keys[0] === "$hex") return new Uint8Array(Buffer.from(v.$hex, "hex"));
+  const o = {};
+  for (const k of keys) o[k] = toInput(v[k]);
+  return o;
+};
+
+const modules = {};
+const service = async (name) =>
+  (modules[name] ??= await import(
+    name === "s3" ? path.join(P, "s3/src/services/s3.ts") : path.join(P, "aws/src/services", `${name}.ts`)
+  ));
+const lowerFirst = (x) => x.charAt(0).toLowerCase() + x.slice(1);
+const creds = Layer.succeed(
+  Credentials.Credentials,
+  Effect.succeed({
+    accessKeyId: Redacted.make(AKID),
+    secretAccessKey: Redacted.make(SECRET),
+    sessionToken: undefined,
+    region: "us-east-1",
+  }),
+);
+
+// a message from a compact description: [type, eventType | exceptionType | [code, message], payload text | {hex}, extra headers]
+const message = (m) => {
+  const [kind, name, payload, extra] = m;
+  const headers = [s(":message-type", kind)];
+  if (kind === "event") headers.push(s(":event-type", name));
+  if (kind === "exception") headers.push(s(":exception-type", name));
+  if (kind === "error") headers.push(s(":error-code", name[0]), s(":error-message", name[1]));
+  if (kind !== "error") headers.push(s(":content-type", typeof payload === "object" ? "application/octet-stream" : "application/json"));
+  for (const h of extra ?? []) headers.push(h);
+  const p = payload === undefined ? "" : typeof payload === "object" ? payload.hex : Buffer.from(payload).toString("hex");
+  return enc(headers, p);
+};
+const xml = (kind, name, payload) => {
+  const headers = [s(":message-type", kind), s(":event-type", name), s(":content-type", "text/xml")];
+  return enc(headers, Buffer.from(payload).toString("hex"));
+};
+
+const outputCases = [
+  {
+    id: "bedrock-invoke-chunks",
+    service: "bedrock-runtime",
+    op: "InvokeModelWithResponseStream",
+    input: { modelId: "anthropic.claude", body: { $hex: Buffer.from('{"prompt":"hi"}').toString("hex") } },
+    headers: { "x-amzn-bedrock-content-type": "application/json", "x-amzn-bedrock-performanceconfig-latency": "standard" },
+    messages: [
+      ["event", "chunk", '{"bytes":"eyJ0eXBlIjoiY29udGVudCJ9"}'],
+      ["event", "chunk", '{"bytes":"eyJ0eXBlIjoic3RvcCJ9"}'],
+    ],
+  },
+  {
+    id: "bedrock-invoke-exception",
+    service: "bedrock-runtime",
+    op: "InvokeModelWithResponseStream",
+    input: { modelId: "m", body: { $hex: "7b7d" } },
+    headers: { "x-amzn-bedrock-content-type": "application/json" },
+    messages: [
+      ["event", "chunk", '{"bytes":"aGk="}'],
+      ["exception", "modelStreamErrorException", '{"message":"model failed","originalStatusCode":500,"originalMessage":"oops"}'],
+    ],
+  },
+  {
+    id: "bedrock-converse-stream",
+    service: "bedrock-runtime",
+    op: "ConverseStream",
+    input: { modelId: "m", messages: [{ role: "user", content: [{ text: "hello" }] }] },
+    messages: [
+      ["event", "messageStart", '{"role":"assistant"}'],
+      ["event", "contentBlockDelta", '{"contentBlockIndex":0,"delta":{"text":"Hel"}}'],
+      ["event", "contentBlockDelta", '{"contentBlockIndex":0,"delta":{"text":"lo"}}'],
+      ["event", "contentBlockStop", '{"contentBlockIndex":0}'],
+      ["event", "messageStop", '{"stopReason":"end_turn"}'],
+      ["event", "metadata", '{"usage":{"inputTokens":3,"outputTokens":2,"totalTokens":5},"metrics":{"latencyMs":120}}'],
+    ],
+  },
+  {
+    id: "bedrock-converse-unknown-event",
+    service: "bedrock-runtime",
+    op: "ConverseStream",
+    input: { modelId: "m", messages: [] },
+    messages: [
+      ["event", "brandNewEvent", '{"x":1}'],
+      ["event", "messageStop", '{"stopReason":"end_turn"}'],
+    ],
+  },
+  {
+    id: "bedrock-converse-unmodeled-error",
+    service: "bedrock-runtime",
+    op: "ConverseStream",
+    input: { modelId: "m", messages: [] },
+    messages: [
+      ["event", "messageStart", '{"role":"assistant"}'],
+      ["error", ["ThrottlingException", "slow down"]],
+    ],
+  },
+  {
+    id: "bedrock-converse-truncated",
+    service: "bedrock-runtime",
+    op: "ConverseStream",
+    input: { modelId: "m", messages: [] },
+    messages: [["event", "messageStart", '{"role":"assistant"}']],
+    truncate: 5,
+  },
+  {
+    id: "bedrock-converse-bad-crc",
+    service: "bedrock-runtime",
+    op: "ConverseStream",
+    input: { modelId: "m", messages: [] },
+    messages: [
+      ["event", "messageStart", '{"role":"assistant"}'],
+      ["event", "messageStop", '{"stopReason":"end_turn"}'],
+    ],
+    corrupt_last: true,
+  },
+  {
+    id: "bedrock-converse-http-error",
+    service: "bedrock-runtime",
+    op: "ConverseStream",
+    input: { modelId: "m", messages: [] },
+    status: 400,
+    headers: { "x-amzn-errortype": "ValidationException:http://internal.amazon.com/coral/" },
+    raw_body: '{"message":"bad model"}',
+  },
+  {
+    id: "bedrock-converse-empty",
+    service: "bedrock-runtime",
+    op: "ConverseStream",
+    input: { modelId: "m", messages: [] },
+    messages: [],
+  },
+  {
+    id: "kinesis-subscribe",
+    service: "kinesis",
+    op: "SubscribeToShard",
+    input: { ConsumerARN: "arn:aws:kinesis:us-east-1:123456789012:stream/s/consumer/c:1", ShardId: "shardId-000000000000", StartingPosition: { Type: "LATEST" } },
+    messages: [
+      ["event", "initial-response", "{}"],
+      [
+        "event",
+        "SubscribeToShardEvent",
+        '{"Records":[{"SequenceNumber":"1","ApproximateArrivalTimestamp":1700000000.5,"Data":"aGVsbG8=","PartitionKey":"pk"}],"ContinuationSequenceNumber":"2","MillisBehindLatest":0}',
+      ],
+    ],
+  },
+  {
+    id: "kinesis-exception",
+    service: "kinesis",
+    op: "SubscribeToShard",
+    input: { ConsumerARN: "arn:aws:kinesis:us-east-1:123456789012:stream/s/consumer/c:1", ShardId: "s", StartingPosition: { Type: "LATEST" } },
+    messages: [["exception", "ResourceInUseException", '{"message":"in use"}']],
+  },
+  {
+    id: "lambda-invoke-stream",
+    service: "lambda",
+    op: "InvokeWithResponseStream",
+    input: { FunctionName: "fn", Payload: { $hex: "7b7d" } },
+    headers: { "x-amz-executed-version": "$LATEST", "content-type": "application/vnd.amazon.eventstream" },
+    status: 200,
+    messages: [
+      ["event", "PayloadChunk", { hex: Buffer.from("part one ").toString("hex") }],
+      ["event", "PayloadChunk", { hex: "00ff10" }],
+      ["event", "InvokeComplete", '{"LogResult":"bG9n"}'],
+    ],
+  },
+  {
+    id: "s3-select",
+    service: "s3",
+    op: "SelectObjectContent",
+    input: {
+      Bucket: "b",
+      Key: "k.csv",
+      Expression: "select * from S3Object",
+      ExpressionType: "SQL",
+      InputSerialization: { CSV: {} },
+      OutputSerialization: { CSV: {} },
+    },
+    raw_messages: () => [
+      enc([s(":message-type", "event"), s(":event-type", "Records"), s(":content-type", "application/octet-stream")], Buffer.from("a,b\n1,2\n").toString("hex")),
+      xml("event", "Stats", "<Stats><BytesScanned>100</BytesScanned><BytesProcessed>90</BytesProcessed><BytesReturned>8</BytesReturned></Stats>"),
+      enc([s(":message-type", "event"), s(":event-type", "End")], ""),
+    ],
+  },
+];
+
+result.outputs = [];
+for (const c of outputCases) {
+  const mod = await service(c.service);
+  const fn = mod[lowerFirst(c.op)];
+  let bytes;
+  if (c.raw_body !== undefined) bytes = Buffer.from(c.raw_body);
+  else {
+    const msgs = c.raw_messages ? c.raw_messages() : c.messages.map(message);
+    if (c.corrupt_last) msgs[msgs.length - 1] = flip(msgs[msgs.length - 1], msgs[msgs.length - 1].length - 2);
+    bytes = Buffer.concat(msgs);
+    if (c.truncate) bytes = Buffer.concat([bytes, Buffer.alloc(c.truncate, 7)]);
+  }
+  const status = c.status ?? 200;
+  const headers = { "content-type": "application/vnd.amazon.eventstream", ...(c.headers ?? {}) };
+  let sent;
+  const client = HttpClient.make((request) =>
+    Effect.sync(() => {
+      sent = request;
+      return HttpClientResponse.fromWeb(request, new Response(bytes.length ? bytes : null, { status, headers }));
+    }),
+  );
+  const events = [];
+  let streamError;
+  const exit = await Effect.runPromiseExit(
+    Effect.gen(function* () {
+      const out = yield* fn(toInput(c.input));
+      const member = Object.keys(out).find((k) => Stream.isStream(out[k]));
+      const rest = {};
+      for (const [k, v] of Object.entries(out)) if (k !== member) rest[k] = v;
+      if (member) {
+        const r = yield* Effect.result(Stream.runForEach(out[member], (e) => Effect.sync(() => events.push(view(e)))));
+        if (r._tag === "Failure") streamError = errorView(r.failure);
+      }
+      return { member, output: view(rest) };
+    }).pipe(Retry.none, Effect.provide(Layer.mergeAll(creds, Layer.succeed(HttpClient.HttpClient, client)))),
+  );
+  const entry = { id: c.id, service: c.service, op: c.op, input: c.input, response: { status, headers, body_hex: hex(bytes) } };
+  if (sent) entry.request = { method: sent.method, url: sent.url };
+  if (Exit.isSuccess(exit)) {
+    entry.expected = { ok: true, member: exit.value.member, output: exit.value.output, events, error: streamError };
+  } else {
+    const reason = exit.cause.reasons.find((r) => r._tag === "Fail");
+    entry.expected = { ok: false, error: reason ? errorView(reason.error) : { defect: String(exit.cause) } };
+  }
+  result.outputs.push(entry);
+}
+
+// inputs: the request and the input event frames of bidirectional operations
+const inputCases = [
+  {
+    id: "transcribe-audio",
+    service: "transcribe-streaming",
+    op: "StartStreamTranscription",
+    input: { LanguageCode: "en-US", MediaSampleRateHertz: 16000, MediaEncoding: "pcm" },
+    member: "AudioStream",
+    events: [{ AudioEvent: { AudioChunk: { $hex: "0001020304ff" } } }, { AudioEvent: { AudioChunk: { $hex: "" } } }],
+    messages: [["event", "TranscriptEvent", '{"Transcript":{"Results":[{"ResultId":"r1","StartTime":0.5,"EndTime":1.25,"IsPartial":true,"Alternatives":[{"Transcript":"hello"}]}]}}']],
+    headers: { "x-amzn-request-id": "req-1", "x-amzn-transcribe-language-code": "en-US", "x-amzn-transcribe-sample-rate": "16000", "x-amzn-transcribe-media-encoding": "pcm" },
+  },
+  {
+    id: "transcribe-configuration",
+    service: "transcribe-streaming",
+    op: "StartStreamTranscription",
+    input: { LanguageCode: "en-US", MediaSampleRateHertz: 8000, MediaEncoding: "ogg-opus", ShowSpeakerLabel: true },
+    member: "AudioStream",
+    events: [
+      { ConfigurationEvent: { ChannelDefinitions: [{ ChannelId: 0, ParticipantRole: "AGENT" }], PostCallAnalyticsSettings: { OutputLocation: "s3://b/k", DataAccessRoleArn: "arn:aws:iam::1:role/r" } } },
+      { AudioEvent: { AudioChunk: { $hex: "ffee" } } },
+    ],
+    messages: [],
+  },
+  {
+    id: "lex-conversation",
+    service: "lex-runtime-v2",
+    op: "StartConversation",
+    input: { botId: "BOT1", botAliasId: "ALIAS", localeId: "en_US", sessionId: "s-1", conversationMode: "TEXT" },
+    member: "requestEventStream",
+    events: [
+      { ConfigurationEvent: { responseContentType: "text/plain; charset=utf-8", requestAttributes: { a: "1" }, eventId: "e1", clientTimestampMillis: 1700000000000 } },
+      { TextInputEvent: { text: "book a hotel", eventId: "e2" } },
+      { DisconnectionEvent: { eventId: "e3" } },
+    ],
+    messages: [["event", "HeartbeatEvent", '{"eventId":"h1"}']],
+  },
+  {
+    id: "sagemaker-bidirectional",
+    service: "sagemaker-runtime-http2",
+    op: "InvokeEndpointWithBidirectionalStream",
+    input: { EndpointName: "ep", TargetVariant: "v1" },
+    member: "Body",
+    events: [{ PayloadPart: { Bytes: { $hex: Buffer.from("chunk-1").toString("hex") }, DataType: "UTF8", CompletionState: "PARTIAL", P: "pad" } }],
+    raw_messages: () => [
+      enc(
+        [s(":message-type", "event"), s(":event-type", "PayloadPart"), s(":content-type", "application/octet-stream"), s("DataType", "UTF8"), s("CompletionState", "COMPLETE")],
+        Buffer.from("answer").toString("hex"),
+      ),
+    ],
+    headers: { "x-amzn-invoked-production-variant": "v1" },
+  },
+];
+
+result.inputs = [];
+for (const c of inputCases) {
+  const mod = await service(c.service);
+  const fn = mod[lowerFirst(c.op)];
+  const msgs = c.raw_messages ? c.raw_messages() : c.messages.map(message);
+  const bytes = Buffer.concat(msgs);
+  let sent;
+  let frames = [];
+  const client = HttpClient.make((request) =>
+    Effect.gen(function* () {
+      sent = request;
+      if (request.body._tag === "Stream") {
+        const chunks = yield* Stream.runCollect(request.body.stream);
+        const all = Buffer.concat(Array.from(chunks).map((x) => Buffer.from(x)));
+        let at = 0;
+        while (at < all.length) {
+          const n = all.readUInt32BE(at);
+          frames.push(hex(all.subarray(at, at + n)));
+          at += n;
+        }
+      }
+      return HttpClientResponse.fromWeb(
+        request,
+        new Response(bytes.length ? bytes : null, { status: 200, headers: { "content-type": "application/vnd.amazon.eventstream", ...(c.headers ?? {}) } }),
+      );
+    }),
+  );
+  const events = [];
+  let streamError;
+  const input = { ...toInput(c.input), [c.member]: Stream.fromIterable(c.events.map(toInput)) };
+  const exit = await Effect.runPromiseExit(
+    Effect.gen(function* () {
+      const out = yield* fn(input);
+      const member = Object.keys(out).find((k) => Stream.isStream(out[k]));
+      const rest = {};
+      for (const [k, v] of Object.entries(out)) if (k !== member) rest[k] = v;
+      if (member) {
+        const r = yield* Effect.result(Stream.runForEach(out[member], (e) => Effect.sync(() => events.push(view(e)))));
+        if (r._tag === "Failure") streamError = errorView(r.failure);
+      }
+      return { member, output: view(rest) };
+    }).pipe(Retry.none, Effect.provide(Layer.mergeAll(creds, Layer.succeed(HttpClient.HttpClient, client)))),
+  );
+  const headers = {};
+  for (const [k, v] of Object.entries(sent?.headers ?? {})) headers[k.toLowerCase()] = typeof v === "string" ? v : Redacted.value(v);
+  const entry = {
+    id: c.id,
+    service: c.service,
+    op: c.op,
+    input: c.input,
+    member: c.member,
+    events: c.events,
+    response: { status: 200, headers: { "content-type": "application/vnd.amazon.eventstream", ...(c.headers ?? {}) }, body_hex: hex(bytes) },
+    request: sent ? { method: sent.method, url: sent.url, headers } : undefined,
+    frames,
+  };
+  if (Exit.isSuccess(exit)) {
+    entry.expected = { ok: true, member: exit.value.member, output: exit.value.output, events, error: streamError };
+  } else {
+    const reason = exit.cause.reasons.find((r) => r._tag === "Fail");
+    entry.expected = { ok: false, error: reason ? errorView(reason.error) : { defect: String(exit.cause) } };
+  }
+  result.inputs.push(entry);
+}
+
+// ---------------------------------------------------------------------------------------
 // writing
 // ---------------------------------------------------------------------------------------
 
@@ -417,5 +822,5 @@ writeFileSync(
     "\n",
 );
 console.log(
-  `wrote ${out}: ${result.vectors.length} vectors, ${result.encode.length + result.encode_events.length} encodings, ${result.decode.length} decodings, ${result.signing.cases.length} signatures`,
+  `wrote ${out}: ${result.vectors.length} vectors, ${result.encode.length + result.encode_events.length} encodings, ${result.decode.length} decodings, ${result.signing.cases.length} signatures, ${result.outputs.length} output streams, ${result.inputs.length} input streams`,
 );

@@ -566,7 +566,7 @@ function Client:recognize_utterance(input) end
 ---Starts an HTTP/2 bidirectional event stream that enables you to send audio, text, or DTMF input in real time. After your application starts a conversation, users send input to Amazon Lex V2 as a stream of events. Amazon Lex V2 processes the incoming events and responds with streaming text or audio events.
 ---
 ---`POST /bots/{botId}/botAliases/{botAliasId}/botLocales/{localeId}/sessions/{sessionId}/conversation`
----Errors: AccessDeniedException, InternalServerException, ThrottlingException, ValidationException.
+---Errors: AccessDeniedException, InternalServerException, ThrottlingException, ValidationException, ResourceNotFoundException, ConflictException, DependencyFailedException, BadGatewayException.
 ---@param input aws.lex_runtime_v2.StartConversationRequest
 ---@return aws.lex_runtime_v2.StartConversationResponse? value
 ---@return distilled.Error? err

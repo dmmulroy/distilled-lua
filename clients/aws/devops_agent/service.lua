@@ -4250,7 +4250,7 @@ ops.send_message = {
   },
   span = "SendMessage",
   aws = { host_prefix = "dp." },
-  unsupported = "event streams",
+  stream = { item = S.ref("SendMessageEvents"), framing = "aws_eventstream", member = "events" },
 }
 ops.tag_resource = {
   name = "TagResource",

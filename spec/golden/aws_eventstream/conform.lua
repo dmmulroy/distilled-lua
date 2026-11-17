@@ -798,6 +798,871 @@ return {
       ["id"] = "error-event",
     },
   },
+  ["inputs"] = {
+    {
+      ["events"] = {
+        {
+          ["AudioEvent"] = {
+            ["AudioChunk"] = {
+              ["$hex"] = "0001020304ff",
+            },
+          },
+        },
+        {
+          ["AudioEvent"] = {
+            ["AudioChunk"] = {
+              ["$hex"] = "",
+            },
+          },
+        },
+      },
+      ["expected"] = {
+        ["events"] = {
+          {
+            ["TranscriptEvent"] = {
+              ["Transcript"] = {
+                ["Results"] = {
+                  {
+                    ["Alternatives"] = {
+                      {
+                        ["Transcript"] = "hello",
+                      },
+                    },
+                    ["EndTime"] = 1.25,
+                    ["IsPartial"] = true,
+                    ["ResultId"] = "r1",
+                    ["StartTime"] = 0.5,
+                  },
+                },
+              },
+            },
+          },
+        },
+        ["member"] = "TranscriptResultStream",
+        ["ok"] = true,
+        ["output"] = {
+          ["LanguageCode"] = "en-US",
+          ["MediaEncoding"] = "pcm",
+          ["MediaSampleRateHertz"] = 16000,
+          ["RequestId"] = "req-1",
+        },
+      },
+      ["frames"] = {
+        "0000006e000000582690cf830d3a6d6573736167652d747970650700056576656e740b3a6576656e742d7479706507000a417564696f4576656e740d3a636f6e74656e742d747970650700186170706c69636174696f6e2f6f637465742d73747265616d0001020304ff79b0942a",
+        "0000006800000058a9d03a230d3a6d6573736167652d747970650700056576656e740b3a6576656e742d7479706507000a417564696f4576656e740d3a636f6e74656e742d747970650700186170706c69636174696f6e2f6f637465742d73747265616d74aaddd7",
+      },
+      ["id"] = "transcribe-audio",
+      ["input"] = {
+        ["LanguageCode"] = "en-US",
+        ["MediaEncoding"] = "pcm",
+        ["MediaSampleRateHertz"] = 16000,
+      },
+      ["member"] = "AudioStream",
+      ["op"] = "StartStreamTranscription",
+      ["request"] = {
+        ["headers"] = {
+          ["authorization"] = "AWS4-HMAC-SHA256 Credential=AKIAIOSFODNN7EXAMPLE/20231114/us-east-1/transcribe/aws4_request, SignedHeaders=host;x-amz-content-sha256;x-amz-date;x-amzn-transcribe-language-code;x-amzn-transcribe-media-encoding;x-amzn-transcribe-sample-rate, Signature=9a8c5e59ab6eff3038d1f221b9da379355fdd74f2f00511cd75963aa7b6acc7c",
+          ["content-type"] = "application/vnd.amazon.eventstream",
+          ["user-agent"] = "distilled-aws/1.0",
+          ["x-amz-content-sha256"] = "UNSIGNED-PAYLOAD",
+          ["x-amz-date"] = "20231114T221320Z",
+          ["x-amzn-transcribe-language-code"] = "en-US",
+          ["x-amzn-transcribe-media-encoding"] = "pcm",
+          ["x-amzn-transcribe-sample-rate"] = "16000",
+        },
+        ["method"] = "POST",
+        ["url"] = "https://transcribestreaming.us-east-1.amazonaws.com/stream-transcription",
+      },
+      ["response"] = {
+        ["body_hex"] = "000000eb0000005521278cdc0d3a6d6573736167652d747970650700056576656e740b3a6576656e742d7479706507000f5472616e7363726970744576656e740d3a636f6e74656e742d747970650700106170706c69636174696f6e2f6a736f6e7b225472616e736372697074223a7b22526573756c7473223a5b7b22526573756c744964223a227231222c22537461727454696d65223a302e352c22456e6454696d65223a312e32352c2249735061727469616c223a747275652c22416c7465726e617469766573223a5b7b225472616e736372697074223a2268656c6c6f227d5d7d5d7d7d9bf3a199",
+        ["headers"] = {
+          ["content-type"] = "application/vnd.amazon.eventstream",
+          ["x-amzn-request-id"] = "req-1",
+          ["x-amzn-transcribe-language-code"] = "en-US",
+          ["x-amzn-transcribe-media-encoding"] = "pcm",
+          ["x-amzn-transcribe-sample-rate"] = "16000",
+        },
+        ["status"] = 200,
+      },
+      ["service"] = "transcribe-streaming",
+    },
+    {
+      ["events"] = {
+        {
+          ["ConfigurationEvent"] = {
+            ["ChannelDefinitions"] = {
+              {
+                ["ChannelId"] = 0,
+                ["ParticipantRole"] = "AGENT",
+              },
+            },
+            ["PostCallAnalyticsSettings"] = {
+              ["DataAccessRoleArn"] = "arn:aws:iam::1:role/r",
+              ["OutputLocation"] = "s3://b/k",
+            },
+          },
+        },
+        {
+          ["AudioEvent"] = {
+            ["AudioChunk"] = {
+              ["$hex"] = "ffee",
+            },
+          },
+        },
+      },
+      ["expected"] = {
+        ["error"] = {
+          ["fields"] = {},
+          ["message"] = "Failed to read from stream: HttpClientError: EmptyBody: can not create stream from empty body (200 POST https://transcribestreaming.us-east-1.amazonaws.com/stream-transcription)",
+          ["tag"] = "EventStreamDecodeError",
+        },
+        ["events"] = { n = 0 },
+        ["member"] = "TranscriptResultStream",
+        ["ok"] = true,
+        ["output"] = {},
+      },
+      ["frames"] = {
+        "0000011000000058ab2e42880d3a6d6573736167652d747970650700056576656e740b3a6576656e742d74797065070012436f6e66696775726174696f6e4576656e740d3a636f6e74656e742d747970650700106170706c69636174696f6e2f6a736f6e7b224368616e6e656c446566696e6974696f6e73223a5b7b224368616e6e656c4964223a302c225061727469636970616e74526f6c65223a224147454e54227d5d2c22506f737443616c6c416e616c797469637353657474696e6773223a7b224f75747075744c6f636174696f6e223a2273333a2f2f622f6b222c2244617461416363657373526f6c6541726e223a2261726e3a6177733a69616d3a3a313a726f6c652f72227d7da792281c",
+        "0000006a00000058d31069430d3a6d6573736167652d747970650700056576656e740b3a6576656e742d7479706507000a417564696f4576656e740d3a636f6e74656e742d747970650700186170706c69636174696f6e2f6f637465742d73747265616dffeed4b2d46a",
+      },
+      ["id"] = "transcribe-configuration",
+      ["input"] = {
+        ["LanguageCode"] = "en-US",
+        ["MediaEncoding"] = "ogg-opus",
+        ["MediaSampleRateHertz"] = 8000,
+        ["ShowSpeakerLabel"] = true,
+      },
+      ["member"] = "AudioStream",
+      ["op"] = "StartStreamTranscription",
+      ["request"] = {
+        ["headers"] = {
+          ["authorization"] = "AWS4-HMAC-SHA256 Credential=AKIAIOSFODNN7EXAMPLE/20231114/us-east-1/transcribe/aws4_request, SignedHeaders=host;x-amz-content-sha256;x-amz-date;x-amzn-transcribe-language-code;x-amzn-transcribe-media-encoding;x-amzn-transcribe-sample-rate;x-amzn-transcribe-show-speaker-label, Signature=0618f1595b9559d0a00bc912a6164684d9c2acb4143914148e7018eda47bc0bb",
+          ["content-type"] = "application/vnd.amazon.eventstream",
+          ["user-agent"] = "distilled-aws/1.0",
+          ["x-amz-content-sha256"] = "UNSIGNED-PAYLOAD",
+          ["x-amz-date"] = "20231114T221320Z",
+          ["x-amzn-transcribe-language-code"] = "en-US",
+          ["x-amzn-transcribe-media-encoding"] = "ogg-opus",
+          ["x-amzn-transcribe-sample-rate"] = "8000",
+          ["x-amzn-transcribe-show-speaker-label"] = "true",
+        },
+        ["method"] = "POST",
+        ["url"] = "https://transcribestreaming.us-east-1.amazonaws.com/stream-transcription",
+      },
+      ["response"] = {
+        ["body_hex"] = "",
+        ["headers"] = {
+          ["content-type"] = "application/vnd.amazon.eventstream",
+        },
+        ["status"] = 200,
+      },
+      ["service"] = "transcribe-streaming",
+    },
+    {
+      ["events"] = {
+        {
+          ["ConfigurationEvent"] = {
+            ["clientTimestampMillis"] = 1700000000000,
+            ["eventId"] = "e1",
+            ["requestAttributes"] = {
+              ["a"] = "1",
+            },
+            ["responseContentType"] = "text/plain; charset=utf-8",
+          },
+        },
+        {
+          ["TextInputEvent"] = {
+            ["eventId"] = "e2",
+            ["text"] = "book a hotel",
+          },
+        },
+        {
+          ["DisconnectionEvent"] = {
+            ["eventId"] = "e3",
+          },
+        },
+      },
+      ["expected"] = {
+        ["events"] = {
+          {
+            ["HeartbeatEvent"] = {
+              ["eventId"] = "h1",
+            },
+          },
+        },
+        ["member"] = "responseEventStream",
+        ["ok"] = true,
+        ["output"] = {},
+      },
+      ["frames"] = {
+        "000000ee0000005897767f110d3a6d6573736167652d747970650700056576656e740b3a6576656e742d74797065070012436f6e66696775726174696f6e4576656e740d3a636f6e74656e742d747970650700106170706c69636174696f6e2f6a736f6e7b227265717565737441747472696275746573223a7b2261223a2231227d2c22726573706f6e7365436f6e74656e7454797065223a22746578742f706c61696e3b20636861727365743d7574662d38222c226576656e744964223a226531222c22636c69656e7454696d657374616d704d696c6c6973223a313730303030303030303030307d25a00f46",
+        "0000008a00000054f272e2b70d3a6d6573736167652d747970650700056576656e740b3a6576656e742d7479706507000e54657874496e7075744576656e740d3a636f6e74656e742d747970650700106170706c69636174696f6e2f6a736f6e7b2274657874223a22626f6f6b206120686f74656c222c226576656e744964223a226532227dc3e6331e",
+        "0000007800000058c930ada10d3a6d6573736167652d747970650700056576656e740b3a6576656e742d74797065070012446973636f6e6e656374696f6e4576656e740d3a636f6e74656e742d747970650700106170706c69636174696f6e2f6a736f6e7b226576656e744964223a226533227d3d03da76",
+      },
+      ["id"] = "lex-conversation",
+      ["input"] = {
+        ["botAliasId"] = "ALIAS",
+        ["botId"] = "BOT1",
+        ["conversationMode"] = "TEXT",
+        ["localeId"] = "en_US",
+        ["sessionId"] = "s-1",
+      },
+      ["member"] = "requestEventStream",
+      ["op"] = "StartConversation",
+      ["request"] = {
+        ["headers"] = {
+          ["authorization"] = "AWS4-HMAC-SHA256 Credential=AKIAIOSFODNN7EXAMPLE/20231114/us-east-1/lex/aws4_request, SignedHeaders=host;x-amz-content-sha256;x-amz-date;x-amz-lex-conversation-mode, Signature=69458a249e94c73c2e51b9fa713f1de8ca06db4b955ef3dc46187be244e5c432",
+          ["content-type"] = "application/vnd.amazon.eventstream",
+          ["user-agent"] = "distilled-aws/1.0",
+          ["x-amz-content-sha256"] = "UNSIGNED-PAYLOAD",
+          ["x-amz-date"] = "20231114T221320Z",
+          ["x-amz-lex-conversation-mode"] = "TEXT",
+        },
+        ["method"] = "POST",
+        ["url"] = "https://runtime-v2-lex.us-east-1.amazonaws.com/bots/BOT1/botAliases/ALIAS/botLocales/en_US/sessions/s-1/conversation",
+      },
+      ["response"] = {
+        ["body_hex"] = "000000740000005405760c8b0d3a6d6573736167652d747970650700056576656e740b3a6576656e742d7479706507000e4865617274626561744576656e740d3a636f6e74656e742d747970650700106170706c69636174696f6e2f6a736f6e7b226576656e744964223a226831227d78eafd8f",
+        ["headers"] = {
+          ["content-type"] = "application/vnd.amazon.eventstream",
+        },
+        ["status"] = 200,
+      },
+      ["service"] = "lex-runtime-v2",
+    },
+    {
+      ["events"] = {
+        {
+          ["PayloadPart"] = {
+            ["Bytes"] = {
+              ["$hex"] = "6368756e6b2d31",
+            },
+            ["CompletionState"] = "PARTIAL",
+            ["DataType"] = "UTF8",
+            ["P"] = "pad",
+          },
+        },
+      },
+      ["expected"] = {
+        ["events"] = {
+          {
+            ["PayloadPart"] = {
+              ["Bytes"] = {
+                ["$redacted"] = {
+                  ["$hex"] = "616e73776572",
+                },
+              },
+            },
+          },
+        },
+        ["member"] = "Body",
+        ["ok"] = true,
+        ["output"] = {
+          ["InvokedProductionVariant"] = "v1",
+        },
+      },
+      ["frames"] = {
+        "000000a20000008b15af49370d3a6d6573736167652d747970650700056576656e740b3a6576656e742d7479706507000b5061796c6f616450617274084461746154797065070004555446380f436f6d706c6574696f6e53746174650700075041525449414c01500700037061640d3a636f6e74656e742d747970650700186170706c69636174696f6e2f6f637465742d73747265616d6368756e6b2d31ef58d9f5",
+      },
+      ["id"] = "sagemaker-bidirectional",
+      ["input"] = {
+        ["EndpointName"] = "ep",
+        ["TargetVariant"] = "v1",
+      },
+      ["member"] = "Body",
+      ["op"] = "InvokeEndpointWithBidirectionalStream",
+      ["request"] = {
+        ["headers"] = {
+          ["authorization"] = "AWS4-HMAC-SHA256 Credential=AKIAIOSFODNN7EXAMPLE/20231114/us-east-1/sagemaker/aws4_request, SignedHeaders=host;x-amz-content-sha256;x-amz-date;x-amzn-sagemaker-target-variant, Signature=779a71f52e240a6cb1d104fa2e000f9c87bd251a4c38910b85604e03cede2e60",
+          ["content-type"] = "application/vnd.amazon.eventstream",
+          ["user-agent"] = "distilled-aws/1.0",
+          ["x-amz-content-sha256"] = "UNSIGNED-PAYLOAD",
+          ["x-amz-date"] = "20231114T221320Z",
+          ["x-amzn-sagemaker-target-variant"] = "v1",
+        },
+        ["method"] = "POST",
+        ["url"] = "https://runtime.sagemaker.us-east-1.amazonaws.com:8443/endpoints/ep/invocations-bidirectional-stream",
+      },
+      ["response"] = {
+        ["body_hex"] = "0000009a000000841441a7e10d3a6d6573736167652d747970650700056576656e740b3a6576656e742d7479706507000b5061796c6f6164506172740d3a636f6e74656e742d747970650700186170706c69636174696f6e2f6f637465742d73747265616d084461746154797065070004555446380f436f6d706c6574696f6e5374617465070008434f4d504c455445616e73776572406afae6",
+        ["headers"] = {
+          ["content-type"] = "application/vnd.amazon.eventstream",
+          ["x-amzn-invoked-production-variant"] = "v1",
+        },
+        ["status"] = 200,
+      },
+      ["service"] = "sagemaker-runtime-http2",
+    },
+  },
+  ["outputs"] = {
+    {
+      ["expected"] = {
+        ["events"] = {
+          {
+            ["chunk"] = {
+              ["bytes"] = {
+                ["$redacted"] = {
+                  ["$hex"] = "7b2274797065223a22636f6e74656e74227d",
+                },
+              },
+            },
+          },
+          {
+            ["chunk"] = {
+              ["bytes"] = {
+                ["$redacted"] = {
+                  ["$hex"] = "7b2274797065223a2273746f70227d",
+                },
+              },
+            },
+          },
+        },
+        ["member"] = "body",
+        ["ok"] = true,
+        ["output"] = {
+          ["contentType"] = "application/json",
+          ["performanceConfigLatency"] = "standard",
+        },
+      },
+      ["id"] = "bedrock-invoke-chunks",
+      ["input"] = {
+        ["body"] = {
+          ["$hex"] = "7b2270726f6d7074223a226869227d",
+        },
+        ["modelId"] = "anthropic.claude",
+      },
+      ["op"] = "InvokeModelWithResponseStream",
+      ["request"] = {
+        ["method"] = "POST",
+        ["url"] = "https://bedrock-runtime.us-east-1.amazonaws.com/model/anthropic.claude/invoke-with-response-stream",
+      },
+      ["response"] = {
+        ["body_hex"] = "0000007f0000004bffae306f0d3a6d6573736167652d747970650700056576656e740b3a6576656e742d747970650700056368756e6b0d3a636f6e74656e742d747970650700106170706c69636174696f6e2f6a736f6e7b226279746573223a2265794a306558426c496a6f69593239756447567564434a39227da13901cb0000007b0000004b0a2e96af0d3a6d6573736167652d747970650700056576656e740b3a6576656e742d747970650700056368756e6b0d3a636f6e74656e742d747970650700106170706c69636174696f6e2f6a736f6e7b226279746573223a2265794a306558426c496a6f696333527663434a39227dffee3059",
+        ["headers"] = {
+          ["content-type"] = "application/vnd.amazon.eventstream",
+          ["x-amzn-bedrock-content-type"] = "application/json",
+          ["x-amzn-bedrock-performanceconfig-latency"] = "standard",
+        },
+        ["status"] = 200,
+      },
+      ["service"] = "bedrock-runtime",
+    },
+    {
+      ["expected"] = {
+        ["events"] = {
+          {
+            ["chunk"] = {
+              ["bytes"] = {
+                ["$redacted"] = {
+                  ["$hex"] = "6869",
+                },
+              },
+            },
+          },
+          {
+            ["modelStreamErrorException"] = {
+              ["message"] = "model failed",
+              ["originalMessage"] = "oops",
+              ["originalStatusCode"] = 500,
+            },
+          },
+        },
+        ["member"] = "body",
+        ["ok"] = true,
+        ["output"] = {
+          ["contentType"] = "application/json",
+        },
+      },
+      ["id"] = "bedrock-invoke-exception",
+      ["input"] = {
+        ["body"] = {
+          ["$hex"] = "7b7d",
+        },
+        ["modelId"] = "m",
+      },
+      ["op"] = "InvokeModelWithResponseStream",
+      ["request"] = {
+        ["method"] = "POST",
+        ["url"] = "https://bedrock-runtime.us-east-1.amazonaws.com/model/m/invoke-with-response-stream",
+      },
+      ["response"] = {
+        ["body_hex"] = "0000006b0000004b6ace012d0d3a6d6573736167652d747970650700056576656e740b3a6576656e742d747970650700056368756e6b0d3a636f6e74656e742d747970650700106170706c69636174696f6e2f6a736f6e7b226279746573223a2261476b3d227d5a67f517000000c3000000671841b9990d3a6d6573736167652d74797065070009657863657074696f6e0f3a657863657074696f6e2d747970650700196d6f64656c53747265616d4572726f72457863657074696f6e0d3a636f6e74656e742d747970650700106170706c69636174696f6e2f6a736f6e7b226d657373616765223a226d6f64656c206661696c6564222c226f726967696e616c537461747573436f6465223a3530302c226f726967696e616c4d657373616765223a226f6f7073227d3812439b",
+        ["headers"] = {
+          ["content-type"] = "application/vnd.amazon.eventstream",
+          ["x-amzn-bedrock-content-type"] = "application/json",
+        },
+        ["status"] = 200,
+      },
+      ["service"] = "bedrock-runtime",
+    },
+    {
+      ["expected"] = {
+        ["events"] = {
+          {
+            ["messageStart"] = {
+              ["role"] = "assistant",
+            },
+          },
+          {
+            ["contentBlockDelta"] = {
+              ["contentBlockIndex"] = 0,
+              ["delta"] = {
+                ["text"] = "Hel",
+              },
+            },
+          },
+          {
+            ["contentBlockDelta"] = {
+              ["contentBlockIndex"] = 0,
+              ["delta"] = {
+                ["text"] = "lo",
+              },
+            },
+          },
+          {
+            ["contentBlockStop"] = {
+              ["contentBlockIndex"] = 0,
+            },
+          },
+          {
+            ["messageStop"] = {
+              ["stopReason"] = "end_turn",
+            },
+          },
+          {
+            ["metadata"] = {
+              ["metrics"] = {
+                ["latencyMs"] = 120,
+              },
+              ["usage"] = {
+                ["inputTokens"] = 3,
+                ["outputTokens"] = 2,
+                ["totalTokens"] = 5,
+              },
+            },
+          },
+        },
+        ["member"] = "stream",
+        ["ok"] = true,
+        ["output"] = {},
+      },
+      ["id"] = "bedrock-converse-stream",
+      ["input"] = {
+        ["messages"] = {
+          {
+            ["content"] = {
+              {
+                ["text"] = "hello",
+              },
+            },
+            ["role"] = "user",
+          },
+        },
+        ["modelId"] = "m",
+      },
+      ["op"] = "ConverseStream",
+      ["request"] = {
+        ["method"] = "POST",
+        ["url"] = "https://bedrock-runtime.us-east-1.amazonaws.com/model/m/converse-stream",
+      },
+      ["response"] = {
+        ["body_hex"] = "000000760000005296d5fade0d3a6d6573736167652d747970650700056576656e740b3a6576656e742d7479706507000c6d65737361676553746172740d3a636f6e74656e742d747970650700106170706c69636174696f6e2f6a736f6e7b22726f6c65223a22617373697374616e74227d1cc6be18000000950000005789cbb35e0d3a6d6573736167652d747970650700056576656e740b3a6576656e742d74797065070011636f6e74656e74426c6f636b44656c74610d3a636f6e74656e742d747970650700106170706c69636174696f6e2f6a736f6e7b22636f6e74656e74426c6f636b496e646578223a302c2264656c7461223a7b2274657874223a2248656c227d7d098c66490000009400000057b4ab9aee0d3a6d6573736167652d747970650700056576656e740b3a6576656e742d74797065070011636f6e74656e74426c6f636b44656c74610d3a636f6e74656e742d747970650700106170706c69636174696f6e2f6a736f6e7b22636f6e74656e74426c6f636b496e646578223a302c2264656c7461223a7b2274657874223a226c6f227d7d4c9b445a0000007d00000056e6680fd60d3a6d6573736167652d747970650700056576656e740b3a6576656e742d74797065070010636f6e74656e74426c6f636b53746f700d3a636f6e74656e742d747970650700106170706c69636174696f6e2f6a736f6e7b22636f6e74656e74426c6f636b496e646578223a307d587eaac20000007a00000051ca2c46650d3a6d6573736167652d747970650700056576656e740b3a6576656e742d7479706507000b6d65737361676553746f700d3a636f6e74656e742d747970650700106170706c69636174696f6e2f6a736f6e7b2273746f70526561736f6e223a22656e645f7475726e227d3dc33bfa000000b60000004e6bc14e4a0d3a6d6573736167652d747970650700056576656e740b3a6576656e742d747970650700086d657461646174610d3a636f6e74656e742d747970650700106170706c69636174696f6e2f6a736f6e7b227573616765223a7b22696e707574546f6b656e73223a332c226f7574707574546f6b656e73223a322c22746f74616c546f6b656e73223a357d2c226d657472696373223a7b226c6174656e63794d73223a3132307d7da691b9cc",
+        ["headers"] = {
+          ["content-type"] = "application/vnd.amazon.eventstream",
+        },
+        ["status"] = 200,
+      },
+      ["service"] = "bedrock-runtime",
+    },
+    {
+      ["expected"] = {
+        ["events"] = {
+          {
+            ["brandNewEvent"] = {
+              ["x"] = 1,
+            },
+          },
+          {
+            ["messageStop"] = {
+              ["stopReason"] = "end_turn",
+            },
+          },
+        },
+        ["member"] = "stream",
+        ["ok"] = true,
+        ["output"] = {},
+      },
+      ["id"] = "bedrock-converse-unknown-event",
+      ["input"] = {
+        ["messages"] = { n = 0 },
+        ["modelId"] = "m",
+      },
+      ["op"] = "ConverseStream",
+      ["request"] = {
+        ["method"] = "POST",
+        ["url"] = "https://bedrock-runtime.us-east-1.amazonaws.com/model/m/converse-stream",
+      },
+      ["response"] = {
+        ["body_hex"] = "0000006a0000005344c2b0cb0d3a6d6573736167652d747970650700056576656e740b3a6576656e742d7479706507000d6272616e644e65774576656e740d3a636f6e74656e742d747970650700106170706c69636174696f6e2f6a736f6e7b2278223a317d6ab19a440000007a00000051ca2c46650d3a6d6573736167652d747970650700056576656e740b3a6576656e742d7479706507000b6d65737361676553746f700d3a636f6e74656e742d747970650700106170706c69636174696f6e2f6a736f6e7b2273746f70526561736f6e223a22656e645f7475726e227d3dc33bfa",
+        ["headers"] = {
+          ["content-type"] = "application/vnd.amazon.eventstream",
+        },
+        ["status"] = 200,
+      },
+      ["service"] = "bedrock-runtime",
+    },
+    {
+      ["expected"] = {
+        ["events"] = {
+          {
+            ["messageStart"] = {
+              ["role"] = "assistant",
+            },
+          },
+          {
+            ["UnmodeledError"] = {
+              ["errorCode"] = "ThrottlingException",
+              ["errorMessage"] = "slow down",
+            },
+          },
+        },
+        ["member"] = "stream",
+        ["ok"] = true,
+        ["output"] = {},
+      },
+      ["id"] = "bedrock-converse-unmodeled-error",
+      ["input"] = {
+        ["messages"] = { n = 0 },
+        ["modelId"] = "m",
+      },
+      ["op"] = "ConverseStream",
+      ["request"] = {
+        ["method"] = "POST",
+        ["url"] = "https://bedrock-runtime.us-east-1.amazonaws.com/model/m/converse-stream",
+      },
+      ["response"] = {
+        ["body_hex"] = "000000760000005296d5fade0d3a6d6573736167652d747970650700056576656e740b3a6576656e742d7479706507000c6d65737361676553746172740d3a636f6e74656e742d747970650700106170706c69636174696f6e2f6a736f6e7b22726f6c65223a22617373697374616e74227d1cc6be18000000630000005349d2d2ba0d3a6d6573736167652d747970650700056572726f720b3a6572726f722d636f64650700135468726f74746c696e67457863657074696f6e0e3a6572726f722d6d657373616765070009736c6f7720646f776e532634c1",
+        ["headers"] = {
+          ["content-type"] = "application/vnd.amazon.eventstream",
+        },
+        ["status"] = 200,
+      },
+      ["service"] = "bedrock-runtime",
+    },
+    {
+      ["expected"] = {
+        ["error"] = {
+          ["fields"] = {},
+          ["message"] = "Stream ended with 5 bytes of incomplete message data",
+          ["tag"] = "EventStreamDecodeError",
+        },
+        ["events"] = {
+          {
+            ["messageStart"] = {
+              ["role"] = "assistant",
+            },
+          },
+        },
+        ["member"] = "stream",
+        ["ok"] = true,
+        ["output"] = {},
+      },
+      ["id"] = "bedrock-converse-truncated",
+      ["input"] = {
+        ["messages"] = { n = 0 },
+        ["modelId"] = "m",
+      },
+      ["op"] = "ConverseStream",
+      ["request"] = {
+        ["method"] = "POST",
+        ["url"] = "https://bedrock-runtime.us-east-1.amazonaws.com/model/m/converse-stream",
+      },
+      ["response"] = {
+        ["body_hex"] = "000000760000005296d5fade0d3a6d6573736167652d747970650700056576656e740b3a6576656e742d7479706507000c6d65737361676553746172740d3a636f6e74656e742d747970650700106170706c69636174696f6e2f6a736f6e7b22726f6c65223a22617373697374616e74227d1cc6be180707070707",
+        ["headers"] = {
+          ["content-type"] = "application/vnd.amazon.eventstream",
+        },
+        ["status"] = 200,
+      },
+      ["service"] = "bedrock-runtime",
+    },
+    {
+      ["expected"] = {
+        ["error"] = {
+          ["fields"] = {},
+          ["message"] = "Message CRC mismatch: expected 1036204794, got 1036205050",
+          ["tag"] = "EventStreamDecodeError",
+        },
+        ["events"] = { n = 0 },
+        ["member"] = "stream",
+        ["ok"] = true,
+        ["output"] = {},
+      },
+      ["id"] = "bedrock-converse-bad-crc",
+      ["input"] = {
+        ["messages"] = { n = 0 },
+        ["modelId"] = "m",
+      },
+      ["op"] = "ConverseStream",
+      ["request"] = {
+        ["method"] = "POST",
+        ["url"] = "https://bedrock-runtime.us-east-1.amazonaws.com/model/m/converse-stream",
+      },
+      ["response"] = {
+        ["body_hex"] = "000000760000005296d5fade0d3a6d6573736167652d747970650700056576656e740b3a6576656e742d7479706507000c6d65737361676553746172740d3a636f6e74656e742d747970650700106170706c69636174696f6e2f6a736f6e7b22726f6c65223a22617373697374616e74227d1cc6be180000007a00000051ca2c46650d3a6d6573736167652d747970650700056576656e740b3a6576656e742d7479706507000b6d65737361676553746f700d3a636f6e74656e742d747970650700106170706c69636174696f6e2f6a736f6e7b2273746f70526561736f6e223a22656e645f7475726e227d3dc33afa",
+        ["headers"] = {
+          ["content-type"] = "application/vnd.amazon.eventstream",
+        },
+        ["status"] = 200,
+      },
+      ["service"] = "bedrock-runtime",
+    },
+    {
+      ["expected"] = {
+        ["error"] = {
+          ["fields"] = {},
+          ["message"] = "bad model",
+          ["tag"] = "ValidationException",
+        },
+        ["ok"] = false,
+      },
+      ["id"] = "bedrock-converse-http-error",
+      ["input"] = {
+        ["messages"] = { n = 0 },
+        ["modelId"] = "m",
+      },
+      ["op"] = "ConverseStream",
+      ["request"] = {
+        ["method"] = "POST",
+        ["url"] = "https://bedrock-runtime.us-east-1.amazonaws.com/model/m/converse-stream",
+      },
+      ["response"] = {
+        ["body_hex"] = "7b226d657373616765223a22626164206d6f64656c227d",
+        ["headers"] = {
+          ["content-type"] = "application/vnd.amazon.eventstream",
+          ["x-amzn-errortype"] = "ValidationException:http://internal.amazon.com/coral/",
+        },
+        ["status"] = 400,
+      },
+      ["service"] = "bedrock-runtime",
+    },
+    {
+      ["expected"] = {
+        ["error"] = {
+          ["fields"] = {},
+          ["message"] = "Failed to read from stream: HttpClientError: EmptyBody: can not create stream from empty body (200 POST https://bedrock-runtime.us-east-1.amazonaws.com/model/m/converse-stream)",
+          ["tag"] = "EventStreamDecodeError",
+        },
+        ["events"] = { n = 0 },
+        ["member"] = "stream",
+        ["ok"] = true,
+        ["output"] = {},
+      },
+      ["id"] = "bedrock-converse-empty",
+      ["input"] = {
+        ["messages"] = { n = 0 },
+        ["modelId"] = "m",
+      },
+      ["op"] = "ConverseStream",
+      ["request"] = {
+        ["method"] = "POST",
+        ["url"] = "https://bedrock-runtime.us-east-1.amazonaws.com/model/m/converse-stream",
+      },
+      ["response"] = {
+        ["body_hex"] = "",
+        ["headers"] = {
+          ["content-type"] = "application/vnd.amazon.eventstream",
+        },
+        ["status"] = 200,
+      },
+      ["service"] = "bedrock-runtime",
+    },
+    {
+      ["expected"] = {
+        ["events"] = {
+          {
+            ["initial-response"] = {},
+          },
+          {
+            ["SubscribeToShardEvent"] = {
+              ["ContinuationSequenceNumber"] = "2",
+              ["MillisBehindLatest"] = 0,
+              ["Records"] = {
+                {
+                  ["ApproximateArrivalTimestamp"] = 1700000000.5,
+                  ["Data"] = {
+                    ["$hex"] = "68656c6c6f",
+                  },
+                  ["PartitionKey"] = "pk",
+                  ["SequenceNumber"] = "1",
+                },
+              },
+            },
+          },
+        },
+        ["member"] = "EventStream",
+        ["ok"] = true,
+        ["output"] = {},
+      },
+      ["id"] = "kinesis-subscribe",
+      ["input"] = {
+        ["ConsumerARN"] = "arn:aws:kinesis:us-east-1:123456789012:stream/s/consumer/c:1",
+        ["ShardId"] = "shardId-000000000000",
+        ["StartingPosition"] = {
+          ["Type"] = "LATEST",
+        },
+      },
+      ["op"] = "SubscribeToShard",
+      ["request"] = {
+        ["method"] = "POST",
+        ["url"] = "https://123456789012.data-kinesis.us-east-1.amazonaws.com/",
+      },
+      ["response"] = {
+        ["body_hex"] = "00000068000000564e6817240d3a6d6573736167652d747970650700056576656e740b3a6576656e742d74797065070010696e697469616c2d726573706f6e73650d3a636f6e74656e742d747970650700106170706c69636174696f6e2f6a736f6e7b7dfe942c1d000001180000005b025758f30d3a6d6573736167652d747970650700056576656e740b3a6576656e742d74797065070015537562736372696265546f53686172644576656e740d3a636f6e74656e742d747970650700106170706c69636174696f6e2f6a736f6e7b225265636f726473223a5b7b2253657175656e63654e756d626572223a2231222c22417070726f78696d6174654172726976616c54696d657374616d70223a313730303030303030302e352c2244617461223a22614756736247383d222c22506172746974696f6e4b6579223a22706b227d5d2c22436f6e74696e756174696f6e53657175656e63654e756d626572223a2232222c224d696c6c6973426568696e644c6174657374223a307d66065b29",
+        ["headers"] = {
+          ["content-type"] = "application/vnd.amazon.eventstream",
+        },
+        ["status"] = 200,
+      },
+      ["service"] = "kinesis",
+    },
+    {
+      ["expected"] = {
+        ["events"] = {
+          {
+            ["ResourceInUseException"] = {
+              ["message"] = "in use",
+            },
+          },
+        },
+        ["member"] = "EventStream",
+        ["ok"] = true,
+        ["output"] = {},
+      },
+      ["id"] = "kinesis-exception",
+      ["input"] = {
+        ["ConsumerARN"] = "arn:aws:kinesis:us-east-1:123456789012:stream/s/consumer/c:1",
+        ["ShardId"] = "s",
+        ["StartingPosition"] = {
+          ["Type"] = "LATEST",
+        },
+      },
+      ["op"] = "SubscribeToShard",
+      ["request"] = {
+        ["method"] = "POST",
+        ["url"] = "https://123456789012.data-kinesis.us-east-1.amazonaws.com/",
+      },
+      ["response"] = {
+        ["body_hex"] = "0000008800000064ae6b817b0d3a6d6573736167652d74797065070009657863657074696f6e0f3a657863657074696f6e2d747970650700165265736f75726365496e557365457863657074696f6e0d3a636f6e74656e742d747970650700106170706c69636174696f6e2f6a736f6e7b226d657373616765223a22696e20757365227d38b8a706",
+        ["headers"] = {
+          ["content-type"] = "application/vnd.amazon.eventstream",
+        },
+        ["status"] = 200,
+      },
+      ["service"] = "kinesis",
+    },
+    {
+      ["expected"] = {
+        ["events"] = {
+          {
+            ["PayloadChunk"] = {
+              ["Payload"] = {
+                ["$redacted"] = {
+                  ["$hex"] = "70617274206f6e6520",
+                },
+              },
+            },
+          },
+          {
+            ["PayloadChunk"] = {
+              ["Payload"] = {
+                ["$redacted"] = {
+                  ["$hex"] = "00ff10",
+                },
+              },
+            },
+          },
+          {
+            ["InvokeComplete"] = {
+              ["LogResult"] = "bG9n",
+            },
+          },
+        },
+        ["member"] = "EventStream",
+        ["ok"] = true,
+        ["output"] = {
+          ["ExecutedVersion"] = "$LATEST",
+          ["ResponseStreamContentType"] = "application/vnd.amazon.eventstream",
+          ["StatusCode"] = 200,
+        },
+      },
+      ["id"] = "lambda-invoke-stream",
+      ["input"] = {
+        ["FunctionName"] = "fn",
+        ["Payload"] = {
+          ["$hex"] = "7b7d",
+        },
+      },
+      ["op"] = "InvokeWithResponseStream",
+      ["request"] = {
+        ["method"] = "POST",
+        ["url"] = "https://lambda.us-east-1.amazonaws.com/2021-11-15/functions/fn/response-streaming-invocations",
+      },
+      ["response"] = {
+        ["body_hex"] = "000000730000005a50eefd9c0d3a6d6573736167652d747970650700056576656e740b3a6576656e742d7479706507000c5061796c6f61644368756e6b0d3a636f6e74656e742d747970650700186170706c69636174696f6e2f6f637465742d73747265616d70617274206f6e6520c33d24340000006d0000005a8f3ed47f0d3a6d6573736167652d747970650700056576656e740b3a6576656e742d7479706507000c5061796c6f61644368756e6b0d3a636f6e74656e742d747970650700186170706c69636174696f6e2f6f637465742d73747265616d00ff10e71753e20000007800000054c086e18a0d3a6d6573736167652d747970650700056576656e740b3a6576656e742d7479706507000e496e766f6b65436f6d706c6574650d3a636f6e74656e742d747970650700106170706c69636174696f6e2f6a736f6e7b224c6f67526573756c74223a226247396e227d8ecdc304",
+        ["headers"] = {
+          ["content-type"] = "application/vnd.amazon.eventstream",
+          ["x-amz-executed-version"] = "$LATEST",
+        },
+        ["status"] = 200,
+      },
+      ["service"] = "lambda",
+    },
+    {
+      ["expected"] = {
+        ["events"] = {
+          {
+            ["Records"] = {},
+          },
+          {
+            ["Stats"] = {},
+          },
+          {
+            ["End"] = {},
+          },
+        },
+        ["member"] = "Payload",
+        ["ok"] = true,
+        ["output"] = {},
+      },
+      ["id"] = "s3-select",
+      ["input"] = {
+        ["Bucket"] = "b",
+        ["Expression"] = "select * from S3Object",
+        ["ExpressionType"] = "SQL",
+        ["InputSerialization"] = {
+          ["CSV"] = {},
+        },
+        ["Key"] = "k.csv",
+        ["OutputSerialization"] = {
+          ["CSV"] = {},
+        },
+      },
+      ["op"] = "SelectObjectContent",
+      ["request"] = {
+        ["method"] = "POST",
+        ["url"] = "https://s3.us-east-1.amazonaws.com/b/k.csv?select&select-type=2",
+      },
+      ["response"] = {
+        ["body_hex"] = "0000006d000000551f81c9ee0d3a6d6573736167652d747970650700056576656e740b3a6576656e742d747970650700075265636f7264730d3a636f6e74656e742d747970650700186170706c69636174696f6e2f6f637465742d73747265616d612c620a312c320a339ad29f000000c500000043ab02a8e80d3a6d6573736167652d747970650700056576656e740b3a6576656e742d7479706507000553746174730d3a636f6e74656e742d74797065070008746578742f786d6c3c53746174733e3c42797465735363616e6e65643e3130303c2f42797465735363616e6e65643e3c427974657350726f6365737365643e39303c2f427974657350726f6365737365643e3c427974657352657475726e65643e383c2f427974657352657475726e65643e3c2f53746174733e2369a4610000003800000028c1c684d40d3a6d6573736167652d747970650700056576656e740b3a6576656e742d74797065070003456e64cf97d392",
+        ["headers"] = {
+          ["content-type"] = "application/vnd.amazon.eventstream",
+        },
+        ["status"] = 200,
+      },
+      ["service"] = "s3",
+    },
+  },
   ["signing"] = {
     ["access_key_id"] = "AKIAIOSFODNN7EXAMPLE",
     ["cases"] = {

@@ -519,13 +519,41 @@ shapes.CodeInterpreterStreamOutput = {
   name = "CodeInterpreterStreamOutput",
   members = {
     { name = "result", schema = S.ref("CodeInterpreterResult") },
-    { name = "accessDeniedException", schema = S.ref("AccessDeniedException") },
-    { name = "conflictException", schema = S.ref("ConflictException") },
-    { name = "internalServerException", schema = S.ref("InternalServerException") },
-    { name = "resourceNotFoundException", schema = S.ref("ResourceNotFoundException") },
-    { name = "serviceQuotaExceededException", schema = S.ref("ServiceQuotaExceededException") },
-    { name = "throttlingException", schema = S.ref("ThrottlingException") },
-    { name = "validationException", schema = S.ref("ValidationException") },
+    {
+      name = "accessDeniedException",
+      schema = S.ref("AccessDeniedException"),
+      error = "AccessDeniedException",
+    },
+    {
+      name = "conflictException",
+      schema = S.ref("ConflictException"),
+      error = "ConflictException",
+    },
+    {
+      name = "internalServerException",
+      schema = S.ref("InternalServerException"),
+      error = "InternalServerException",
+    },
+    {
+      name = "resourceNotFoundException",
+      schema = S.ref("ResourceNotFoundException"),
+      error = "ResourceNotFoundException",
+    },
+    {
+      name = "serviceQuotaExceededException",
+      schema = S.ref("ServiceQuotaExceededException"),
+      error = "ServiceQuotaExceededException",
+    },
+    {
+      name = "throttlingException",
+      schema = S.ref("ThrottlingException"),
+      error = "ThrottlingException",
+    },
+    {
+      name = "validationException",
+      schema = S.ref("ValidationException"),
+      error = "ValidationException",
+    },
   },
   streaming = true,
   union = true,
@@ -2624,13 +2652,41 @@ shapes.InvokeAgentRuntimeCommandStreamOutput = {
   name = "InvokeAgentRuntimeCommandStreamOutput",
   members = {
     { name = "chunk", schema = S.ref("ResponseChunk") },
-    { name = "accessDeniedException", schema = S.ref("AccessDeniedException") },
-    { name = "internalServerException", schema = S.ref("InternalServerException") },
-    { name = "resourceNotFoundException", schema = S.ref("ResourceNotFoundException") },
-    { name = "serviceQuotaExceededException", schema = S.ref("ServiceQuotaExceededException") },
-    { name = "throttlingException", schema = S.ref("ThrottlingException") },
-    { name = "validationException", schema = S.ref("ValidationException") },
-    { name = "runtimeClientError", schema = S.ref("RuntimeClientError") },
+    {
+      name = "accessDeniedException",
+      schema = S.ref("AccessDeniedException"),
+      error = "AccessDeniedException",
+    },
+    {
+      name = "internalServerException",
+      schema = S.ref("InternalServerException"),
+      error = "InternalServerException",
+    },
+    {
+      name = "resourceNotFoundException",
+      schema = S.ref("ResourceNotFoundException"),
+      error = "ResourceNotFoundException",
+    },
+    {
+      name = "serviceQuotaExceededException",
+      schema = S.ref("ServiceQuotaExceededException"),
+      error = "ServiceQuotaExceededException",
+    },
+    {
+      name = "throttlingException",
+      schema = S.ref("ThrottlingException"),
+      error = "ThrottlingException",
+    },
+    {
+      name = "validationException",
+      schema = S.ref("ValidationException"),
+      error = "ValidationException",
+    },
+    {
+      name = "runtimeClientError",
+      schema = S.ref("RuntimeClientError"),
+      error = "RuntimeClientError",
+    },
   },
   streaming = true,
   union = true,
@@ -2848,9 +2904,21 @@ shapes.InvokeHarnessStreamOutput = {
     { name = "contentBlockStop", schema = S.ref("HarnessContentBlockStopEvent") },
     { name = "messageStop", schema = S.ref("HarnessMessageStopEvent") },
     { name = "metadata", schema = S.ref("HarnessMetadataEvent") },
-    { name = "internalServerException", schema = S.ref("InternalServerException") },
-    { name = "validationException", schema = S.ref("ValidationException") },
-    { name = "runtimeClientError", schema = S.ref("RuntimeClientError") },
+    {
+      name = "internalServerException",
+      schema = S.ref("InternalServerException"),
+      error = "InternalServerException",
+    },
+    {
+      name = "validationException",
+      schema = S.ref("ValidationException"),
+      error = "ValidationException",
+    },
+    {
+      name = "runtimeClientError",
+      schema = S.ref("RuntimeClientError"),
+      error = "RuntimeClientError",
+    },
     { name = "hookEvent", schema = S.ref("HarnessHookEvent") },
   },
   streaming = true,
@@ -5783,7 +5851,11 @@ ops.invoke_agent_runtime_command = {
     "ValidationException",
   },
   span = "InvokeAgentRuntimeCommand",
-  unsupported = "event streams",
+  stream = {
+    item = S.ref("InvokeAgentRuntimeCommandStreamOutput"),
+    framing = "aws_eventstream",
+    member = "stream",
+  },
 }
 ops.invoke_browser = {
   name = "InvokeBrowser",
@@ -5819,7 +5891,11 @@ ops.invoke_code_interpreter = {
     "ValidationException",
   },
   span = "InvokeCodeInterpreter",
-  unsupported = "event streams",
+  stream = {
+    item = S.ref("CodeInterpreterStreamOutput"),
+    framing = "aws_eventstream",
+    member = "stream",
+  },
 }
 ops.invoke_harness = {
   name = "InvokeHarness",
@@ -5838,7 +5914,11 @@ ops.invoke_harness = {
     "ValidationException",
   },
   span = "InvokeHarness",
-  unsupported = "event streams",
+  stream = {
+    item = S.ref("InvokeHarnessStreamOutput"),
+    framing = "aws_eventstream",
+    member = "stream",
+  },
 }
 ops.invoke_web_search = {
   name = "InvokeWebSearch",

@@ -17,7 +17,7 @@ shapes.AudioChunk = { t = "blob" }
 shapes.AudioEvent = {
   t = "struct",
   name = "AudioEvent",
-  members = { { name = "AudioChunk", schema = S.ref("AudioChunk"), event = true } },
+  members = { { name = "AudioChunk", schema = S.ref("AudioChunk"), event = "payload" } },
 }
 shapes.AudioStream = { t = "blob", streaming = true }
 shapes.AvailabilityErrorMessage = { t = "string" }
@@ -306,10 +306,26 @@ shapes.StartSpeechSynthesisStreamEventStream = {
   members = {
     { name = "AudioEvent", schema = S.ref("AudioEvent") },
     { name = "StreamClosedEvent", schema = S.ref("StreamClosedEvent") },
-    { name = "ValidationException", schema = S.ref("ValidationException") },
-    { name = "ServiceQuotaExceededException", schema = S.ref("ServiceQuotaExceededException") },
-    { name = "ServiceFailureException", schema = S.ref("ServiceFailureException") },
-    { name = "ThrottlingException", schema = S.ref("ThrottlingException") },
+    {
+      name = "ValidationException",
+      schema = S.ref("ValidationException"),
+      error = "ValidationException",
+    },
+    {
+      name = "ServiceQuotaExceededException",
+      schema = S.ref("ServiceQuotaExceededException"),
+      error = "ServiceQuotaExceededException",
+    },
+    {
+      name = "ServiceFailureException",
+      schema = S.ref("ServiceFailureException"),
+      error = "ServiceFailureException",
+    },
+    {
+      name = "ThrottlingException",
+      schema = S.ref("ThrottlingException"),
+      error = "ThrottlingException",
+    },
   },
   streaming = true,
   union = true,
@@ -920,7 +936,12 @@ ops.start_speech_synthesis_stream = {
     "ValidationException",
   },
   span = "StartSpeechSynthesisStream",
-  unsupported = "event streams",
+  stream = {
+    item = S.ref("StartSpeechSynthesisStreamEventStream"),
+    input = { item = S.ref("StartSpeechSynthesisStreamActionStream"), member = "ActionStream" },
+    framing = "aws_eventstream",
+    member = "EventStream",
+  },
 }
 ops.start_speech_synthesis_task = {
   name = "StartSpeechSynthesisTask",

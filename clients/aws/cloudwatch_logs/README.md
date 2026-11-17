@@ -161,6 +161,7 @@ an AWS common error (`ThrottlingException`, `AccessDeniedException`, ...),
 | `ConflictException` | ConflictError |
 | `DataAlreadyAcceptedException` | ConflictError |
 | `InternalServerException` | ServerError, RetryableError |
+| `InternalStreamingException` |  |
 | `InvalidOperationException` | BadRequestError |
 | `InvalidParameterException` | BadRequestError |
 | `InvalidSequenceTokenException` | BadRequestError |
@@ -171,6 +172,8 @@ an AWS common error (`ThrottlingException`, `AccessDeniedException`, ...),
 | `ResourceNotFoundException` | NotFoundError |
 | `ServiceQuotaExceededException` | QuotaError |
 | `ServiceUnavailableException` | ServerError |
+| `SessionStreamingException` |  |
+| `SessionTimeoutException` |  |
 | `ThrottlingException` | ThrottlingError, RetryableError |
 | `TooManyTagsException` | BadRequestError |
 | `UnrecognizedClientException` | AuthError |

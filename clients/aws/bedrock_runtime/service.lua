@@ -401,11 +401,31 @@ shapes.ConverseStreamOutput = {
     { name = "contentBlockStop", schema = S.ref("ContentBlockStopEvent") },
     { name = "messageStop", schema = S.ref("MessageStopEvent") },
     { name = "metadata", schema = S.ref("ConverseStreamMetadataEvent") },
-    { name = "internalServerException", schema = S.ref("InternalServerException") },
-    { name = "modelStreamErrorException", schema = S.ref("ModelStreamErrorException") },
-    { name = "validationException", schema = S.ref("ValidationException") },
-    { name = "throttlingException", schema = S.ref("ThrottlingException") },
-    { name = "serviceUnavailableException", schema = S.ref("ServiceUnavailableException") },
+    {
+      name = "internalServerException",
+      schema = S.ref("InternalServerException"),
+      error = "InternalServerException",
+    },
+    {
+      name = "modelStreamErrorException",
+      schema = S.ref("ModelStreamErrorException"),
+      error = "ModelStreamErrorException",
+    },
+    {
+      name = "validationException",
+      schema = S.ref("ValidationException"),
+      error = "ValidationException",
+    },
+    {
+      name = "throttlingException",
+      schema = S.ref("ThrottlingException"),
+      error = "ThrottlingException",
+    },
+    {
+      name = "serviceUnavailableException",
+      schema = S.ref("ServiceUnavailableException"),
+      error = "ServiceUnavailableException",
+    },
   },
   streaming = true,
   union = true,
@@ -1709,12 +1729,36 @@ shapes.InvokeModelWithBidirectionalStreamOutput = {
   name = "InvokeModelWithBidirectionalStreamOutput",
   members = {
     { name = "chunk", schema = S.ref("BidirectionalOutputPayloadPart"), sensitive = true },
-    { name = "internalServerException", schema = S.ref("InternalServerException") },
-    { name = "modelStreamErrorException", schema = S.ref("ModelStreamErrorException") },
-    { name = "validationException", schema = S.ref("ValidationException") },
-    { name = "throttlingException", schema = S.ref("ThrottlingException") },
-    { name = "modelTimeoutException", schema = S.ref("ModelTimeoutException") },
-    { name = "serviceUnavailableException", schema = S.ref("ServiceUnavailableException") },
+    {
+      name = "internalServerException",
+      schema = S.ref("InternalServerException"),
+      error = "InternalServerException",
+    },
+    {
+      name = "modelStreamErrorException",
+      schema = S.ref("ModelStreamErrorException"),
+      error = "ModelStreamErrorException",
+    },
+    {
+      name = "validationException",
+      schema = S.ref("ValidationException"),
+      error = "ValidationException",
+    },
+    {
+      name = "throttlingException",
+      schema = S.ref("ThrottlingException"),
+      error = "ThrottlingException",
+    },
+    {
+      name = "modelTimeoutException",
+      schema = S.ref("ModelTimeoutException"),
+      error = "ModelTimeoutException",
+    },
+    {
+      name = "serviceUnavailableException",
+      schema = S.ref("ServiceUnavailableException"),
+      error = "ServiceUnavailableException",
+    },
   },
   streaming = true,
   union = true,
@@ -1998,12 +2042,36 @@ shapes.ResponseStream = {
   name = "ResponseStream",
   members = {
     { name = "chunk", schema = S.ref("PayloadPart"), sensitive = true },
-    { name = "internalServerException", schema = S.ref("InternalServerException") },
-    { name = "modelStreamErrorException", schema = S.ref("ModelStreamErrorException") },
-    { name = "validationException", schema = S.ref("ValidationException") },
-    { name = "throttlingException", schema = S.ref("ThrottlingException") },
-    { name = "modelTimeoutException", schema = S.ref("ModelTimeoutException") },
-    { name = "serviceUnavailableException", schema = S.ref("ServiceUnavailableException") },
+    {
+      name = "internalServerException",
+      schema = S.ref("InternalServerException"),
+      error = "InternalServerException",
+    },
+    {
+      name = "modelStreamErrorException",
+      schema = S.ref("ModelStreamErrorException"),
+      error = "ModelStreamErrorException",
+    },
+    {
+      name = "validationException",
+      schema = S.ref("ValidationException"),
+      error = "ValidationException",
+    },
+    {
+      name = "throttlingException",
+      schema = S.ref("ThrottlingException"),
+      error = "ThrottlingException",
+    },
+    {
+      name = "modelTimeoutException",
+      schema = S.ref("ModelTimeoutException"),
+      error = "ModelTimeoutException",
+    },
+    {
+      name = "serviceUnavailableException",
+      schema = S.ref("ServiceUnavailableException"),
+      error = "ServiceUnavailableException",
+    },
   },
   streaming = true,
   union = true,
@@ -2471,6 +2539,7 @@ ops.converse_stream = {
     "ServiceUnavailableException",
     "ThrottlingException",
     "ValidationException",
+    "ModelStreamErrorException",
   },
   span = {
     op = "ConverseStream",
@@ -2490,7 +2559,7 @@ ops.converse_stream = {
       ["gen_ai.request.stream"] = true,
     },
   },
-  unsupported = "event streams",
+  stream = { item = S.ref("ConverseStreamOutput"), framing = "aws_eventstream", member = "stream" },
 }
 ops.count_tokens = {
   name = "CountTokens",
@@ -2582,7 +2651,12 @@ ops.invoke_model_with_bidirectional_stream = {
     "ValidationException",
   },
   span = "InvokeModelWithBidirectionalStream",
-  unsupported = "event streams",
+  stream = {
+    item = S.ref("InvokeModelWithBidirectionalStreamOutput"),
+    input = { item = S.ref("InvokeModelWithBidirectionalStreamInput"), member = "body" },
+    framing = "aws_eventstream",
+    member = "body",
+  },
 }
 ops.invoke_model_with_response_stream = {
   name = "InvokeModelWithResponseStream",
@@ -2605,7 +2679,7 @@ ops.invoke_model_with_response_stream = {
     "ValidationException",
   },
   span = "InvokeModelWithResponseStream",
-  unsupported = "event streams",
+  stream = { item = S.ref("ResponseStream"), framing = "aws_eventstream", member = "body" },
 }
 ops.list_async_invokes = {
   name = "ListAsyncInvokes",

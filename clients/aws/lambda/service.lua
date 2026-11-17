@@ -2159,7 +2159,7 @@ shapes.InvokeMode = { t = "enum", base = "string", values = { "BUFFERED", "RESPO
 shapes.InvokeResponseStreamUpdate = {
   t = "struct",
   name = "InvokeResponseStreamUpdate",
-  members = { { name = "Payload", schema = S.ref("Blob"), sensitive = true, event = true } },
+  members = { { name = "Payload", schema = S.ref("Blob"), sensitive = true, event = "payload" } },
 }
 shapes.InvokeWithResponseStreamCompleteEvent = {
   t = "struct",
@@ -5432,7 +5432,11 @@ ops.invoke_with_response_stream = {
     input = { FunctionName = { { name = "faas.invoked_name" } } },
     attributes = { ["faas.invoked_provider"] = "aws" },
   },
-  unsupported = "event streams",
+  stream = {
+    item = S.ref("InvokeWithResponseStreamResponseEvent"),
+    framing = "aws_eventstream",
+    member = "EventStream",
+  },
 }
 ops.list_aliases = {
   name = "ListAliases",

@@ -3679,7 +3679,12 @@ ops.chat = {
     "ValidationException",
   },
   span = "Chat",
-  unsupported = "event streams",
+  stream = {
+    item = S.ref("ChatOutputStream"),
+    input = { item = S.ref("ChatInputStream"), member = "inputStream" },
+    framing = "aws_eventstream",
+    member = "outputStream",
+  },
 }
 ops.chat_sync = {
   name = "ChatSync",

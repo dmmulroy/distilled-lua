@@ -85,10 +85,10 @@ shapes.RequestPayloadPart = {
   t = "struct",
   name = "RequestPayloadPart",
   members = {
-    { name = "Bytes", schema = S.ref("SensitiveBlob"), sensitive = true, event = true },
-    { name = "DataType", schema = S.string, event = true },
-    { name = "CompletionState", schema = S.string, event = true },
-    { name = "P", schema = S.string, event = true },
+    { name = "Bytes", schema = S.ref("SensitiveBlob"), sensitive = true, event = "payload" },
+    { name = "DataType", schema = S.string, event = "header" },
+    { name = "CompletionState", schema = S.string, event = "header" },
+    { name = "P", schema = S.string, event = "header" },
   },
 }
 shapes.RequestStreamEvent = {
@@ -102,10 +102,10 @@ shapes.ResponsePayloadPart = {
   t = "struct",
   name = "ResponsePayloadPart",
   members = {
-    { name = "Bytes", schema = S.ref("SensitiveBlob"), sensitive = true, event = true },
-    { name = "DataType", schema = S.string, event = true },
-    { name = "CompletionState", schema = S.string, event = true },
-    { name = "P", schema = S.string, event = true },
+    { name = "Bytes", schema = S.ref("SensitiveBlob"), sensitive = true, event = "payload" },
+    { name = "DataType", schema = S.string, event = "header" },
+    { name = "CompletionState", schema = S.string, event = "header" },
+    { name = "P", schema = S.string, event = "header" },
   },
 }
 shapes.ResponseStreamEvent = {
@@ -113,8 +113,12 @@ shapes.ResponseStreamEvent = {
   name = "ResponseStreamEvent",
   members = {
     { name = "PayloadPart", schema = S.ref("ResponsePayloadPart") },
-    { name = "ModelStreamError", schema = S.ref("ModelStreamError") },
-    { name = "InternalStreamFailure", schema = S.ref("InternalStreamFailure") },
+    { name = "ModelStreamError", schema = S.ref("ModelStreamError"), error = "ModelStreamError" },
+    {
+      name = "InternalStreamFailure",
+      schema = S.ref("InternalStreamFailure"),
+      error = "InternalStreamFailure",
+    },
   },
   streaming = true,
   union = true,
@@ -173,7 +177,12 @@ ops.invoke_endpoint_with_bidirectional_stream = {
     "ServiceUnavailableError",
   },
   span = "InvokeEndpointWithBidirectionalStream",
-  unsupported = "event streams",
+  stream = {
+    item = S.ref("ResponseStreamEvent"),
+    input = { item = S.ref("RequestStreamEvent"), member = "Body" },
+    framing = "aws_eventstream",
+    member = "Body",
+  },
 }
 
 return {

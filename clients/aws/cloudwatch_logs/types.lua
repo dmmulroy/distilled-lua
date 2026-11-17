@@ -2740,6 +2740,10 @@
 ---@class aws.cloudwatch_logs.InternalServerExceptionError: distilled.Error
 ---@field tag "InternalServerException"
 
+---An internal error occurred during the streaming of log data. This exception is thrown when there's an issue with the internal streaming mechanism used by the GetLogObject operation.
+---@class aws.cloudwatch_logs.InternalStreamingExceptionError: distilled.Error
+---@field tag "InternalStreamingException"
+
 ---The operation is not valid on the specified resource.
 ---@class aws.cloudwatch_logs.InvalidOperationExceptionError: distilled.Error
 ---@field tag "InvalidOperationException"
@@ -2779,6 +2783,14 @@
 ---The service cannot complete the request.
 ---@class aws.cloudwatch_logs.ServiceUnavailableExceptionError: distilled.Error
 ---@field tag "ServiceUnavailableException"
+
+---This exception is returned if an unknown error occurs during a Live Tail session.
+---@class aws.cloudwatch_logs.SessionStreamingExceptionError: distilled.Error
+---@field tag "SessionStreamingException"
+
+---This exception is returned in a Live Tail stream when the Live Tail session times out. Live Tail sessions time out after three hours.
+---@class aws.cloudwatch_logs.SessionTimeoutExceptionError: distilled.Error
+---@field tag "SessionTimeoutException"
 
 ---The request was throttled because of quota limits.
 ---@class aws.cloudwatch_logs.ThrottlingExceptionError: distilled.Error
@@ -3634,7 +3646,7 @@ function Client:get_log_group_fields(input) end
 ---Retrieves a large logging object (LLO) and streams it back. This API is used to fetch the content of large portions of log events that have been ingested through the PutOpenTelemetryLogs API. When log events contain fields that would cause the total event size to exceed 1MB, CloudWatch Logs automatically processes up to 10 fields, starting with the largest fields. Each field is truncated as needed...
 ---
 ---`POST /`
----Errors: AccessDeniedException, InvalidOperationException, InvalidParameterException, LimitExceededException, ResourceNotFoundException.
+---Errors: AccessDeniedException, InvalidOperationException, InvalidParameterException, LimitExceededException, ResourceNotFoundException, InternalStreamingException.
 ---@param input aws.cloudwatch_logs.GetLogObjectRequest
 ---@return aws.cloudwatch_logs.GetLogObjectResponse? value
 ---@return distilled.Error? err
@@ -4125,7 +4137,7 @@ function Client:put_transformer(input) end
 ---Starts a Live Tail streaming session for one or more log groups. A Live Tail session returns a stream of log events that have been recently ingested in the log groups. For more information, see Use Live Tail to view logs in near real time.
 ---
 ---`POST /`
----Errors: AccessDeniedException, InvalidOperationException, InvalidParameterException, LimitExceededException, ResourceNotFoundException.
+---Errors: AccessDeniedException, InvalidOperationException, InvalidParameterException, LimitExceededException, ResourceNotFoundException, SessionTimeoutException, SessionStreamingException.
 ---@param input aws.cloudwatch_logs.StartLiveTailRequest
 ---@return aws.cloudwatch_logs.StartLiveTailResponse? value
 ---@return distilled.Error? err

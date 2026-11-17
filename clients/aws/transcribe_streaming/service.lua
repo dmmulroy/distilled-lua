@@ -25,7 +25,7 @@ shapes.AudioChunk = { t = "blob" }
 shapes.AudioEvent = {
   t = "struct",
   name = "AudioEvent",
-  members = { { name = "AudioChunk", schema = S.ref("AudioChunk"), event = true } },
+  members = { { name = "AudioChunk", schema = S.ref("AudioChunk"), event = "payload" } },
 }
 shapes.AudioStream = {
   t = "struct",
@@ -103,11 +103,31 @@ shapes.CallAnalyticsTranscriptResultStream = {
   members = {
     { name = "UtteranceEvent", schema = S.ref("UtteranceEvent") },
     { name = "CategoryEvent", schema = S.ref("CategoryEvent") },
-    { name = "BadRequestException", schema = S.ref("BadRequestException") },
-    { name = "LimitExceededException", schema = S.ref("LimitExceededException") },
-    { name = "InternalFailureException", schema = S.ref("InternalFailureException") },
-    { name = "ConflictException", schema = S.ref("ConflictException") },
-    { name = "ServiceUnavailableException", schema = S.ref("ServiceUnavailableException") },
+    {
+      name = "BadRequestException",
+      schema = S.ref("BadRequestException"),
+      error = "BadRequestException",
+    },
+    {
+      name = "LimitExceededException",
+      schema = S.ref("LimitExceededException"),
+      error = "LimitExceededException",
+    },
+    {
+      name = "InternalFailureException",
+      schema = S.ref("InternalFailureException"),
+      error = "InternalFailureException",
+    },
+    {
+      name = "ConflictException",
+      schema = S.ref("ConflictException"),
+      error = "ConflictException",
+    },
+    {
+      name = "ServiceUnavailableException",
+      schema = S.ref("ServiceUnavailableException"),
+      error = "ServiceUnavailableException",
+    },
   },
   streaming = true,
   union = true,
@@ -435,7 +455,7 @@ shapes.MedicalScribeAudioEvent = {
   t = "struct",
   name = "MedicalScribeAudioEvent",
   members = {
-    { name = "AudioChunk", schema = S.ref("AudioChunk"), required = true, event = true },
+    { name = "AudioChunk", schema = S.ref("AudioChunk"), required = true, event = "payload" },
   },
 }
 shapes.MedicalScribeChannelDefinition = {
@@ -547,11 +567,31 @@ shapes.MedicalScribeResultStream = {
   name = "MedicalScribeResultStream",
   members = {
     { name = "TranscriptEvent", schema = S.ref("MedicalScribeTranscriptEvent") },
-    { name = "BadRequestException", schema = S.ref("BadRequestException") },
-    { name = "LimitExceededException", schema = S.ref("LimitExceededException") },
-    { name = "InternalFailureException", schema = S.ref("InternalFailureException") },
-    { name = "ConflictException", schema = S.ref("ConflictException") },
-    { name = "ServiceUnavailableException", schema = S.ref("ServiceUnavailableException") },
+    {
+      name = "BadRequestException",
+      schema = S.ref("BadRequestException"),
+      error = "BadRequestException",
+    },
+    {
+      name = "LimitExceededException",
+      schema = S.ref("LimitExceededException"),
+      error = "LimitExceededException",
+    },
+    {
+      name = "InternalFailureException",
+      schema = S.ref("InternalFailureException"),
+      error = "InternalFailureException",
+    },
+    {
+      name = "ConflictException",
+      schema = S.ref("ConflictException"),
+      error = "ConflictException",
+    },
+    {
+      name = "ServiceUnavailableException",
+      schema = S.ref("ServiceUnavailableException"),
+      error = "ServiceUnavailableException",
+    },
   },
   streaming = true,
   union = true,
@@ -661,11 +701,31 @@ shapes.MedicalTranscriptResultStream = {
   name = "MedicalTranscriptResultStream",
   members = {
     { name = "TranscriptEvent", schema = S.ref("MedicalTranscriptEvent") },
-    { name = "BadRequestException", schema = S.ref("BadRequestException") },
-    { name = "LimitExceededException", schema = S.ref("LimitExceededException") },
-    { name = "InternalFailureException", schema = S.ref("InternalFailureException") },
-    { name = "ConflictException", schema = S.ref("ConflictException") },
-    { name = "ServiceUnavailableException", schema = S.ref("ServiceUnavailableException") },
+    {
+      name = "BadRequestException",
+      schema = S.ref("BadRequestException"),
+      error = "BadRequestException",
+    },
+    {
+      name = "LimitExceededException",
+      schema = S.ref("LimitExceededException"),
+      error = "LimitExceededException",
+    },
+    {
+      name = "InternalFailureException",
+      schema = S.ref("InternalFailureException"),
+      error = "InternalFailureException",
+    },
+    {
+      name = "ConflictException",
+      schema = S.ref("ConflictException"),
+      error = "ConflictException",
+    },
+    {
+      name = "ServiceUnavailableException",
+      schema = S.ref("ServiceUnavailableException"),
+      error = "ServiceUnavailableException",
+    },
   },
   streaming = true,
   union = true,
@@ -1547,11 +1607,31 @@ shapes.TranscriptResultStream = {
   name = "TranscriptResultStream",
   members = {
     { name = "TranscriptEvent", schema = S.ref("TranscriptEvent") },
-    { name = "BadRequestException", schema = S.ref("BadRequestException") },
-    { name = "LimitExceededException", schema = S.ref("LimitExceededException") },
-    { name = "InternalFailureException", schema = S.ref("InternalFailureException") },
-    { name = "ConflictException", schema = S.ref("ConflictException") },
-    { name = "ServiceUnavailableException", schema = S.ref("ServiceUnavailableException") },
+    {
+      name = "BadRequestException",
+      schema = S.ref("BadRequestException"),
+      error = "BadRequestException",
+    },
+    {
+      name = "LimitExceededException",
+      schema = S.ref("LimitExceededException"),
+      error = "LimitExceededException",
+    },
+    {
+      name = "InternalFailureException",
+      schema = S.ref("InternalFailureException"),
+      error = "InternalFailureException",
+    },
+    {
+      name = "ConflictException",
+      schema = S.ref("ConflictException"),
+      error = "ConflictException",
+    },
+    {
+      name = "ServiceUnavailableException",
+      schema = S.ref("ServiceUnavailableException"),
+      error = "ServiceUnavailableException",
+    },
   },
   streaming = true,
   union = true,
@@ -1645,7 +1725,12 @@ ops.start_call_analytics_stream_transcription = {
     "ServiceUnavailableException",
   },
   span = "StartCallAnalyticsStreamTranscription",
-  unsupported = "event streams",
+  stream = {
+    item = S.ref("CallAnalyticsTranscriptResultStream"),
+    input = { item = S.ref("AudioStream"), member = "AudioStream" },
+    framing = "aws_eventstream",
+    member = "CallAnalyticsTranscriptResultStream",
+  },
 }
 ops.start_medical_scribe_stream = {
   name = "StartMedicalScribeStream",
@@ -1662,7 +1747,12 @@ ops.start_medical_scribe_stream = {
     "ServiceUnavailableException",
   },
   span = "StartMedicalScribeStream",
-  unsupported = "event streams",
+  stream = {
+    item = S.ref("MedicalScribeResultStream"),
+    input = { item = S.ref("MedicalScribeInputStream"), member = "InputStream" },
+    framing = "aws_eventstream",
+    member = "ResultStream",
+  },
 }
 ops.start_medical_stream_transcription = {
   name = "StartMedicalStreamTranscription",
@@ -1679,7 +1769,12 @@ ops.start_medical_stream_transcription = {
     "ServiceUnavailableException",
   },
   span = "StartMedicalStreamTranscription",
-  unsupported = "event streams",
+  stream = {
+    item = S.ref("MedicalTranscriptResultStream"),
+    input = { item = S.ref("AudioStream"), member = "AudioStream" },
+    framing = "aws_eventstream",
+    member = "TranscriptResultStream",
+  },
 }
 ops.start_stream_transcription = {
   name = "StartStreamTranscription",
@@ -1696,7 +1791,12 @@ ops.start_stream_transcription = {
     "ServiceUnavailableException",
   },
   span = "StartStreamTranscription",
-  unsupported = "event streams",
+  stream = {
+    item = S.ref("TranscriptResultStream"),
+    input = { item = S.ref("AudioStream"), member = "AudioStream" },
+    framing = "aws_eventstream",
+    member = "TranscriptResultStream",
+  },
 }
 
 return {

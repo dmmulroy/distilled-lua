@@ -452,6 +452,20 @@ function M.new(service, args)
       return nil, err
     end
     local headers = request.headers
+    if op._aws_event_input then
+      -- an input event stream (distilled.aws.stream): the body is the signed events, sent
+      -- after the request; the request is signed for them (middleware-eventstream)
+      request.body = nil
+      request.streaming_input = nil
+      for k in pairs(headers) do
+        local l = string.lower(k)
+        if l == "content-type" or l == "x-amz-content-sha256" then
+          headers[k] = nil
+        end
+      end
+      headers["Content-Type"] = "application/vnd.amazon.eventstream"
+      headers["X-Amz-Content-Sha256"] = "STREAMING-AWS4-HMAC-SHA256-EVENTS"
+    end
 
     -- requestCompression (middleware/compression.ts): gzip a body of known size of at
     -- least 10 KiB, appending "gzip" to any Content-Encoding the caller set
@@ -718,13 +732,10 @@ function M.new(service, args)
     return out
   end
 
-  local function decode_failure(ctx, op, res)
+  -- the error for a wire code and its data (an error body's fields), as matched against
+  -- the operation's classes: read_error's result, or an event stream's exception
+  local function build_error(ctx, op, res, code, data)
     local p = pctx(ctx, op)
-    local code, data = impl.read_error(p, op, res)
-    if code == nil then
-      -- unreadable error bodies: a ParseError (data is the error)
-      return data
-    end
     data = data or {}
     if type(data.Message) == "string" and data.message == nil then
       data.message = data.Message
@@ -802,6 +813,15 @@ function M.new(service, args)
     })
   end
 
+  local function decode_failure(ctx, op, res)
+    local code, data = impl.read_error(pctx(ctx, op), op, res)
+    if code == nil then
+      -- unreadable error bodies: a ParseError (data is the error)
+      return data
+    end
+    return build_error(ctx, op, res, code, data)
+  end
+
   --- protocol.decode(ctx, op, response) -> value | nil, err
   function protocol.decode(ctx, op, res)
     local r = {
@@ -819,21 +839,9 @@ function M.new(service, args)
   -- the call
   ---------------------------------------------------------------------------------
 
-  function protocol.call(ctx, op, input)
+  -- credentials, the signed request, trace propagation, user agent | nil, err
+  local function prepare(ctx, op, input)
     local tracer = ctx.tracer or noop
-    local span = ctx.span or noop.NOOP_SPAN
-    local host = ctx.host or {}
-    local attempt = ctx.attempt or {}
-    if op.unsupported then
-      return nil,
-        errors.new("SdkError", {
-          message = what(op)
-            .. ": "
-            .. tostring(op.unsupported)
-            .. " operations are not supported yet",
-        })
-    end
-
     local opts, cerr = {}, nil
     if ctx.credentials then
       opts, cerr = tracer:with("distilled.credentials", { debug = true }, function()
@@ -879,11 +887,72 @@ function M.new(service, args)
       h["user-agent"] = ctx.user_agent or M.USER_AGENT
     end
     req.timeout = ctx.timeout
-
+    local span = ctx.span or noop.NOOP_SPAN
     local server = string.match(req.url, "^%a[%w+.-]*://([^/:?#]+)")
     span:set("http.request.method", req.method)
     span:set("server.address", server)
-    attempt.host = server
+    if ctx.attempt then
+      ctx.attempt.host = server
+    end
+    return req, opts
+  end
+
+  -- what distilled.aws.stream needs of this protocol
+  local kit = {
+    service = service,
+    args = args,
+    what = what,
+    decode = function(ctx, op, res)
+      return protocol.decode(ctx, op, res)
+    end,
+    decode_success = decode_success,
+    build_error = build_error,
+    prepare = prepare,
+    identity = function(opts, host)
+      if args.auth == "bearer" or args.auth == "sigv2" then
+        return nil
+      end
+      return identity_of(opts, host)
+    end,
+  }
+
+  --- protocol.stream(ctx, op, input) -> parts, nil, meta | nil, err, meta
+  -- An event stream operation (op.stream), its events delivered as they arrive; see
+  -- distilled.aws.stream. parts = { status, headers, output, next, close, send?,
+  -- close_input? } (send / close_input for the operations that stream events both ways).
+  function protocol.stream(ctx, op, input)
+    ctx = ctx or {}
+    return require("distilled.aws.stream").stream(kit, ctx, op, input)
+  end
+
+  function protocol.call(ctx, op, input)
+    local tracer = ctx.tracer or noop
+    local span = ctx.span or noop.NOOP_SPAN
+    local host = ctx.host or {}
+    local attempt = ctx.attempt or {}
+    if op.unsupported then
+      return nil,
+        errors.new("SdkError", {
+          message = what(op)
+            .. ": "
+            .. tostring(op.unsupported)
+            .. " operations are not supported yet",
+        })
+    end
+    if op.stream and op.stream.input then
+      return nil,
+        errors.new("SdkError", {
+          message = what(op)
+            .. " streams events both ways: call it through its _stream method (stream:send(event), stream:close_input())",
+        })
+    end
+
+    local req, berr = prepare(ctx, op, input)
+    if req == nil then
+      return nil, berr
+    end
+
+    local server = attempt.host or string.match(req.url, "^%a[%w+.-]*://([^/:?#]+)")
 
     local transport = host.transport
     if transport == nil then
@@ -922,6 +991,10 @@ function M.new(service, args)
     span:set("http.response.status_code", res.status)
 
     local value, derr = tracer:with("distilled.decode", { debug = true }, function()
+      if op.stream and res.status >= 200 and res.status < 300 then
+        -- an output event stream read whole: its events as a list (distilled.aws.stream)
+        return require("distilled.aws.stream").collect(kit, ctx, op, res)
+      end
       return protocol.decode(ctx, op, res)
     end)
     if value == nil and derr ~= nil then

@@ -5348,13 +5348,41 @@ shapes.ResponseStream = {
   members = {
     { name = "trace", schema = S.ref("Trace") },
     { name = "output", schema = S.ref("InvocationOutput") },
-    { name = "accessDeniedException", schema = S.ref("AccessDeniedException") },
-    { name = "conflictingOperationException", schema = S.ref("ConflictingOperationException") },
-    { name = "internalFailureException", schema = S.ref("InternalFailureException") },
-    { name = "invalidRequestException", schema = S.ref("InvalidRequestException") },
-    { name = "limitExceededException", schema = S.ref("LimitExceededException") },
-    { name = "resourceNotFoundException", schema = S.ref("ResourceNotFoundException") },
-    { name = "throttlingException", schema = S.ref("ThrottlingException") },
+    {
+      name = "accessDeniedException",
+      schema = S.ref("AccessDeniedException"),
+      error = "AccessDeniedException",
+    },
+    {
+      name = "conflictingOperationException",
+      schema = S.ref("ConflictingOperationException"),
+      error = "ConflictingOperationException",
+    },
+    {
+      name = "internalFailureException",
+      schema = S.ref("InternalFailureException"),
+      error = "InternalFailureException",
+    },
+    {
+      name = "invalidRequestException",
+      schema = S.ref("InvalidRequestException"),
+      error = "InvalidRequestException",
+    },
+    {
+      name = "limitExceededException",
+      schema = S.ref("LimitExceededException"),
+      error = "LimitExceededException",
+    },
+    {
+      name = "resourceNotFoundException",
+      schema = S.ref("ResourceNotFoundException"),
+      error = "ResourceNotFoundException",
+    },
+    {
+      name = "throttlingException",
+      schema = S.ref("ThrottlingException"),
+      error = "ThrottlingException",
+    },
   },
   streaming = true,
   union = true,
@@ -7782,7 +7810,7 @@ ops.invoke_assistant = {
   },
   span = "InvokeAssistant",
   aws = { host_prefix = "data." },
-  unsupported = "event streams",
+  stream = { item = S.ref("ResponseStream"), framing = "aws_eventstream", member = "body" },
 }
 ops.list_access_policies = {
   name = "ListAccessPolicies",

@@ -1577,7 +1577,11 @@ shapes.GetLogObjectResponseStream = {
   name = "GetLogObjectResponseStream",
   members = {
     { name = "fields", schema = S.ref("FieldsData") },
-    { name = "InternalStreamingException", schema = S.ref("InternalStreamingException") },
+    {
+      name = "InternalStreamingException",
+      schema = S.ref("InternalStreamingException"),
+      error = "InternalStreamingException",
+    },
   },
   streaming = true,
   union = true,
@@ -3338,8 +3342,16 @@ shapes.StartLiveTailResponseStream = {
   members = {
     { name = "sessionStart", schema = S.ref("LiveTailSessionStart") },
     { name = "sessionUpdate", schema = S.ref("LiveTailSessionUpdate") },
-    { name = "SessionTimeoutException", schema = S.ref("SessionTimeoutException") },
-    { name = "SessionStreamingException", schema = S.ref("SessionStreamingException") },
+    {
+      name = "SessionTimeoutException",
+      schema = S.ref("SessionTimeoutException"),
+      error = "SessionTimeoutException",
+    },
+    {
+      name = "SessionStreamingException",
+      schema = S.ref("SessionStreamingException"),
+      error = "SessionStreamingException",
+    },
   },
   streaming = true,
   union = true,
@@ -3745,6 +3757,10 @@ classes.InternalServerException = errors.define({
   tag = "InternalServerException",
   categories = { "ServerError", "RetryableError" },
 })
+classes.InternalStreamingException = errors.define({
+  tag = "InternalStreamingException",
+  categories = {},
+})
 classes.InvalidOperationException = errors.define({
   tag = "InvalidOperationException",
   categories = { "BadRequestError" },
@@ -3786,6 +3802,14 @@ classes.ServiceQuotaExceededException = errors.define({
 classes.ServiceUnavailableException = errors.define({
   tag = "ServiceUnavailableException",
   categories = { "ServerError" },
+})
+classes.SessionStreamingException = errors.define({
+  tag = "SessionStreamingException",
+  categories = {},
+})
+classes.SessionTimeoutException = errors.define({
+  tag = "SessionTimeoutException",
+  categories = {},
 })
 classes.ThrottlingException = errors.define({
   tag = "ThrottlingException",
@@ -4872,10 +4896,15 @@ ops.get_log_object = {
     "InvalidParameterException",
     "LimitExceededException",
     "ResourceNotFoundException",
+    "InternalStreamingException",
   },
   span = "GetLogObject",
   aws = { host_prefix = "stream-" },
-  unsupported = "event streams",
+  stream = {
+    item = S.ref("GetLogObjectResponseStream"),
+    framing = "aws_eventstream",
+    member = "fieldStream",
+  },
 }
 ops.get_log_record = {
   name = "GetLogRecord",
@@ -5514,10 +5543,16 @@ ops.start_live_tail = {
     "InvalidParameterException",
     "LimitExceededException",
     "ResourceNotFoundException",
+    "SessionTimeoutException",
+    "SessionStreamingException",
   },
   span = "StartLiveTail",
   aws = { host_prefix = "stream-" },
-  unsupported = "event streams",
+  stream = {
+    item = S.ref("StartLiveTailResponseStream"),
+    framing = "aws_eventstream",
+    member = "responseStream",
+  },
 }
 ops.start_query = {
   name = "StartQuery",
