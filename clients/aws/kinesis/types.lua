@@ -1477,7 +1477,7 @@ function Client:stop_stream_encryption(input) end
 ---This operation establishes an HTTP/2 connection between the consumer you specify in the ConsumerARN parameter and the shard you specify in the ShardId parameter. After the connection is successfully established, Kinesis Data Streams pushes records from the shard to the consumer over this connection. Before you call this operation, call RegisterStreamConsumer to register the consumer with Kinesis D...
 ---
 ---`POST /`
----Errors: AccessDeniedException, DryRunOperationException, InvalidArgumentException, LimitExceededException, ResourceInUseException, ResourceNotFoundException.
+---Errors: AccessDeniedException, DryRunOperationException, InvalidArgumentException, LimitExceededException, ResourceInUseException, ResourceNotFoundException, KMSDisabledException, KMSInvalidStateException, KMSAccessDeniedException, KMSNotFoundException, KMSOptInRequired, KMSThrottlingException, InternalFailureException.
 ---@param input aws.kinesis.SubscribeToShardInput
 ---@return aws.kinesis.SubscribeToShardOutput? value
 ---@return distilled.Error? err

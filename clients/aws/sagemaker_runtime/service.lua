@@ -317,7 +317,7 @@ shapes.PartBlob = { t = "blob", sensitive = true }
 shapes.PayloadPart = {
   t = "struct",
   name = "PayloadPart",
-  members = { { name = "Bytes", schema = S.ref("PartBlob"), sensitive = true, event = true } },
+  members = { { name = "Bytes", schema = S.ref("PartBlob"), sensitive = true, event = "payload" } },
 }
 shapes.PrefixAwareIdHeader = { t = "string" }
 shapes.RequestTTLSecondsHeader = { t = "number" }
@@ -326,8 +326,12 @@ shapes.ResponseStream = {
   name = "ResponseStream",
   members = {
     { name = "PayloadPart", schema = S.ref("PayloadPart") },
-    { name = "ModelStreamError", schema = S.ref("ModelStreamError") },
-    { name = "InternalStreamFailure", schema = S.ref("InternalStreamFailure") },
+    { name = "ModelStreamError", schema = S.ref("ModelStreamError"), error = "ModelStreamError" },
+    {
+      name = "InternalStreamFailure",
+      schema = S.ref("InternalStreamFailure"),
+      error = "InternalStreamFailure",
+    },
   },
   streaming = true,
   union = true,
@@ -419,7 +423,7 @@ ops.invoke_endpoint_with_response_stream = {
     "ValidationError",
   },
   span = "InvokeEndpointWithResponseStream",
-  unsupported = "event streams",
+  stream = { item = S.ref("ResponseStream"), framing = "aws_eventstream", member = "Body" },
 }
 
 return {

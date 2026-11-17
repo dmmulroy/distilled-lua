@@ -391,7 +391,7 @@ shapes.MedicalScribeBinaryAudioEvent = {
   t = "struct",
   name = "MedicalScribeBinaryAudioEvent",
   members = {
-    { name = "audioChunk", schema = S.ref("AudioChunk"), required = true, event = true },
+    { name = "audioChunk", schema = S.ref("AudioChunk"), required = true, event = "payload" },
   },
 }
 shapes.MedicalScribeChannelDefinition = {
@@ -463,8 +463,16 @@ shapes.MedicalScribeOutputStream = {
   name = "MedicalScribeOutputStream",
   members = {
     { name = "transcriptEvent", schema = S.ref("MedicalScribeTranscriptEvent") },
-    { name = "internalFailureException", schema = S.ref("InternalServerException") },
-    { name = "validationException", schema = S.ref("ValidationException") },
+    {
+      name = "internalFailureException",
+      schema = S.ref("InternalServerException"),
+      error = "InternalServerException",
+    },
+    {
+      name = "validationException",
+      schema = S.ref("ValidationException"),
+      error = "ValidationException",
+    },
   },
   streaming = true,
   union = true,
@@ -1068,7 +1076,12 @@ ops.start_medical_scribe_listening_session = {
   },
   span = "StartMedicalScribeListeningSession",
   aws = { host_prefix = "streaming." },
-  unsupported = "event streams",
+  stream = {
+    item = S.ref("MedicalScribeOutputStream"),
+    input = { item = S.ref("MedicalScribeInputStream"), member = "inputStream" },
+    framing = "aws_eventstream",
+    member = "responseStream",
+  },
 }
 ops.start_patient_insights_job = {
   name = "StartPatientInsightsJob",

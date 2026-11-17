@@ -1621,3 +1621,50 @@ Edits outside my file list (generator glue hook, needed for e2b's hand-written s
 - **transport.stream:** I look it up as `transport.stream` on a table (or callable table).
 - Spec helper `spec/grpc_stream_stub.lua` (a stub reader and stream transport) is mine
   until `distilled.testing` has a scripted streaming transport.
+
+
+## 31 aws-eventstream
+
+Done (branch `task-31`; see `tasks/31-aws-eventstream.done.md`). Done and pushed: codec + CRCs + event signing (vectors from
+aws-sdk-go-v2, Distilled, @smithy/signature-v4), `protocol.stream` for output and
+bidirectional operations, generator `op.stream` (21 AWS services + s3 regenerated), replay
+spec vs Distilled, edge-path spec, HTTP spec against `dl serve` on all three runtimes.
+
+### For task 29 (streaming core): the transport code, ready to adopt
+
+All in new files task 29 can take over without conflicts. The `stream` entry point keeps
+the reader contract in `tasks/29-streaming-core.md` exactly (`read_line` / `read_exact` /
+`read_all` / `close`, `nil, nil` at clean EOF, errors as tables, `close` idempotent and
+kills curl); `spec/aws_eventstream_http_spec.lua` checks it against `dl serve`.
+
+- `lua/distilled/transport/curl_duplex.lua`: the shared part. Curl config for a streamed
+  transfer (no write-out, `no-buffer`, http2 for https; duplex: `upload-file = "."`), the
+  head parser, the reader, the duplex `conn`, `with_entries(transport, {stream, duplex})`
+  (adds only the entry points the transport lacks, so task 29's own `transport.stream`
+  wins once it exists).
+- `lua/distilled/transport/popen_curl_duplex.lua`: stock Lua. curl in the background on
+  two FIFOs in a `mktemp -d` 0700 directory (config, body, stderr, pid, status inside);
+  `.streaming(opts)` and `.duplex(opts)`. It uses io.popen/os.execute like popen_curl
+  (AGENTS.md names only popen_curl: proposed exception, or task 29 folds it into
+  popen_curl.lua).
+- `lua/distilled/transport/exec_curl_duplex.lua`: over `exec.start` (Rex's contract,
+  injected): `stdin = true`, stdout callback buffered, drained with `h:wait(0.05)`; the
+  config goes ahead of the body on stdin (`dd count=<config bytes> | curl --config
+  /dev/fd/4`), never in argv.
+- Wiring: `host/popen.lua` and a short block in `host/rex.lua` (owned by task 29: replace it
+  freely, keeping `duplex`) add `transport.stream` and `transport.duplex`.
+- Measured: `-T -` holds back reply data until the next input arrives; `-T .` (non-blocking
+  stdin) is full duplex, on HTTP/1.1 chunked and on HTTP/2. `request.timeout` is not
+  applied to a streamed transfer (no max-time): deadlines are task 29's.
+
+### Proposed contract additions (docs/interfaces.md)
+
+- `transport.duplex(request)` (request.body nil) -> `conn` with `conn:write(bytes)`,
+  `conn:close_input()`, `conn:response()` -> `{ status, headers, body = reader }`,
+  `conn:close()`.
+- A `read_exact` error for a body that ends mid-read carries `eof = true, partial = bytes`
+  (task 30 proposes the same).
+- `protocol.stream(ctx, op, input)` -> parts `{ status, headers, output, next, close,
+  send?, close_input? }` | nil, err (task 30's shape, plus `output`, `send` and
+  `close_input`). The client's `<op>_stream` method (task 29) should wrap these parts in
+  the Stream object and pass `stream.output`, `stream:send`, `stream:close_input` through.

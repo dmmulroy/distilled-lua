@@ -6058,7 +6058,7 @@ shapes.Progress = {
 shapes.ProgressEvent = {
   t = "struct",
   name = "ProgressEvent",
-  members = { { name = "Details", schema = S.ref("Progress"), event = true } },
+  members = { { name = "Details", schema = S.ref("Progress"), event = "payload" } },
 }
 shapes.Protocol = { t = "enum", base = "string", values = { "http", "https" } }
 shapes.PublicAccessBlockConfiguration = {
@@ -7783,7 +7783,7 @@ shapes.RecordExpirationDays = { t = "number" }
 shapes.RecordsEvent = {
   t = "struct",
   name = "RecordsEvent",
-  members = { { name = "Payload", schema = S.ref("Body"), event = true } },
+  members = { { name = "Payload", schema = S.ref("Body"), event = "payload" } },
 }
 shapes.Redirect = {
   t = "struct",
@@ -8372,7 +8372,7 @@ shapes.Stats = {
 shapes.StatsEvent = {
   t = "struct",
   name = "StatsEvent",
-  members = { { name = "Details", schema = S.ref("Stats"), event = true } },
+  members = { { name = "Details", schema = S.ref("Stats"), event = "payload" } },
 }
 shapes.StorageClass = {
   t = "enum",
@@ -11253,7 +11253,11 @@ ops.select_object_content = {
   output = S.ref("SelectObjectContentOutput"),
   errors = { "RequestLimitExceeded", "SlowDown", "PermanentRedirect", "InvalidAccessKeyId" },
   span = "SelectObjectContent",
-  unsupported = "event streams",
+  stream = {
+    item = S.ref("SelectObjectContentEventStream"),
+    framing = "aws_eventstream",
+    member = "Payload",
+  },
 }
 ops.update_bucket_metadata_annotation_table_configuration = {
   name = "UpdateBucketMetadataAnnotationTableConfiguration",

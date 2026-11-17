@@ -116,9 +116,15 @@ for _, name in ipairs(index.services) do
             -- modelled refusal of "x". RequestLimitExceeded on an EC2 operation that
             -- does not declare it is UnknownAwsError, as in Distilled (not in
             -- COMMON_ERRORS).
+            -- event streams (task 31): a bidirectional operation is refused by the plain
+            -- call (SdkError: use its stream), and an output stream given the fake
+            -- success body (not event-stream frames) is a ParseError
+            local stream = op.stream
             local expected = tag == "InvalidInput"
               or tag == "EndpointError"
               or (tag == "UnknownAwsError" and err.code == "RequestLimitExceeded")
+              or (stream and stream.input and tag == "SdkError")
+              or (stream and phase == "success" and tag == "ParseError")
             if expected then
               stats.expected = stats.expected + 1
             elseif phase == "success" then

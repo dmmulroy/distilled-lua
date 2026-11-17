@@ -1524,7 +1524,7 @@ function Client:converse(input) end
 ---Sends messages to the specified Amazon Bedrock model and returns the response in a stream. ConverseStream provides a consistent API that works with all Amazon Bedrock models that support messages. This allows you to write code once and use it with different models. Should a model have unique inference parameters, you can also pass those unique parameters to the model.
 ---
 ---`POST /model/{modelId}/converse-stream`
----Errors: AccessDeniedException, InternalServerException, ModelErrorException, ModelNotReadyException, ModelTimeoutException, ResourceNotFoundException, ServiceUnavailableException, ThrottlingException, ValidationException.
+---Errors: AccessDeniedException, InternalServerException, ModelErrorException, ModelNotReadyException, ModelTimeoutException, ResourceNotFoundException, ServiceUnavailableException, ThrottlingException, ValidationException, ModelStreamErrorException.
 ---@param input aws.bedrock_runtime.ConverseStreamRequest
 ---@return aws.bedrock_runtime.ConverseStreamResponse? value
 ---@return distilled.Error? err

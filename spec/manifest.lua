@@ -3,6 +3,10 @@
 return {
   "aws_client_spec.lua",
   "aws_credentials_spec.lua",
+  "aws_eventstream_conform_spec.lua",
+  "aws_eventstream_http_spec.lua",
+  "aws_eventstream_spec.lua",
+  "aws_eventstream_stream_spec.lua",
   "aws_protocol_spec.lua",
   "aws_runtime_spec.lua",
   "azure_conform_spec.lua",

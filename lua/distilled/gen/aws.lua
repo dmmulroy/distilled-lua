@@ -186,17 +186,59 @@ function aws.paginated(ctx, op, pg)
   return out
 end
 
---- aws.event_stream(ctx, op) -> "event streams" when the input or output holds an
--- event stream (a @streaming union), else nil
+-- the streaming union member of a structure: member, union id | nil
+local function stream_member(m, id)
+  local def = m.shapes[id]
+  for _, mem in ipairs(def and m:members(def) or {}) do
+    local t = m.shapes[mem.target]
+    if t and t.type == "union" and t.traits and t.traits["smithy.api#streaming"] ~= nil then
+      return mem, mem.target
+    end
+  end
+  return nil
+end
+
+--- aws.event_stream(ctx, op) -> nil: sets op.stream for an operation whose output or
+-- input holds an event stream (a @streaming union), as the client's `_stream` method
+-- reads it (docs/interfaces.md, the stream section):
+--   op.stream = { framing = "aws_eventstream", member = <output member>, item = S.ref(union),
+--                 input = { member = <input member>, item = S.ref(union) } | nil }
+-- Every operation with an input event stream has an output one too (the 10 AWS has).
+-- The error shapes of the output union become the operation's errors, so their classes
+-- are generated: an exception event ends the stream with that class (the AWS SDKs throw
+-- it; Distilled yields it as a union member).
 function aws.event_stream(ctx, op)
   local m = ctx.model
-  for _, id in ipairs({ op.input, op.output }) do
-    local def = m.shapes[id]
-    for _, mem in ipairs(def and m:members(def) or {}) do
-      local t = m.shapes[mem.target]
-      if t and t.type == "union" and t.traits and t.traits["smithy.api#streaming"] ~= nil then
-        return "event streams"
-      end
+  local out_mem, out_union = stream_member(m, op.output)
+  local in_mem, in_union = stream_member(m, op.input)
+  if not out_mem and not in_mem then
+    return nil
+  end
+  if not out_mem then
+    return "event streams with no output event stream"
+  end
+  local stream = {
+    framing = "aws_eventstream",
+    member = out_mem.name,
+    item = emit.call("S.ref", naming.local_name(out_union)),
+  }
+  if in_mem then
+    stream.input = {
+      member = in_mem.name,
+      item = emit.call("S.ref", naming.local_name(in_union)),
+    }
+  end
+  op.stream = stream
+  local seen = {}
+  for _, e in ipairs(op.errors) do
+    seen[e] = true
+  end
+  local union = m.shapes[out_union]
+  for _, mem in ipairs(m:members(union)) do
+    local t = m.shapes[mem.target]
+    if t and t.traits and t.traits["smithy.api#error"] ~= nil and not seen[mem.target] then
+      seen[mem.target] = true
+      op.errors[#op.errors + 1] = mem.target
     end
   end
   return nil
@@ -331,8 +373,11 @@ function aws.member(ctx, info, v)
   if traits["smithy.api#hostLabel"] ~= nil then
     v.host_label = true
   end
-  if traits["smithy.api#eventPayload"] ~= nil or traits["smithy.api#eventHeader"] ~= nil then
-    v.event = true
+  -- event stream bindings (distilled.aws.event_stream reads them)
+  if traits["smithy.api#eventPayload"] ~= nil then
+    v.event = "payload"
+  elseif traits["smithy.api#eventHeader"] ~= nil then
+    v.event = "header"
   end
 end
 
@@ -362,6 +407,15 @@ function aws.node(ctx, id, def, node)
     for _, info in ipairs(shapes.members(ctx, def, id)) do
       local v = shapes.member_value(ctx, info)
       v.required = nil
+      if traits["smithy.api#streaming"] ~= nil then
+        -- an event stream's error member: the class an exception event ends the stream with
+        local target = ctx.model.shapes[info.target]
+        local tt = target and target.traits or {}
+        if tt["smithy.api#error"] ~= nil then
+          local tag = tt["aws.codegen#errorTag"]
+          v.error = type(tag) == "string" and tag or naming.local_name(info.target)
+        end
+      end
       members[#members + 1] = v
     end
     node = {
