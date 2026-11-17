@@ -128,7 +128,7 @@ P
             fi
             set -- $res
             line=$(grep -v '^"' "$W/load_${which}_${rt}_$stop.log" | tail -n 1 | cut -c1-200)
-            [ "$3" = 0 ] || line="FAIL $(grep -v 'traceback\|\[C\]\|in main chunk\|in function' "$W/load_${which}_${rt}_$stop.log" | tr '\n' ' ' | sed 's/[[:space:]][[:space:]]*/ /g' | cut -c1-200)"
+            [ "$3" = 0 ] || line="FAIL $(cat "$W/load_${which}_${rt}_$stop.log" "$W/load_${which}_${rt}_$stop.log.time" | grep -i 'error\|constants\|refused' | head -n 2 | tr '\n' ' ' | sed 's/[[:space:]][[:space:]]*/ /g' | cut -c1-200)"
             echo "$which load $rt $stop: process $1 s, $(mb "$2") MB rss | $line"
           done
         done
