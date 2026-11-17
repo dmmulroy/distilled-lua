@@ -1571,6 +1571,92 @@ clients/coinbase 178/178, clients/polymarket 223/223 (7 models), both `verify/dl
   boundaries, weak for Coinbase's JWT nonce. A host field for random bytes (Rex:
   `/dev/urandom` via `rex.exec`) would make nonces unpredictable.
 
+## 29 streaming-core
+
+**Done** (branch `task-29`). Done file: `tasks/29-streaming-core.done.md`.
+
+### Canonical pieces (read this if you touch streams)
+
+- **Transports: task 31's code is canonical; there is no second transport.**
+  `popen_curl(opts)` and `exec_curl(exec, opts)` now return callable tables with `stream`
+  and `duplex`. Those entry points come from `transport/popen_curl_duplex.lua` (FIFOs)
+  and `transport/exec_curl_duplex.lua` (`exec.start`, or `opts.start`). The curl config
+  is `transport/curl_duplex.lua`. `host/popen.lua` and `host/rex.lua` simply use them
+  (rex passes `rex.exec.start` as `opts.start`).
+  - `curl_duplex.with_entries` stays, but nothing calls it now.
+  - `popen_curl_duplex.lua` uses io.popen/os.execute. Proposed: AGENTS.md should name it
+    next to `popen_curl.lua` as allowed to shell out.
+- **Stream object: `distilled.stream`** (`new(parts, hooks)`). `connect.as_stream` now
+  returns one. **Client: `client:<op>_stream(input [, opts])`** for every op with
+  `op.stream`, through `operation.stream`. The protocols keep task 30's
+  `protocol.stream(ctx, op, input) -> parts`.
+- **Contract additions** (written into docs/interfaces.md, section "Streams"):
+  - `read_exact` errors carry `eof`/`partial`;
+  - `request.max_time` / `request.idle_timeout`;
+  - `request.timeout` means connect-timeout for streams;
+  - `op.stream.set_input`;
+  - `transport.duplex`;
+  - the parts fields `output`, `send` and `close_input`.
+- **`stream:next()` after an error returns `nil, nil`.** The error is reported once and
+  stays in `stream.err`. Task 31's spec expected this. `iter()` yields `false, err` once
+  for an error, so the loop body sees it.
+
+### Measured facts (requirement 1)
+
+- **popen.** With curl in the background writing to a FIFO and Lua reading it with
+  `io.open`, `f:read(n)` and `f:read("*L")` return as soon as the bytes arrive, on lua
+  5.5 and luajit. The proof is `stream_http_spec`: the first item is in hand while
+  `dl serve`'s log shows one chunk sent, and the next chunk follows 1.5 s later.
+  - I use `"*L"` (keep the newline), not `"*l"`. That way a last line cut by a dropped
+    connection is seen as cut, and becomes a TransportError instead of a half line.
+- **Rex.** `rex.exec.start` stdout pieces arrive while the script sits in
+  `h:wait(0.05)`. The same spec passes under `rex do` for NDJSON, SSE and gRPC-Web.
+  - This works inside `compat.pcall`'s coroutine, which is where the client opens
+    streams.
+- **Secrets.** They stay out of argv. The config travels in a 0600 file inside a 0700
+  directory (popen), or on stdin ahead of the body (Rex), as task 31 built it.
+
+### Decisions
+
+- **Retry only before the first item.**
+  - An attempt opens the transfer and reads the first item. Open failures (status or
+    transport) and a `TransportError` before any item are retried.
+  - An in-band error (an AWS error event, a bad frame) is the stream's first result and
+    is not retried.
+  - Duplex streams are not peeked.
+  - So `<op>_stream` returns once the first item has arrived.
+- **Stream deadlines.** `deadline_s` bounds only the opening (and its retries). The
+  transfer takes the `_stream` options `{ timeout, idle_timeout }`, which the operation
+  adds to the request through a wrapped `host.transport.stream`, so no protocol had to
+  change. curl turns them into `max-time` and `speed-limit 1` / `speed-time`.
+- **REST.** `protocol.stream` sends `accept: <framing type>, application/json`, where
+  Distilled sends no accept.
+- **New provider-spec key `stream_framing = "ndjson" | "sse"`** for REST.
+  - It makes `streamWhen` and `serverStreaming` ops emit `op.stream`. The frame shape is
+    a reachability root.
+  - Boat uses it; its `allow_unsupported = { "streaming" }` is gone.
+- **`op.stream_item_target`** (a plan field) gives `types.lua` the item type
+  (`distilled.Stream<T>`). gRPC and AWS set it too.
+- **Regenerated:** `clients/boat_dev`, `clients/boxd`, `clients/modal`, `clients/aws`,
+  `clients/s3`. Only types/README changed, plus Boat's ops and the CommandStreamFrame
+  shapes.
+- **Edits outside my list, all small:**
+  - `gen/proto.lua` and `gen/aws.lua`: one line each (`stream_item_target`);
+  - `protocol/connect.lua`: `as_stream`;
+  - `verify/lib/serve.lua`: `s.streams()`;
+  - `gen/init.lua`: the reachability root;
+  - `gen/provider.lua`: the new key.
+
+### Open / proposed
+
+- **Trailers of a streamed reply are not exposed** (no `reader:trailers()`). curl writes
+  them to the header dump after the body, on the same stream.
+  - A fix would point `dump-header` at its own fd or FIFO.
+  - Until then, a binary gRPC (HTTP/2) stream with no grpc-status reads as OK (fetch
+    behaves the same).
+- **`verify/features/README.md`:** add a row "Streaming responses |
+  [streaming.md](streaming.md) | task 29".
+
 ## 30 grpc-streams
 
 **Status: done except the dl serve proof (blocked on task 29)** (branch `task-30`). Done file: `tasks/30-grpc-streams.done.md`.
