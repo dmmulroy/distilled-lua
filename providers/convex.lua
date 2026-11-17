@@ -6,10 +6,11 @@
 -- - protocol.ts: bearer auth.
 -- - errors.ts: UnknownConvexError, ConvexParseError.
 --
--- The deployment and functions models need task 10's per-model override, once it
--- covers auth and options: Authorization "Convex <deploy key>" and base URL
--- <deploymentUrl>/api/v1 (deployment), no auth and <deploymentUrl>/api (functions);
--- deploymentUrl has no environment variable and is trimmed of trailing slashes.
+-- - protocol.ts ConvexDeploymentProtocol (model deployment): Authorization
+--   "Convex <token>" (the same token, CONVEX_ACCESS_TOKEN), base URL
+--   <deploymentUrl>/api/v1; ConvexFunctionsProtocol (model functions): no auth, base URL
+--   <deploymentUrl>/api. deploymentUrl (fromDeployment's url) has no environment
+--   variable and is trimmed of trailing slashes; without it the call is a ConfigError.
 return {
   name = "convex",
   title = "Convex",
@@ -19,6 +20,36 @@ return {
     env = "CONVEX_API_BASE_URL",
   },
   auth = { kind = "bearer", from = "access_token", env = "CONVEX_ACCESS_TOKEN" },
+  models = {
+    override = {
+      deployment = {
+        base_url = { default = "{deployment_url}/api/v1", env = false },
+        auth = {
+          kind = "header",
+          header = "authorization",
+          prefix = "Convex ",
+          from = "access_token",
+          env = "CONVEX_ACCESS_TOKEN",
+        },
+        options = {
+          deployment_url = {
+            trim_slash = true,
+            doc = "the deployment, e.g. https://x.convex.cloud",
+          },
+        },
+      },
+      functions = {
+        base_url = { default = "{deployment_url}/api", env = false },
+        auth = false,
+        options = {
+          deployment_url = {
+            trim_slash = true,
+            doc = "the deployment, e.g. https://x.convex.cloud",
+          },
+        },
+      },
+    },
+  },
   unknown_tag = "UnknownConvexError",
   parse_tag = "ConvexParseError",
 }

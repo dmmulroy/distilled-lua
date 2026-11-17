@@ -6,9 +6,10 @@
 -- - protocol.ts: an x-api-key header; failures are { tag, error | message }.
 -- - errors.ts: UnknownExaError, ExaParseError.
 --
--- The team_management model needs task 10's per-model override, once it covers auth
--- and options: x-api-key from service_api_key (EXA_SERVICE_API_KEY) or api_key, base URL
--- https://admin-api.exa.ai/team-management (no environment variable).
+-- - protocol.ts ExaTeamManagementProtocol (model team_management): x-api-key is
+--   service_api_key (EXA_SERVICE_API_KEY) when set, else api_key (EXA_API_KEY); the base
+--   URL is teamManagementBaseUrl, default https://admin-api.exa.ai/team-management (no
+--   environment variable).
 return {
   name = "exa",
   title = "Exa",
@@ -17,6 +18,20 @@ return {
   -- ListWebsets' item iterator (list_websets_items) would collide with ListWebsetsItems
   naming = { operations = { ListWebsetsItems = "list_webset_items" } },
   error_envelope = { code = "/tag", message = { "/error", "/message" } },
+  models = {
+    override = {
+      team_management = {
+        base_url = { default = "https://admin-api.exa.ai/team-management", env = false },
+        auth = false,
+        options = {
+          api_key = { secret = true, env = "EXA_API_KEY" },
+          service_api_key = { secret = true, env = "EXA_SERVICE_API_KEY" },
+        },
+        require_one_of = { "service_api_key", "api_key" },
+        headers = { ["x-api-key"] = { "{service_api_key}", "{api_key}" } },
+      },
+    },
+  },
   unknown_tag = "UnknownExaError",
   parse_tag = "ExaParseError",
 }

@@ -29,7 +29,8 @@
 --       words = { "OAuth" },                  -- extra mixed-case words for snake_case
 --       operations = { GetThing = "fetch_thing" },   -- per-operation method names
 --     },
---     pagination = { items_fallback = "items" },     -- items path when the trait has none
+--     pagination = { items_fallback = "items" },     -- items path when the trait has none;
+--                                                    -- modes = { page = "total_count" }
 --     allow_unsupported = { "streaming" },   -- emit operations the runtime refuses at
 --                                            -- call time (SdkError) instead of failing
 --                                            -- (provider.UNSUPPORTED)
@@ -41,7 +42,12 @@
 --           title = "HetznerServers",        -- class name (default: title .. PascalCase)
 --           base_url = "https://other.test", -- a URL (replaces the default only) or a
 --         },                                 -- partial { default, option, env }
---       },
+--         platform = {                       -- a model with its own auth (task 27):
+--           auth = { kind = "bearer", from = "api_key", env = "OTHER_KEY" },
+--           options = false,                 -- false: the model has none of the package's
+--           headers = { ["X-V"] = "2" },     -- replaces the package's headers
+--         },
+--       },                                   -- (provider.MODEL_SPEC_KEYS lists the keys)
 --     },
 --   }
 --
@@ -139,7 +145,10 @@ local TOP = {
   pagination = true,
   allow_unsupported = true,
   models = true,
+  -- Google discovery models (gcp, google-workspace): gen/discovery.lua (task 21)
+  discovery = true,
   rpc = true, -- RPC models without http traits (gen/rpc.lua, task 22)
+  proto = true, -- proto-sourced providers: gRPC, gRPC-Web, Connect (gen/proto.lua, task 23)
 }
 for k in pairs(ext.TOP) do
   TOP[k] = true
@@ -154,6 +163,94 @@ provider.UNSUPPORTED = {
   -- a streamWhen one is emitted as its plain (non-streaming) call.
   streaming = "streaming operations (no streaming in the runtime yet)",
 }
+
+-- Spec keys a models.override entry may carry besides title and base_url (task 27): the
+-- parts of a package's TS glue that differ per model (Distilled writes one
+-- credentials/protocol pair per model: ClerkPlatformProtocol, ConvexDeploymentProtocol,
+-- FunctionsProtocol, ...). Each replaces the package's key of that name for the model;
+-- `false` removes it. The merged spec is validated whole, like a package spec.
+provider.MODEL_SPEC_KEYS = {
+  auth = true,
+  options = true,
+  headers = true,
+  require_one_of = true,
+  public_operations = true,
+  oauth = true,
+  user_agent = true,
+  error_envelope = true,
+  unknown_fields = true,
+  transform_response = true,
+  empty_json_body = true,
+  glue = true,
+}
+
+-- the keys of a base_url table that only the extended form (provider_ext) knows
+local BASE_EXT_KEYS = { trim_slash = true, ensure_suffix = true, origin = true }
+
+-- Does this override need the whole spec re-validated (task 27), or is it the classic
+-- title/base_url change (task 10)? Classic overrides keep generating exactly as before.
+local function full_override(o)
+  for k in pairs(provider.MODEL_SPEC_KEYS) do
+    if o[k] ~= nil then
+      return true
+    end
+  end
+  local b = o.base_url
+  if type(b) == "table" then
+    for k, v in pairs(b) do
+      if v == false or BASE_EXT_KEYS[k] or type(v) == "table" then
+        return true
+      end
+    end
+    if
+      type(b.env) == "table"
+      or (b.default ~= nil and string.find(tostring(b.default), "{", 1, true))
+    then
+      return true
+    end
+  elseif type(b) == "string" and string.find(b, "{", 1, true) then
+    return true
+  end
+  return false
+end
+
+-- The raw spec of one model: the package's raw spec with the override's keys replacing
+-- the package's (false removes one). base_url merges field by field over the package's
+-- (a string is the default), so an override names only what differs.
+local function merged_raw(raw, o)
+  local m = {}
+  for k, v in pairs(raw) do
+    m[k] = v
+  end
+  m.models = nil
+  for k in pairs(provider.MODEL_SPEC_KEYS) do
+    if o[k] == false then
+      m[k] = nil
+    elseif o[k] ~= nil then
+      m[k] = o[k]
+    end
+  end
+  if o.base_url ~= nil then
+    local base = {}
+    if type(raw.base_url) == "table" then
+      for k, v in pairs(raw.base_url) do
+        base[k] = v
+      end
+    elseif raw.base_url ~= nil then
+      base.default = raw.base_url
+    end
+    local ob = type(o.base_url) == "table" and o.base_url or { default = o.base_url }
+    for k, v in pairs(ob) do
+      if v == false then
+        base[k] = nil
+      else
+        base[k] = v
+      end
+    end
+    m.base_url = base
+  end
+  return m
+end
 
 -- Gaps that were closed: listing one is a stale provider spec, reported as such.
 provider.CLOSED_GAPS = {
@@ -216,11 +313,13 @@ function provider.for_model(spec, model_name)
   if not provider.is_model_name(model_name) then
     error("distilled.gen.provider.for_model: bad model name " .. tostring(model_name), 2)
   end
+  local ov = spec.models.override[model_name] or {}
   local out = {}
-  for k, v in pairs(spec) do
+  -- a task-27 override: the model's own validated spec (auth, options, headers, ...)
+  for k, v in pairs(ov.spec or spec) do
     out[k] = v
   end
-  local ov = spec.models.override[model_name] or {}
+  out.models = spec.models
   local pascal = string.gsub(model_name, "_?(%w)(%w*)", function(first, rest)
     return string.upper(first) .. rest
   end)
@@ -228,6 +327,9 @@ function provider.for_model(spec, model_name)
   out.model_name = model_name
   out.name = spec.name .. "." .. model_name
   out.title = ov.title or (string.gsub(spec.title, "[^%w_]", "") .. pascal)
+  if ov.spec then
+    return out
+  end
   out.base_url = ov.base_url or spec.base_url
   if out.runtime and ov.base_url then
     ext.override_base_url(out)
@@ -263,7 +365,11 @@ function provider.validate(spec, opts)
       and (string.upper(string.sub(spec.name, 1, 1)) .. string.sub(spec.name, 2))
     )
 
-  -- base_url (an rpc model's protocol finds its hosts itself: no base URL needed)
+  -- base_url (a discovery model has its own: gen/discovery.lua replaces this placeholder;
+  -- an rpc model's protocol finds its hosts itself: no base URL needed)
+  if spec.discovery ~= nil and spec.base_url == nil then
+    spec.base_url = "https://discovery.googleapis.invalid"
+  end
   local base = {}
   if spec.rpc == nil or spec.base_url ~= nil then
     base = normalize_base_url("provider spec base_url", spec.base_url, p)
@@ -396,11 +502,35 @@ function provider.validate(spec, opts)
     p[#p + 1] = "provider spec: pagination must be a table"
     pg = {}
   end
-  check_keys("provider spec pagination", pg, { items_fallback = true }, p)
+  check_keys("provider spec pagination", pg, { items_fallback = true, modes = true }, p)
   if pg.items_fallback ~= nil and type(pg.items_fallback) ~= "string" then
     p[#p + 1] = "provider spec pagination.items_fallback must be a string"
   end
   out.pagination = { items_fallback = pg.items_fallback or "items" }
+  -- pagination.modes = { page = "total_count" }: the runtime strategy for a trait mode
+  -- (Distilled's paginationProfiles; task 27). Keys are smithy.api#paginated modes,
+  -- values distilled.paginate modes.
+  if pg.modes ~= nil then
+    local runtime_modes = require("distilled.paginate").MODES
+    if type(pg.modes) ~= "table" then
+      p[#p + 1] = "provider spec pagination.modes must be { [trait mode] = runtime mode }"
+    else
+      out.pagination.modes = {}
+      for k, v in pairs(pg.modes) do
+        if type(k) ~= "string" or not runtime_modes[k] or k == "total_count" then
+          p[#p + 1] = "provider spec pagination.modes: " .. tostring(k) .. " is not a trait mode"
+        elseif type(v) ~= "string" or not runtime_modes[v] then
+          p[#p + 1] = "provider spec pagination.modes."
+            .. k
+            .. ": "
+            .. tostring(v)
+            .. " is not a distilled.paginate mode"
+        else
+          out.pagination.modes[k] = v
+        end
+      end
+    end
+  end
 
   -- models: multi-model packages (one spec, one module per model)
   out.models = { skip = {}, override = {} }
@@ -457,7 +587,11 @@ function provider.validate(spec, opts)
           elseif type(o) ~= "table" then
             p[#p + 1] = where .. " must be a table"
           else
-            check_keys(where, o, { base_url = true, title = true }, p)
+            local allowed = { base_url = true, title = true }
+            for key in pairs(provider.MODEL_SPEC_KEYS) do
+              allowed[key] = true
+            end
+            check_keys(where, o, allowed, p)
             local ov = {}
             if o.title ~= nil then
               if type(o.title) ~= "string" or not naming.is_identifier(o.title) then
@@ -465,7 +599,18 @@ function provider.validate(spec, opts)
               end
               ov.title = o.title
             end
-            if o.base_url ~= nil then
+            if full_override(o) then
+              -- the model's own spec: the package's raw spec with the override applied,
+              -- validated whole (its runtime data, options and docs are its own)
+              local mspec, merr = provider.validate(merged_raw(raw, o), opts)
+              if not mspec then
+                for line in string.gmatch(merr, "[^\n]+") do
+                  p[#p + 1] = where .. ": " .. line
+                end
+              else
+                ov.spec = mspec
+              end
+            elseif o.base_url ~= nil then
               local b = normalize_base_url(where .. ".base_url", o.base_url, p, true)
               ov.base_url = {
                 default = b.default or out.base_url.default,
@@ -509,7 +654,21 @@ function provider.validate(spec, opts)
     end
   end
 
+  if spec.discovery ~= nil then
+    require("distilled.gen.discovery").check_spec(spec.discovery, p)
+    out.discovery = spec.discovery
+  end
+
   ext.validate(raw, out, p, opts)
+
+  -- proto-sourced providers (gRPC, gRPC-Web, Connect): validated by gen/proto.lua
+  if spec.proto ~= nil then
+    local r, rp = require("distilled.gen.proto").validate(spec.proto, out)
+    for _, problem in ipairs(rp or {}) do
+      p[#p + 1] = problem
+    end
+    out.proto = r
+  end
 
   if #p > 0 then
     return nil, compat.concat(p, "\n")

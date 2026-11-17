@@ -90,6 +90,7 @@ local NAMES = {
   "axiom",
   "azure", -- task 20 (protocol distilled.protocol.azure)
   "boat_dev",
+  "boxd",
   "celld",
   "chronosphere",
   "clerk",
@@ -111,7 +112,9 @@ local NAMES = {
   "exa",
   "fly_io",
   "forgejo",
+  "gcp", -- task 21 (discovery spec)
   "github",
+  "google_workspace", -- task 21 (discovery spec)
   "grafana",
   "growthbook",
   "gusto",
@@ -129,6 +132,7 @@ local NAMES = {
   "meilisearch",
   "mercury",
   "metabase",
+  "modal",
   "modrinth",
   "mongodb_atlas",
   "namespacelabs",
@@ -149,6 +153,7 @@ local NAMES = {
   "posthog",
   "prisma",
   "proxmox",
+  "questrade",
   "redis_cloud",
   "remote",
   "render",
@@ -157,7 +162,9 @@ local NAMES = {
   "rivet",
   "s2",
   "s3",
+  "scaleway",
   "sentry",
+  "slack",
   "spacetimedb",
   "squarespace",
   "stackit",

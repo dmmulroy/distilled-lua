@@ -277,7 +277,7 @@ function types.render(plan)
         "---@field "
           .. d.name
           .. "? "
-          .. (d.secret and SECRET or "string")
+          .. (d.secret and SECRET or (d.table and "table" or "string"))
           .. (#note > 0 and (" " .. compat.concat(note, "; ")) or "")
       )
     end

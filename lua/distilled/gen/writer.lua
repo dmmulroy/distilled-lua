@@ -759,8 +759,13 @@ function writer.client(plan)
     b:line("local protocol = require(" .. emit.string(spec.protocol) .. ")(service, {")
     b:line("  unknown_tag = " .. emit.string(spec.unknown_tag) .. ",")
     b:line("  parse_tag = " .. emit.string(spec.parse_tag) .. ",")
-    b:line("  base_url_option = " .. emit.string(spec.base_url.option) .. ",")
-    if spec.runtime then
+    if spec.discovery then
+      -- a Google discovery model: the service's own base URL (gen/discovery.lua, task 21)
+      b:line("  base_url = " .. emit.string(spec.base_url.default) .. ",")
+    else
+      b:line("  base_url_option = " .. emit.string(spec.base_url.option) .. ",")
+    end
+    if spec.runtime and require("distilled.gen.azure").applies(spec) then
       -- the provider-spec data of a task-13 spec (options, env, defaults, auth), as
       -- rest.new's `provider` (Azure's protocol builds on rest.compile_provider)
       b:lines_of(emit.value(spec.runtime, "  ", "provider = ", ","))
@@ -846,7 +851,8 @@ function writer.option_rows(spec)
   local rows = {}
   for _, d in ipairs(spec.option_docs or {}) do
     local parts = {}
-    local what = d.base_url and "base URL" or (d.secret and "secret" or "text")
+    local what = d.base_url and "base URL"
+      or (d.secret and "secret" or (d.table and "table" or "text"))
     parts[#parts + 1] = (d.required and "required " or "") .. what
     if d.secret then
       parts[#parts] = parts[#parts] .. ": a string, a secret, or `fn(host) -> value, err`"

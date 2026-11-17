@@ -756,7 +756,7 @@ pkg_of() {
 spec_packages() {
   for d in "$PACKAGES"/*/; do
     p=$(basename "$d")
-    if ls "$d.generated-specs" 2>/dev/null | grep -q '\.json$' || [ -f "$d.generated-graphql/$p.json" ]; then
+    if ls "$d.generated-specs" 2>/dev/null | grep -q '\.json$' || ls "$d.generated-specs/stable" 2>/dev/null | grep -q '\.json$' || [ -f "$d.generated-graphql/$p.json" ]; then
       printf '%s\n' "$p"
     fi
   done
@@ -783,6 +783,37 @@ sync_graphql() {
     cp "$g_src" "$g_dst.tmp" && mv "$g_dst.tmp" "$g_dst"
     printf 'changed'
   fi
+}
+
+# sync_json_dir SRC DST: mirror SRC/*.json into DST/ (stale DST/*.json removed; DST's
+# subdirectories are left alone); prints "<models> <new> <changed> <removed>" (task 21)
+sync_json_dir() {
+  sj_new=0
+  sj_changed=0
+  sj_same=0
+  sj_removed=0
+  mkdir -p "$2"
+  for f in "$2"/*.json; do
+    [ -f "$f" ] || continue
+    if [ ! -f "$1/$(basename "$f")" ]; then
+      rm -f "$f"
+      sj_removed=$((sj_removed + 1))
+    fi
+  done
+  for f in "$1"/*.json; do
+    [ -f "$f" ] || continue
+    b=$(basename "$f")
+    if [ ! -f "$2/$b" ]; then
+      sj_new=$((sj_new + 1))
+    elif cmp -s "$f" "$2/$b"; then
+      sj_same=$((sj_same + 1))
+      continue
+    else
+      sj_changed=$((sj_changed + 1))
+    fi
+    cp "$f" "$2/$b.tmp" && mv "$2/$b.tmp" "$2/$b"
+  done
+  printf '%s %s %s %s\n' $((sj_new + sj_changed + sj_same)) "$sj_new" "$sj_changed" "$sj_removed"
 }
 
 NODE_CONVERT="node --conditions=bun --experimental-transform-types --no-warnings"
@@ -830,6 +861,17 @@ cmd_models() {
       fi
     fi
     gq=$(sync_graphql "$pkg")
+    if [ -d "$src/stable" ] && ! ls "$src" | grep -q '\.json$'; then
+      # gcp, google-workspace (task 21): .generated-specs/stable/ (Distilled's preferred
+      # versions, @distilled.cloud/gcp/<service>) -> models/<pkg>/, and unstable/
+      # (@distilled.cloud/gcp/unstable/<service>) -> models/<pkg>/unstable/
+      st=$(sync_json_dir "$src/stable" "$ROOT/models/$pkg")
+      un=$(sync_json_dir "$src/unstable" "$ROOT/models/$pkg/unstable")
+      set -- $st $un
+      total=$((total + $1 + $5))
+      say "ok   $pkg: $1 stable models ($2 new, $3 changed, $4 removed), $5 unstable models ($6 new, $7 changed, $8 removed)"
+      continue
+    fi
     if [ ! -d "$src" ] || ! ls "$src" | grep -q '\.json$'; then
       if [ "$gq" != none ] && [ "$gq" != removed ]; then
         say "ok   $pkg: a GraphQL model only (graphql $gq)"
@@ -865,6 +907,14 @@ cmd_models() {
       fi
       cp "$f" "$dst/$b.tmp" && mv "$dst/$b.tmp" "$dst/$b"
     done
+    # gRPC packages (task 23): the descriptors Distilled's convert writes next to the
+    # services (src/descriptors.ts); the generator reads them from models/<pkg>/
+    if [ -f "$PACKAGES/$pkg/src/descriptors.ts" ]; then
+      cmp -s "$PACKAGES/$pkg/src/descriptors.ts" "$dst/descriptors.ts" ||
+        cp "$PACKAGES/$pkg/src/descriptors.ts" "$dst/descriptors.ts"
+    else
+      rm -f "$dst/descriptors.ts"
+    fi
     n=$((new + changed + same))
     total=$((total + n))
     if [ "$gq" = none ]; then gq_note=""; else gq_note="; graphql $gq"; fi
@@ -946,6 +996,26 @@ cmd_gen_diff() {
       case $rt in
         lua | luajit) res=$("$rt" "$LIB/gen_check.lua" "$ROOT" "$check_dir" "$lua" 2>&1) ;;
         rex) res=$(rex do "$LIB/gen_check.lua" "root=$ROOT" "dir=$check_dir" "provider=$lua" 2>&1) ;;
+      esac
+      code=$?
+      printf '%s\n' "$res" | grep -v '^"'
+      [ "$code" -eq 0 ] || status=1
+    fi
+    # unstable/ (task 21): the package's second index, <lua>.unstable
+    if [ -f "$check_dir/$lua/unstable/init.lua" ]; then
+      case $rt in
+        lua | luajit) res=$("$rt" "$LIB/gen_check.lua" "$ROOT" "$check_dir" "$lua.unstable" 2>&1) ;;
+        rex) res=$(rex do "$LIB/gen_check.lua" "root=$ROOT" "dir=$check_dir" "provider=$lua.unstable" 2>&1) ;;
+      esac
+      code=$?
+      printf '%s\n' "$res" | grep -v '^"' | grep -v '^note '
+      [ "$code" -eq 0 ] || status=1
+    fi
+    # a package on the GCP protocol (task 21): every op encoded by distilled.gcp.protocol
+    if grep -q 'protocol = "distilled\.gcp\.' "$spec"; then
+      case $rt in
+        lua | luajit) res=$("$rt" "$LIB/gcp_check.lua" "$ROOT" "$check_dir" "$lua" 2>&1) ;;
+        rex) res=$(rex do "$LIB/gcp_check.lua" "root=$ROOT" "dir=$check_dir" "package=$lua" 2>&1) ;;
       esac
       code=$?
       printf '%s\n' "$res" | grep -v '^"'
@@ -1102,7 +1172,9 @@ verify/dl: distilled-lua verification driver
                             Exit 3 (skipped) when Docker is not running.
   dl models sync [pkg ...]  copy ../distilled/packages/<pkg>/.generated-specs/*.json to
                             models/<pkg>/ (all packages when none named; git-ignored
-                            except models/neon/). DL_DISTILLED overrides ../distilled
+                            except models/neon/). DL_DISTILLED overrides ../distilled.
+                            stable/ + unstable/ (gcp, google-workspace): models/<pkg>/
+                            and models/<pkg>/unstable/
       --convert             first re-run the package's scripts/convert.ts (Node)
   dl gen-all [pkg ...]      regenerate every package with models/<pkg>/ and
                             providers/<lua>.lua into clients/<lua>/, in parallel (luajit;
