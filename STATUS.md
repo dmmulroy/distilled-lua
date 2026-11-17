@@ -1573,7 +1573,7 @@ clients/coinbase 178/178, clients/polymarket 223/223 (7 models), both `verify/dl
 
 ## 31 aws-eventstream
 
-In progress (branch `task-31`). Done and pushed: codec + CRCs + event signing (vectors from
+Done (branch `task-31`; see `tasks/31-aws-eventstream.done.md`). Done and pushed: codec + CRCs + event signing (vectors from
 aws-sdk-go-v2, Distilled, @smithy/signature-v4), `protocol.stream` for output and
 bidirectional operations, generator `op.stream` (21 AWS services + s3 regenerated), replay
 spec vs Distilled, edge-path spec, HTTP spec against `dl serve` on all three runtimes.
