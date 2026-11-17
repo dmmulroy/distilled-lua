@@ -1,0 +1,1 @@
+{"ErrorResponse":{"@_xmlns":"https://sts.amazonaws.com/doc/2011-06-15/","Error":{"Code":"InvalidClientTokenId","Message":"The security token included in the request is invalid.","Type":"Sender"},"RequestId":"c8c0a1f4-2b6a-4d0e-9a3e-0a1b2c3d4e5f"}}

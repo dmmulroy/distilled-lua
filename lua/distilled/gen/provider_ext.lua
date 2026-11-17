@@ -996,4 +996,23 @@ function ext.validate(raw, out, p, opts)
   out.option_docs = docs
 end
 
+--- ext.override_base_url(spec): a per-model base URL (task 10's models.override) reaches
+-- the runtime data of a task-13 spec: its default and option, and a new option declared
+-- with its environment variable.
+function ext.override_base_url(spec)
+  local rt = copy(spec.runtime)
+  local b = copy(rt.base_url or {})
+  local default = spec.base_url.default
+  b.default = (default ~= nil and default ~= "") and default or nil
+  b.option = spec.base_url.option
+  rt.base_url = b
+  if not rt.options[b.option] then
+    rt.options = copy(rt.options)
+    rt.options[b.option] = { env = spec.base_url.env and { spec.base_url.env } or nil }
+    spec.client_options = copy(spec.client_options)
+    spec.client_options[b.option] = { type = "string" }
+  end
+  spec.runtime = rt
+end
+
 return ext

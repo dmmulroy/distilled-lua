@@ -74,9 +74,10 @@ t.describe("gen.provider: validation", function()
   end)
 
   t.it("checks allow_unsupported against the known gaps", function()
-    bad({ allow_unsupported = { "streaming" } }, "unknown gap streaming")
-    -- the mechanism, with a gap a spec adds for the test (provider.UNSUPPORTED is empty
-    -- since task 08 closed the multipart gap)
+    bad({ allow_unsupported = { "telepathy" } }, "unknown gap telepathy")
+    local spec0 = provider.validate(fx.provider({ allow_unsupported = { "streaming" } }))
+    t.truthy(spec0 and spec0.allow_unsupported.streaming, "streaming is a known gap (task 12)")
+    -- the mechanism, with a gap a spec adds for the test
     provider.UNSUPPORTED.spec_gap = "a gap that exists only in this spec"
     local ok, spec = t.pcall(function()
       return provider.validate(fx.provider({ allow_unsupported = { "spec_gap" } }))

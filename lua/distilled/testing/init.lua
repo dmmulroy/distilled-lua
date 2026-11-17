@@ -116,7 +116,9 @@ local function make_random(seed)
       return r
     end
     if n == nil then
-      m, n = 1, m
+      -- not `m, n = 1, m`: gopher-lua assigns locals sequentially (AGENTS.md)
+      n = m
+      m = 1
     end
     return m + math.floor(r * (n - m + 1))
   end

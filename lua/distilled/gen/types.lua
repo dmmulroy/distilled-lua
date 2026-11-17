@@ -94,7 +94,7 @@ function types.type_of(ctx, prefix, target, request_side)
     return SCALAR_TYPE[kind] or "any"
   end
   local def = ctx.model.shapes[target]
-  local t = prefix .. "." .. naming.local_name(target)
+  local t = prefix .. "." .. naming.type_name(ctx, target)
   if request_side and def and def.type == "enum" then
     return t .. "|string"
   end
@@ -134,6 +134,16 @@ local function member_type(ctx, prefix, info, request_side, multipart_input)
   return t
 end
 
+-- A list item or map value: a sparse list or map (the nullable trait on the element)
+-- holds json.null too.
+local function element_type(ctx, prefix, mem, request_side)
+  local t = types.type_of(ctx, prefix, mem.target, request_side)
+  if mem.traits and mem.traits["com.distilled.openapi#nullable"] ~= nil then
+    t = t .. "|distilled.Null"
+  end
+  return t
+end
+
 local function needs_parens(t)
   return string.find(t, "|", 1, true) ~= nil
 end
@@ -167,7 +177,7 @@ function types.render(plan)
   for _, n in ipairs(plan.nodes) do
     local id = n.id
     local def = ctx.model.shapes[id]
-    local tname = prefix .. "." .. n.name
+    local tname = prefix .. "." .. naming.type_name(ctx, id)
     local request_side = req[id] == true
     local doc = def.traits and def.traits["smithy.api#documentation"]
     b:lines_of(doc_lines(doc))
@@ -189,7 +199,7 @@ function types.render(plan)
         b:line("---@field [string] any")
       end
     elseif def.type == "list" or def.type == "set" then
-      local item = types.type_of(ctx, prefix, def.member.target, request_side)
+      local item = element_type(ctx, prefix, def.member, request_side)
       if needs_parens(item) then
         item = "(" .. item .. ")"
       end
@@ -199,7 +209,7 @@ function types.render(plan)
         "---@alias "
           .. tname
           .. " { [string]: "
-          .. types.type_of(ctx, prefix, def.value.target, request_side)
+          .. element_type(ctx, prefix, def.value, request_side)
           .. " }"
       )
     elseif def.type == "enum" or def.type == "intEnum" then
@@ -308,7 +318,7 @@ function types.render(plan)
   b:blank()
 
   for _, op in ipairs(plan.ops) do
-    local input_t = prefix .. "." .. naming.local_name(op.input)
+    local input_t = prefix .. "." .. naming.type_name(ctx, op.input)
     local has_required = false
     for _, info in ipairs(shapes.members(ctx, ctx.model.shapes[op.input], op.input)) do
       has_required = has_required or info.required
@@ -317,8 +327,11 @@ function types.render(plan)
     local output_t
     if op.out.raw then
       output_t = types.type_of(ctx, prefix, op.out.type_target, false)
+      if op.out.nullable then
+        output_t = output_t .. "|distilled.Null"
+      end
     else
-      output_t = prefix .. "." .. naming.local_name(op.output)
+      output_t = prefix .. "." .. naming.type_name(ctx, op.output)
     end
     local doc = op.def.traits and op.def.traits["smithy.api#documentation"]
     local errs = {}
@@ -342,20 +355,29 @@ function types.render(plan)
       for _, r in ipairs(ret) do
         b:line("---@return " .. r)
       end
-      b:line("function Client:" .. name .. "(input) end")
+      local signature = "function Client:" .. name .. "(input) end"
+      if #signature > emit.WIDTH then
+        -- stylua's layout for a signature past the width (long operation names)
+        b:line("function Client:" .. name .. "(")
+        b:line(emit.INDENT .. "input")
+        b:line(")")
+        b:line("end")
+      else
+        b:line(signature)
+      end
       b:blank()
     end
     local out_ret = needs_parens(output_t) and ("(" .. output_t .. ")?") or (output_t .. "?")
     method(op.method_name, { out_ret .. " value", "distilled.Error? err" })
     if op.pagination then
       method(
-        op.method_name .. "_pages",
+        require("distilled.gen.ops").page_method(op, "pages"),
         { "distilled.Iterator<" .. output_t .. ">" },
         "Every page, fetched as the loop asks for it."
       )
       local item_t = op.item_target and types.type_of(ctx, prefix, op.item_target, false) or "any"
       method(
-        op.method_name .. "_items",
+        require("distilled.gen.ops").page_method(op, "items"),
         { "distilled.Iterator<" .. item_t .. ">" },
         "Every item of every page (`" .. tostring(op.pagination.items) .. "`)."
       )

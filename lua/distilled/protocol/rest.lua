@@ -3,7 +3,9 @@
 -- checkSuccess) on top of the layer-2 algorithms.
 --
 --   local protocol = rest.new{
---     base_url = fn(creds, { uri, method, server }) | "https://...",
+--     base_url = fn(creds, { uri, method, server, base_url }) | "https://...",
+--                -- route.server / route.base_url: the op's own host (op.server, op.base_url);
+--                -- rest.route_base_url(option, opts) is the generated default
 --     headers = fn(creds) -> { authorization = ... },        -- rest.bearer("api_key")
 --     error_envelope = fn(body) -> { code, message } | nil,  -- default: code, message | error
 --     error_fields_at = "/error",       -- where a typed error's declared fields live
@@ -111,6 +113,81 @@ function rest.bearer(option)
       return {}
     end
     return { authorization = "Bearer " .. tostring(secret.unwrap(v)) }
+  end
+end
+
+-- a template value goes into a host name: letters, digits, dot, dash, underscore only
+local function template_value(v)
+  if type(v) == "number" then
+    v = tostring(v)
+  end
+  if type(v) ~= "string" or not string.find(v, "^[%w._%-]*$") then
+    return nil
+  end
+  return v
+end
+
+--- rest.route_base_url(option [, opts]) -> base_url function(creds, route)
+-- The base URL for operations that name their own host (smithy.api#http server and
+-- baseUrl, see gen/ops.lua):
+--   route.server   -> creds[opts.servers[server] or server .. "_base_url"]; unset is a
+--                     ConfigError, never a fallback to the main host (Distilled's
+--                     DigitalOcean baseUrlFor refuses an unknown server the same way)
+--   route.base_url -> creds[option] when it equals opts.default (the base URL option
+--                     still moves the main host: ScalewayProtocol's baseUrlFor rule),
+--                     else the URL with each {name} filled from creds[name] (an unset or
+--                     non-host value is a ConfigError naming the option)
+--   neither        -> creds[option]
+-- A provider whose hosts follow another rule passes its own base_url function.
+function rest.route_base_url(option, opts)
+  if type(option) ~= "string" then
+    compat.raise("rest.route_base_url: option must be the base URL option's name", 2)
+  end
+  opts = opts or {}
+  local servers = opts.servers or {}
+  return function(creds, route)
+    creds = creds or {}
+    route = route or {}
+    if route.server ~= nil then
+      local name = servers[route.server] or (tostring(route.server) .. "_base_url")
+      local v = creds[name]
+      if type(v) ~= "string" or v == "" then
+        return nil,
+          errors.new("ConfigError", {
+            message = "the operation runs on server "
+              .. tostring(route.server)
+              .. ", which has no base URL: set the client option "
+              .. name,
+            key = name,
+          })
+      end
+      return v
+    end
+    local own = route.base_url
+    if own == nil or own == opts.default then
+      return creds[option]
+    end
+    local missing
+    local filled = string.gsub(own, "{([%w_]+)}", function(name)
+      local v = template_value(secret.unwrap(creds[name]))
+      if v == nil then
+        missing = missing or name
+        return ""
+      end
+      return v
+    end)
+    if missing then
+      return nil,
+        errors.new("ConfigError", {
+          message = "the operation's base URL "
+            .. own
+            .. " needs the client option "
+            .. missing
+            .. " (letters, digits, '.', '-' or '_')",
+          key = missing,
+        })
+    end
+    return filled
   end
 end
 
@@ -588,7 +665,16 @@ function rest.compile_provider(p)
   end
 
   local b = p.base_url or {}
-  function compiled.base_url(settings)
+  -- an operation on its own host (task 12: route.server, or a route.base_url other than
+  -- the provider's default) follows rest.route_base_url's rule
+  local route_rule = rest.route_base_url(b.option or "base_url", { default = b.default })
+  function compiled.base_url(settings, route)
+    if
+      route
+      and (route.server ~= nil or (route.base_url ~= nil and route.base_url ~= b.default))
+    then
+      return route_rule(settings, route)
+    end
     local value = b.option and settings[b.option]
     if not present(value) then
       if b.default == nil then
@@ -944,7 +1030,7 @@ function rest.new(opts)
         creds = {}
       end
     end
-    local route = { uri = op.uri, method = op.method, server = op.server }
+    local route = { uri = op.uri, method = op.method, server = op.server, base_url = op.base_url }
     -- provider settings (task 13): env fallbacks, defaults, choices, OAuth tokens, then
     -- the glue's settings hook; base_url and headers then see the settings
     if provider_rt then

@@ -55,13 +55,50 @@ t.describe("gen.naming: operation_names", function()
     t.match(err, "GetIPList and GetIpList are both get_ip_list", true)
   end)
 
-  t.it("fails when a name collides with a paginated sibling", function()
+  t.it("a sibling that would take a real operation's name becomes _all_pages/_all_items", function()
+    -- Exa: ListWebsets (paginated) and the operation ListWebsetsItems; the operation keeps
+    -- Distilled's name, the sibling moves (whatever the order of the operations)
+    for _, ops in ipairs({
+      {
+        { id = "a#ListThings", name = "ListThings", paginated = true },
+        { id = "a#ListThingsItems", name = "ListThingsItems" },
+      },
+      {
+        { id = "a#ListThingsItems", name = "ListThingsItems" },
+        { id = "a#ListThings", name = "ListThings", paginated = true },
+      },
+    }) do
+      local names, err, pages = naming.operation_names(ops)
+      t.eq(err, nil)
+      t.same(
+        names,
+        { ["a#ListThings"] = "list_things", ["a#ListThingsItems"] = "list_things_items" }
+      )
+      t.same(pages, {
+        ["a#ListThings"] = { pages = "list_things_pages", items = "list_things_all_items" },
+      })
+    end
+  end)
+
+  t.it("fails when the renamed sibling collides too, naming both", function()
     local names, err = naming.operation_names({
       { id = "a#ListThings", name = "ListThings", paginated = true },
       { id = "a#ListThingsItems", name = "ListThingsItems" },
+      { id = "a#ListThingsAllItems", name = "ListThingsAllItems" },
     })
     t.eq(names, nil)
-    t.match(err, "list_things_items", true)
+    t.match(err, "ListThingsAllItems and ListThings (_items) are both list_things_all_items", true)
+  end)
+
+  t.it("returns the default sibling names of paginated operations", function()
+    local _, _, pages = naming.operation_names({
+      { id = "a#ListThings", name = "ListThings", paginated = true },
+      { id = "a#GetThing", name = "GetThing" },
+    })
+    t.same(
+      pages,
+      { ["a#ListThings"] = { pages = "list_things_pages", items = "list_things_items" } }
+    )
   end)
 
   t.it("fails on a Lua keyword, and an override fixes it", function()
@@ -108,5 +145,21 @@ t.describe("gen.naming: helpers", function()
     t.eq(naming.local_name("com.neon.api#GetProject"), "GetProject")
     t.truthy(naming.is_prelude("smithy.api#String"))
     t.falsy(naming.is_prelude("com.neon.api#String"))
+  end)
+
+  t.it("type_names: a client type name gets the Shape suffix, then Shape2 (task 11)", function()
+    local taken = naming.client_type_names({ "NotFound" })
+    t.eq(taken.NotFoundError, "the error class NotFound")
+    t.eq(taken.Client, "the client class")
+    local ids = { "a#Client", "a#ClientShape", "a#Module", "a#NotFoundError", "a#Thing" }
+    t.same(naming.type_names(ids, taken), {
+      ["a#Client"] = "ClientShape2",
+      ["a#Module"] = "ModuleShape",
+      ["a#NotFoundError"] = "NotFoundErrorShape",
+    })
+    local ctx = { type_names = naming.type_names(ids, taken) }
+    t.eq(naming.type_name(ctx, "a#Client"), "ClientShape2")
+    t.eq(naming.type_name(ctx, "a#Thing"), "Thing")
+    t.eq(naming.type_name({}, "a#Client"), "Client")
   end)
 end)

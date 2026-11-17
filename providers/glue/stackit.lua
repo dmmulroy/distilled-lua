@@ -1,5 +1,5 @@
 -- STACKIT's per-operation base URL (packages/stackit/src/protocol.ts baseUrlFor and
--- applyRegion). route.server is the operation's http-trait base URL (task 12).
+-- applyRegion). route.base_url is the operation's http-trait baseUrl (task 12).
 local compat = require("distilled.compat")
 local errors = require("distilled.errors")
 
@@ -46,7 +46,7 @@ function glue.base_url(s, route)
   if type(s.base_url) == "string" and s.base_url ~= "" then
     return s.base_url
   end
-  local server = route and route.server
+  local server = route and route.base_url
   if type(server) ~= "string" or server == "" then
     return nil,
       errors.new("ConfigError", {

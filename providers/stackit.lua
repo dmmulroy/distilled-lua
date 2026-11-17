@@ -9,8 +9,7 @@
 --   { error | code, message }, matched on numeric codes only.
 -- - errors.ts: UnknownStackitError, StackitParseError.
 --
--- Needs task 12: the per-operation base URL (route.server). Without it every
--- operation fails with a ConfigError naming the missing server.
+-- The per-operation base URL is task 12's route.base_url (the http trait's baseUrl).
 return {
   name = "stackit",
   title = "Stackit",

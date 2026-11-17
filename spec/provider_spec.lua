@@ -113,6 +113,7 @@ local NAMES = {
   "grafana",
   "growthbook",
   "gusto",
+  "hetzner",
   "hostinger",
   "huggingface",
   "hydradb",
@@ -652,7 +653,7 @@ t.describe("providers: glue settings and per-route base URLs", function()
   t.it("stackit: the server's {region}, a glued region, the api host rewrite, global", function()
     local base_url = glue("stackit").base_url
     local function at(server, region)
-      return base_url({ region = region }, { uri = "/x", server = server })
+      return base_url({ region = region }, { uri = "/x", base_url = server })
     end
     t.eq(at("https://dns.api.stackit.cloud", "eu01"), "https://dns.api.eu01.stackit.cloud")
     t.eq(at("https://dns.api.stackit.cloud/v1", "global"), "https://dns.api.stackit.cloud/v1")

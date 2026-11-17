@@ -15,6 +15,8 @@
 -- - a struct needs an object; a required member must be present; json.null satisfies
 --   only a nullable member (or a `null`/`unknown` one); an absent optional member is
 --   fine;
+-- - json.null is a value of any node marked `nullable` (S.nullable, through refs): a
+--   sparse list item or map value, or a nullable output root (Distilled's S.NullOr);
 -- - exact mode (strict) rejects keys a struct does not declare, except in open structs;
 -- - an empty struct accepts any value but null (generated code's opaque output);
 -- - a union accepts a value one arm accepts; with one arm its failure is reported;
@@ -165,6 +167,9 @@ local function run(root, root_value, registry, exact, union_depth)
           }
         end
       end
+    elseif value == null and schema.node_nullable(a, registry) then
+      -- json.null is a value of a nullable node (S.NullOr): a sparse list item, a sparse
+      -- map value, a nullable output root
     else
       local node, err = schema.resolve(a, registry)
       if not node then
@@ -248,9 +253,7 @@ local function run(root, root_value, registry, exact, union_depth)
                 push({ "missing", m, nil, at(link, m.name) })
               end
             elseif v == null then
-              local r = schema.resolve(m.schema, registry)
-              local rt = r and r.t
-              if not (m.nullable or rt == "null" or rt == "unknown") then
+              if not (m.nullable or schema.node_nullable(m.schema, registry)) then
                 push({ "null", m, v, at(link, m.name) })
               end
             else

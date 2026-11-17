@@ -216,6 +216,8 @@ t.describe("gen: long shape names", function()
     replace = {
       { '"target": "ex.api#Kind"', '"target": "ex.api#' .. long .. '"' },
       { '"ex.api#Kind": {', '"ex.api#' .. long .. '": {' },
+      -- an operation name past the width (vercel, doppler): types.lua breaks the signature
+      { '"ex.api#ListNames": {', '"ex.api#ListNames' .. string.rep("Long", 20) .. '": {' },
     },
   })
 
@@ -229,6 +231,9 @@ t.describe("gen: long shape names", function()
     t.match(src, '      schema = S.ref(\n        "' .. long .. '"\n      ),\n', true)
     local svc = fx.load(src, "ex.service")
     t.eq(svc.shapes[long].t, "enum")
+    local method = "list_names" .. string.rep("_long", 20)
+    t.match(files["types.lua"], "\nfunction Client:" .. method .. "(\n  input\n)\nend\n", true)
+    t.match(files["types.lua"], "\nfunction Client:get_thing(input) end\n", true)
   end)
 
   local stylua_found = false
@@ -243,21 +248,28 @@ t.describe("gen: long shape names", function()
     t.pending("passes stylua --check (stylua runs through io.popen: lua and luajit only)")
     return
   end
-  t.it("passes stylua --check", function()
+  t.it("passes stylua --check (service.lua and types.lua)", function()
     local path = os.tmpname()
     local f = assert(io.open(path, "wb"))
     f:write(files["service.lua"])
     f:close()
+    local path2 = os.tmpname()
+    local f2 = assert(io.open(path2, "wb"))
+    f2:write(files["types.lua"])
+    f2:close()
     local p = io.popen(
       "stylua --check --config-path '"
         .. t.root
         .. "/stylua.toml' '"
         .. path
+        .. "' '"
+        .. path2
         .. '\' 2>&1; echo "exit:$?"'
     )
     local out = p:read("*a")
     p:close()
     os.remove(path)
+    os.remove(path2)
     t.match(out, "exit:0", true)
   end)
 end)
@@ -284,7 +296,7 @@ t.describe("gen: the CLI", function()
       bin
         .. " generate --model "
         .. root
-        .. "/models/neon.json --provider "
+        .. "/models/neon/neon.json --provider "
         .. root
         .. "/providers/neon.lua --out "
         .. dir
@@ -302,7 +314,7 @@ t.describe("gen: the CLI", function()
       bin
         .. " generate --model "
         .. root
-        .. "/models/neon.json --provider "
+        .. "/models/neon/neon.json --provider "
         .. root
         .. "/providers/neon.lua --out "
         .. dir
