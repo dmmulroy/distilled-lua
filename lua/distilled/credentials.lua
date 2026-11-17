@@ -3,7 +3,7 @@
 -- package's credentials.ts) with one rule: a source is a string, a secret, or a function.
 --
 --   credentials.resolve(source, host) -> secret | nil, err
---   credentials.from_env(name)      -> source: host.getenv(name)
+--   credentials.from_env(name)      -> source: host.getenv(name) (or the first of a list)
 --   credentials.from_file(path)     -> source: the file's text, trailing whitespace trimmed
 --   credentials.from_command(argv)  -> source: the command's stdout through host.exec
 --
@@ -80,19 +80,37 @@ function credentials.resolve(source, host, name)
   return secret.wrap(plain)
 end
 
---- credentials.from_env(name) -> source reading host.getenv(name) (default os.getenv)
--- Unset or empty is a ConfigError naming the variable.
+--- credentials.from_env(name | { name, ... }) -> source reading host.getenv (default
+-- os.getenv). With a list, the first variable that is set and not empty wins, like the
+-- `process.env.A ?? process.env.B` chains of Distilled's credentials.ts files. Unset or
+-- empty is a ConfigError naming the variables.
 function credentials.from_env(name)
-  if type(name) ~= "string" or name == "" then
+  local names = type(name) == "table" and name or { name }
+  if #names == 0 then
     compat.raise("credentials.from_env: expected a variable name", 2)
+  end
+  for _, n in ipairs(names) do
+    if type(n) ~= "string" or n == "" then
+      compat.raise("credentials.from_env: expected a variable name", 2)
+    end
+  end
+  local label = names[1]
+  if #names > 1 then
+    local rest = {}
+    for i = 2, #names do
+      rest[#rest + 1] = names[i]
+    end
+    label = names[1] .. " (or " .. compat.concat(rest, ", ") .. ")"
   end
   return function(host)
     local getenv = (host and host.getenv) or os.getenv
-    local v = getenv(name)
-    if v == nil or v == "" then
-      return nil, config_error("environment variable " .. name .. " is not set", name)
+    for _, n in ipairs(names) do
+      local v = getenv(n)
+      if v ~= nil and v ~= "" then
+        return v
+      end
     end
-    return v
+    return nil, config_error("environment variable " .. label .. " is not set", names[1])
   end
 end
 
