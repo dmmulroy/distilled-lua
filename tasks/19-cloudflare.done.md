@@ -169,17 +169,22 @@ Checks, after `git merge main` (task 26):
 - In a fresh `git clone` of the branch, `verify/dl doctor` was ok and `verify/dl test
   cloudflare` passed 82/82 in all three runtimes.
 
-## Merge with main (tasks 17 aws, 25 s3)
+## Merge with main (tasks 17 aws, 25 s3, 27)
 
 The conflicts were in `gen/init.lua`, `ops.lua`, `shapes.lua` and `traits.lua`: the
 Cloudflare and AWS hooks sat side by side. Both were kept. In `ops.pagination`, AWS's
 items rule now comes before `local out = { mode = mode, strategy =
 ctx.pagination_strategy }`.
 
-Checks after the merge:
+Task 27 then changed the same line in `ops.pagination` (`mode` mapped through
+`provider.pagination.modes`). The merged line keeps that mapping and Cloudflare's
+`strategy` field. `paginate.lua` already dispatches on `strategy.mode` first and the
+plain mode second.
+
+Checks after the last merge (main e72b3520):
 
 - `verify/dl doctor` was ok.
-- `verify/dl test` passed: lua 1857, luajit 1857, rex 1844, 0 failed.
+- `verify/dl test` passed: lua 1929, luajit 1929, rex 1916, 0 failed.
 - `gen-diff cloudflare` and `gen-diff neon` were ok.
 - s3 (an AWS model, checked by hand as task 25 does): generating with lua and with luajit
   gives files identical to `clients/s3`. gen-check passed under lua and luajit, with
