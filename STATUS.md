@@ -779,3 +779,40 @@ See `tasks/15-xml.done.md`.
   flag of `dl test`, the `xml-bench` command and their help lines. Additions only.
 - `verify/features/README.md` should list `xml.md` (left for the orchestrator, to avoid
   conflicting edits).
+
+## 23 grpc
+
+**Status: done** (branch `task-23`). Done file: `tasks/23-grpc.done.md`.
+
+Built:
+- `lua/distilled/protobuf.lua`: the proto3 codec.
+- `lua/distilled/protocol/grpc.lua`: gRPC and gRPC-Web, unary plus collected server streams.
+- `lua/distilled/protocol/connect.lua`: Connect JSON.
+- `lua/distilled/protocol/rpc.lua`: the runtime for the provider spec's `rpc` section.
+- `lua/distilled/gen/proto.lua`.
+- Transport trailers and `request.http2` in `transport/curl_common.lua`.
+- Providers and committed clients for modal (304 ops), boxd (135), e2b (97) and namespacelabs (182). All four reach parity with Distilled.
+- The full feature list is in `verify/features/grpc.md`.
+
+Decisions others should know:
+- **New provider spec key `rpc`.**
+  - It is validated by `gen/proto.lua` and documented at the top of that file.
+  - With `rpc`, a provider's `init.lua` comes from `proto.client`, not `writer.client`.
+  - `status_map`, `classify_error` and `protocol` are refused alongside `rpc`.
+- **Edits outside "descriptor emission" in `gen/*`.** These are hooks only, each guarded by `spec.rpc`; non-rpc providers generate the same bytes as before.
+  - `gen/provider.lua`: `rpc` in TOP, plus the validation call.
+  - `gen/init.lua`:
+    - `proto.streaming` after `ops.streaming`;
+    - `proto.prepare_model` before errors;
+    - `proto.plan` after the plan;
+    - the extra files.
+- **`verify/dl models sync`** now also copies `packages/<pkg>/src/descriptors.ts` to `models/<pkg>/`. The generator reads it from there.
+- **gRPC server-streaming ops are callable** on the grpc wires: they return `{ items }`.
+  - They are still `unsupported = "streaming"` on Connect and REST.
+  - `gen/traits.lua`'s note for `com.distilled.grpc#serverStreaming` predates this. Proposed: say "callable on rpc grpc wires (gen/proto.lua); else unsupported".
+- **`testing.transport` drops `response.trailers`.** `spec/grpc_spec.lua` uses its own scripted transport.
+  - Proposed: pass `trailers` through in `distilled.testing`.
+- **`verify/features/parity.md` is stale.** `verify/dl parity` regenerates it with these four packages complete; I did not commit the regenerated file because I do not own it.
+- **Proposed contract addition (`docs/interfaces.md`, transport):**
+  - `request.http2?: boolean`;
+  - `response.trailers?: { [lowercase name] = value }`.
