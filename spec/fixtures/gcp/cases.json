@@ -16994,7 +16994,7 @@
       "input": {
         "keys": [],
         "projectId": "p",
-        "x-goog-request-params": "project_id=p"
+        "requestParams": "project_id=p"
       },
       "op": "lookup_projects",
       "pkg": "gcp",

@@ -11,6 +11,7 @@ return {
   "errors_spec.lua",
   "gcp_conform_spec.lua",
   "gcp_credentials_spec.lua",
+  "gcp_protocol_spec.lua",
   "gen_big_spec.lua",
   "gen_emit_spec.lua",
   "gen_errors_spec.lua",

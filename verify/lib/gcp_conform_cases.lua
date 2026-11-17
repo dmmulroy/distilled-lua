@@ -248,7 +248,7 @@ hand(
 )
 hand("header", "gcp", "datastore_v1", "lookup_projects", "lookupProjects", {
   projectId = "p",
-  ["x-goog-request-params"] = "project_id=p",
+  requestParams = "project_id=p",
   keys = json.array({}),
 })
 hand("no_body", "gcp", "storage_v1", "insert_buckets", "insertBuckets", { project = "p" })
