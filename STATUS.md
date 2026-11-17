@@ -1573,7 +1573,7 @@ clients/coinbase 178/178, clients/polymarket 223/223 (7 models), both `verify/dl
 
 ## 30 grpc-streams
 
-**Status: in progress** (branch `task-30`).
+**Status: done except the dl serve proof (blocked on task 29)** (branch `task-30`). Done file: `tasks/30-grpc-streams.done.md`.
 
 Built so far:
 - `lua/distilled/stream/grpc.lua`: gRPC frames pulled one at a time from a reader
