@@ -993,7 +993,7 @@ t.describe("gen.proto", function()
     t.match(err, "not a descriptor table", true)
   end)
 
-  t.it("rejects a bad rpc section before generating", function()
+  t.it("rejects a bad proto section before generating", function()
     local _, err = gen.generate({
       model = tiny_model(),
       provider = tiny_spec({ wire = "soap", headers = { { "x bad", "{no-name}" } }, colour = 1 }),
