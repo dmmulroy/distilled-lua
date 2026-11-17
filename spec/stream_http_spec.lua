@@ -68,7 +68,13 @@ t.describe("streams over HTTP (dl serve)", function()
         }),
       },
     })
-    local st = ok(boat():execute_sandbox_command_stream({ sandboxId = "sb1", command = "ls" }))
+    -- traced: the open runs inside compat.pcall's coroutine (rex.exec.start and h:wait
+    -- must work there too)
+    local mem = require("distilled.trace").exporters.memory()
+    local tracer = require("distilled.trace").new({ level = "operation", exporter = mem })
+    local st = ok(
+      boat({ tracer = tracer }):execute_sandbox_command_stream({ sandboxId = "sb1", command = "ls" })
+    )
     t.eq(st.status, 200)
     local first = ok(st:next())
     t.eq(first.type, "started")
@@ -79,6 +85,8 @@ t.describe("streams over HTTP (dl serve)", function()
     t.eq(#rest, 2)
     t.eq(rest[1].data, "one\n")
     t.eq(rest[2].exitCode, 0)
+    t.eq(#mem.spans, 1)
+    t.eq(mem.spans[1].attributes["distilled.stream.items"], 3)
     local req = s.requests()[1]
     t.eq(req.method, "POST")
     t.same(json.decode(req.body), { command = "ls", stream = true })
