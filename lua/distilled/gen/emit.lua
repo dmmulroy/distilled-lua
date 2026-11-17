@@ -354,6 +354,73 @@ function emit.assign(target, v)
   return lines
 end
 
+--- emit.long_string(s) -> a long-bracket literal of s, `[[` + newline + s + `]]`, with as
+-- many `=` as it takes for s not to close it (Lua drops the newline after the opener).
+function emit.long_string(s)
+  local eq = ""
+  while string.find(s, "]" .. eq .. "]", 1, true) or string.sub(s, -#eq - 1) == "]" .. eq do
+    eq = eq .. "="
+  end
+  return "[" .. eq .. "[\n" .. s .. "]" .. eq .. "]"
+end
+
+--- emit.scan(v) -> facts about a value, for splitting large services (gen/writer.lua):
+--   { strings = { [s] = true }, numbers = { [n] = true }, tables = n, depth = n,
+--     refs = { name, ... }, raw = { [code] = true } }
+-- `strings` and `numbers` are the literals (record keys, call names and raw code count as
+-- strings): with `tables` (every constructor and call), an upper bound on the constants
+-- the emitted code puts in its function. `depth` is the nesting of tables and calls.
+-- `refs` are the S.ref names, in emission order. Walks with an explicit stack.
+function emit.scan(v)
+  local facts = { strings = {}, numbers = {}, tables = 0, depth = 0, refs = {}, raw = {} }
+  local stack = { { v, 0 } }
+  while #stack > 0 do
+    local top = stack[#stack]
+    stack[#stack] = nil
+    local x, depth = top[1], top[2]
+    local tx = type(x)
+    if tx == "string" then
+      facts.strings[x] = true
+    elseif tx == "number" then
+      facts.numbers[x] = true
+    elseif tx == "table" then
+      local mt = getmetatable(x)
+      if mt == RAW then
+        facts.raw[x.code] = true
+        facts.strings[x.code] = true
+      else
+        depth = depth + 1
+        if depth > facts.depth then
+          facts.depth = depth
+        end
+        facts.tables = facts.tables + 1
+        local children = {}
+        if mt == CALL then
+          facts.strings[x.fn] = true
+          if x.fn == "S.ref" and type(x.args[1]) == "string" then
+            facts.refs[#facts.refs + 1] = x.args[1]
+          end
+          for i = 1, x.n do
+            children[#children + 1] = x.args[i]
+          end
+        else
+          for _, e in ipairs(entries(x)) do
+            if e[1] ~= "" then
+              facts.strings[e[1]] = true
+            end
+            children[#children + 1] = e[2]
+          end
+        end
+        -- pushed in reverse, so refs come out in emission order
+        for i = #children, 1, -1 do
+          stack[#stack + 1] = { children[i], depth }
+        end
+      end
+    end
+  end
+  return facts
+end
+
 --- emit.comment(text [, indent]) -> "-- " lines, wrapped at WIDTH on spaces
 function emit.comment(text, indent, lead)
   indent = indent or ""
