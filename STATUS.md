@@ -779,3 +779,55 @@ See `tasks/15-xml.done.md`.
   flag of `dl test`, the `xml-bench` command and their help lines. Additions only.
 - `verify/features/README.md` should list `xml.md` (left for the orchestrator, to avoid
   conflicting edits).
+
+## 16 graphql
+
+**Done.** See `tasks/16-graphql.done.md` and `verify/features/graphql.md`.
+
+### What others can use
+
+- `require("distilled.graphql")`: the Query algebra (`map`, `filter`, `flat_map`, `of`,
+  `fn`), `compile`, `request_body`, `evaluate`, `result`, `classify`, `is_retryable` and
+  `pages`. Its error classes are `GqlError`, `UnknownGraphQLError`, `GraphQLFailure`,
+  `GraphQLTransportError` and `GraphQLPaginationError`.
+- `require("distilled.graphql.client").define{ name, transport, telemetry, options }`
+  builds on `Client.define` with no REST ops. Its methods are `run`, `pages`, `items`,
+  `compile`; `with` and `close` are inherited.
+- `require("distilled.graphql.sdk").build(spec)` is what a generated `init.lua` calls.
+- Generated clients:
+  - `clients/linear`, `clients/railway`, `clients/expo_eas`;
+  - `clients/github/graphql` (module `github.graphql`) and `clients/fly_io/graphql`
+    (module `fly_io.graphql`).
+
+### Decisions
+
+- **Mixed packages** (github, fly_io) keep their GraphQL client in `clients/<pkg>/graphql/`,
+  with the provider spec in `providers/graphql/<pkg>.lua`. The REST specs
+  (`providers/github.lua`, `fly_io.lua`; task 13) were not touched. `package` auto-detects
+  `models/<pkg>/graphql/<pkg>.json` and generates both parts.
+- Plan keys are visited sorted. Arguments are bound in schema order, and a page's
+  `after` last (as TS).
+- Combinators are free functions (`gql.map(q, fn)`), so no GraphQL field is shadowed.
+- Unknown fields and arguments raise (misuse).
+
+### Edits outside the obvious (orchestrator: note for merges)
+
+- In `bin/distilled-lua`:
+  - the `generate-graphql` command;
+  - the graphql auto-detect in `package`;
+  - `replaceable()` also accepts a directory holding only `graphql/init.lua`.
+- In `verify/dl`:
+  - `sync_graphql` (models sync plus `--convert`) and `has_models`;
+  - `spec_packages` includes GraphQL packages;
+  - gen-diff runs `verify/lib/graphql_check.lua` (new).
+- New files:
+  - `verify/conform/node/graphql_requests.mjs`;
+  - `spec/fixtures/graphql/cases.json`;
+  - `spec/golden/graphql/requests.json`.
+
+### Proposed (files I do not own)
+
+- `verify/features/README.md` should list `graphql.md` (area "GraphQL clients", task 16),
+  after the generator row.
+- STATUS.md itself has leftover merge markers (`||||||| abf4e89`, three of them) from
+  earlier merges into main. They are not mine; I left them as they are.
