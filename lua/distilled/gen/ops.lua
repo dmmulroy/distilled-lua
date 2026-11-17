@@ -350,7 +350,13 @@ function ops.pagination(ctx, op)
     -- yields each page), as Distilled's paginateWithDefaults does
     items = pg.items
   end
-  local out = { mode = mode, strategy = ctx.pagination_strategy }
+  -- a provider strategy for the mode (task 27, Distilled's paginationProfiles): Scaleway
+  -- pages by total count (paginate.lua strategies.total_count)
+  -- and Cloudflare's (gen/cloudflare.lua: trait.strategy picks strategies["cloudflare.<mode>"])
+  local out = {
+    mode = (ctx.provider.pagination.modes or {})[mode] or mode,
+    strategy = ctx.pagination_strategy,
+  }
   if pg.inputToken then
     out.input_token = lua_path(ctx, op.input, pg.inputToken)
   end

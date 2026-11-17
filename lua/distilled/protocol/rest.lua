@@ -13,14 +13,14 @@
 --     classify_error = fn(info) -> err | nil,                 -- consulted first
 --     unknown_tag = "UnknownNeonError", parse_tag = "NeonParseError",
 --     unknown_error = fn(info) -> err, parse_error = fn(info) -> err,   -- optional
---     transform_response = fn(body, op) -> body,             -- rest.transforms{ ... }
+--     transform_response = fn(body, op, { status, headers }) -> body,  -- rest.transforms{}
 --     map_member_header, unknown_key_to_wire, empty_json_body, query_style,  -- request.build
 --     user_agent = "...",
 --     -- provider-spec features (task 13; see "Provider-spec features" below):
 --     provider = { title, options, headers, base_url, require_one_of, anonymous, oauth,
 --                  user_agent },
 --     unknown_fields = { reason = "/reason" },   -- extra fields of the unknown error
---     transform_input = fn(input, op) -> input,
+--     transform_input = fn(input, op, settings, service) -> input,
 --     classify_success = fn{ status, headers, body, non_json, op } -> err | true | nil,
 --                        -- true: read the 2xx answer as a failure (envelope, matchers, ...)
 --     glue = <module>,   -- a provider's hand-written functions, by these names: settings
@@ -1102,14 +1102,23 @@ function rest.new(opts)
       headers = h
     end
     if transform_input then
-      local ok, v = protect("the protocol's transform_input", transform_input, input, op)
+      -- settings (task 27): the resolved options, for inputs that carry a credential
+      -- (Mailchimp Transactional's `key`) or a default (Scaleway's region and zone)
+      local ok, v = protect(
+        "the protocol's transform_input",
+        transform_input,
+        input,
+        op,
+        creds,
+        ctx.service or {}
+      )
       if not ok then
         return nil, v
       end
       input = v
     end
     local service = ctx.service or {}
-    return request.build({
+    local req, berr = request.build({
       op = op,
       input = input,
       registry = service.shapes,
@@ -1122,6 +1131,12 @@ function rest.new(opts)
       -- the multipart boundary comes from host.random (deterministic under a test host)
       host = ctx.host,
     })
+    if req and op.raw_download then
+      -- a `...Raw` file download (Scaleway, task 12's op.raw_download) asks for the file
+      -- itself, not its JSON description: ScalewayProtocol appends dl=1
+      req.url = req.url .. (string.find(req.url, "?", 1, true) and "&" or "?") .. "dl=1"
+    end
+    return req, berr
   end
 
   -----------------------------------------------------------------------------------
@@ -1240,8 +1255,14 @@ function rest.new(opts)
       body = value
     end
     if transform_response then
-      local ok, transformed =
-        protect("the protocol's transform_response", transform_response, body, op)
+      -- meta (task 27): the response's status and headers (Scaleway's X-Total-Count)
+      local ok, transformed = protect(
+        "the protocol's transform_response",
+        transform_response,
+        body,
+        op,
+        { status = status, headers = headers }
+      )
       if not ok then
         return nil, transformed
       end

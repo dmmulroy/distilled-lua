@@ -190,7 +190,8 @@ Optional keys:
 | `protocol = "mod.name"` | escape hatch: a module returning `fn(service, spec) -> protocol` for an API that is not plain REST/JSON |
 | `naming.words`, `naming.operations` | extra mixed-case words for snake-casing; per-operation method names |
 | `models = { skip = { "trust" } }` | multi-model packages: models not generated (Lua model names). A name that is not a model of the package is an error |
-| `models = { override = { search = { base_url = ..., title = ... } } }` | per-model changes: `title` (the class name) and `base_url` (a URL string replaces only the default, keeping the option and environment variable; a partial `{ default, option, env }` replaces those fields) |
+| `models = { override = { search = { base_url = ..., title = ... } } }` | per-model changes: `title` (the class name) and `base_url` (a URL string replaces only the default, keeping the option and environment variable; a partial `{ default, option, env }` replaces those fields). An override may also carry the keys of the next section that differ per model (see "Models with their own credentials") |
+| `pagination = { modes = { page = "total_count" } }` | the runtime strategy for a `smithy.api#paginated` mode (Distilled's `paginationProfiles`): Scaleway's page lists stop by total item count (`distilled.paginate` mode `total_count`) |
 | `allow_unsupported = { ... }` | emit operations using a feature the runtime does not support yet (they fail with `SdkError` when called) instead of failing generation. No feature needs it today: multipart is supported since task 08, and listing `"multipart"` is an error |
 
 ### Options, headers, templated base URLs, OAuth (task 13)
@@ -261,6 +262,42 @@ Rules, all checked when the spec loads:
   `ConfigError`s naming the option and its environment variables, before any request.
   A failed token exchange quotes only the OAuth `error` / `error_description` fields.
 
+### Models with their own credentials (task 27)
+
+A Distilled package with several models often writes one credentials/protocol pair per
+model (Clerk's `ClerkPlatformProtocol`, Convex's `ConvexDeploymentProtocol`, 1Password's
+five). `models.override.<model>` carries what differs, besides `title` and `base_url`:
+`auth`, `options`, `headers`, `require_one_of`, `public_operations`, `oauth`, `user_agent`,
+`error_envelope`, `unknown_fields`, `transform_response`, `empty_json_body` and `glue`
+(`provider.MODEL_SPEC_KEYS`). Each replaces the package's key of that name for the model,
+and `false` removes it; `base_url` merges field by field over the package's (a `false`
+field is removed). The package spec with the override applied is validated whole, like a
+package spec, and a problem is reported under `provider spec models.override.<model>:`.
+
+```lua
+models = {
+  override = {
+    platform = {                          -- Clerk's Platform API
+      base_url = { default = "https://api.clerk.com", env = "CLERK_PLATFORM_API_URL",
+                   ensure_suffix = "/v1" },
+      auth = { kind = "bearer", from = "api_key", env = "CLERK_PLATFORM_API_KEY" },
+      options = false,                    -- no Clerk-API-Version option...
+      headers = false,                    -- ...and no header for it
+    },
+    deployment = {                        -- Convex: <deployment_url>/api/v1, "Convex <token>"
+      base_url = { default = "{deployment_url}/api/v1", env = false },
+      auth = { kind = "header", header = "authorization", prefix = "Convex ",
+               from = "access_token", env = "CONVEX_ACCESS_TOKEN" },
+      options = { deployment_url = { trim_slash = true } },
+    },
+  },
+},
+```
+
+An override with only `title` and a classic `base_url` keeps the task 10 behaviour.
+Specs that use it: clerk, convex, digitalocean, e2b, exa, fly_io, mailchimp, onepassword,
+slack (`oauth` and `openid` take an optional token).
+
 ### Glue modules
 
 `glue = "glue/<name>.lua"` (relative to the spec) is hand-written Lua for what data cannot
@@ -270,14 +307,19 @@ it next to the client as `glue.lua` (`require(MODULE .. ".glue")`). It returns a
 | Function | Called |
 | --- | --- |
 | `settings(settings, host, route) -> settings \| nil, err` | after options and OAuth: derive values (Mailchimp's data centre, Rivet's endpoint userinfo) |
-| `base_url(settings, route) -> url \| nil, err` | instead of the spec's base URL: per-route hosts (`route = { uri, method, server }`) |
+| `base_url(settings, route) -> url \| nil, err` | instead of the spec's base URL: per-route hosts (`route = { uri, method, server, base_url }`) |
 | `headers(settings, route, headers) -> headers` | after the spec's headers |
-| `transform_input(input, op) -> input` | before the request is built (Proxmox booleans) |
+| `transform_input(input, op, settings, service) -> input` | before the request is built (Proxmox booleans; Scaleway's region/zone defaults from `settings`; Mailchimp Transactional's `key` member; Slack's list spelling, which reads the input schema from `service.shapes`) |
 | `error_envelope(body) -> { code, message }` | instead of `error_envelope` |
 | `classify_error(info) -> err \| nil` | first for a failure (`info`: status, code, message, body, headers, now) |
 | `classify_success(info) -> err \| true \| nil` | for a 2xx answer: an error, or `true` to read it as a failure (ZeroSSL `success: 0`) |
-| `transform_response(body, op) -> body` | instead of `transform_response` |
+| `transform_response(body, op, { status, headers }) -> body` | instead of `transform_response` (Scaleway folds `X-Total-Count` into the body) |
 | `unknown_error(info) -> err` | the error nothing else matched |
+
+A glue function may call `host.transport` itself for a credential exchange the spec's
+`oauth` does not cover (Questrade's refresh-token redemption, Fly.io Sprites' token mint;
+see `providers/glue/questrade.lua`); such requests are not traced, and their errors must
+not quote the request (the token may be in its URL).
 
 A glue function and the spec key of the same name are an error. Glue is plain library
 code: it follows the hard rules in `AGENTS.md` (no plain `pcall`, `compat.concat`, no

@@ -39,6 +39,8 @@ paginate.MODES = {
   link = true,
   keyset = true,
   single = true,
+  -- a provider strategy (task 27): Scaleway's paginateByTotalCount
+  total_count = true,
 }
 
 ---------------------------------------------------------------------------------------
@@ -345,6 +347,45 @@ strategies.page = {
     then
       state.done, state.stop = true, "empty_page"
     end
+    return page, nil, meta
+  end,
+}
+
+-- total_count (Scaleway's paginateByTotalCount, scaleway/src/pagination.ts; the official
+-- SDKs' fetchPaginated): request page, page+1, ... where output_token is the TOTAL item
+-- count, never a page number. The page count is sized by the first page read
+-- (ceil(total / its length): the server may cap page_size below what was asked); stop
+-- after that page or on an empty page. A provider spec selects it with
+-- `pagination = { modes = { page = "total_count" } }`.
+strategies.total_count = {
+  start = function(input, trait)
+    if not trait.input_token or not trait.output_token or not trait.items then
+      return missing("Total-count pagination requires input_token, output_token and items")
+    end
+    local start = rawget(input, trait.input_token)
+    return { page = type(start) == "number" and start or 1, input = input }
+  end,
+  step = function(state, call, trait)
+    local page, err, meta = call(with_key(state.input, trait.input_token, state.page))
+    if page == nil then
+      return nil, err, meta
+    end
+    local items = get_path(page, trait.items)
+    local length = (type(items) == "table" and items ~= null and is_array(items)) and #items or 0
+    if state.last_page == nil then
+      local total = get_path(page, trait.output_token)
+      if type(total) == "number" and length > 0 then
+        state.last_page = math.ceil(total / length)
+      else
+        state.last_page = state.page
+      end
+    end
+    if length == 0 then
+      state.done, state.stop = true, "empty_page"
+    elseif state.page >= state.last_page then
+      state.done, state.stop = true, "last_page"
+    end
+    state.page = state.page + 1
     return page, nil, meta
   end,
 }
