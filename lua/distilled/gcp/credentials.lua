@@ -8,7 +8,8 @@
 -- A provider is a table with `provider:resolve(host) -> config | nil, err`, where
 --   config = { access_token = <secret>, project?, region?, quota_project? }
 -- The protocol resolves it on every request attempt, so a refreshing provider can mint a
--- new token; a plain function(host) -> config | nil, err works as a provider too.
+-- new token. creds.custom(fn) makes a provider of a function(host) -> config | nil, err
+-- (the client's `credentials` option takes tables only).
 --
 --   creds.from_access_token{ access_token, project?, region?, quota_project? }
 --   creds.from_env()                         GOOGLE_ACCESS_TOKEN, GOOGLE_PROJECT_ID
@@ -253,6 +254,14 @@ local function provider_of(kind, resolve, clear)
   return setmetatable({ kind = kind, _resolve = resolve, _clear = clear }, Provider)
 end
 credentials.provider_of = provider_of
+
+--- credentials.custom(fn) -> provider: fn(host) -> config | nil, err, called per attempt
+function credentials.custom(fn)
+  if type(fn) ~= "function" then
+    compat.raise("credentials.custom: expected a function(host)", 2)
+  end
+  return provider_of("custom", fn)
+end
 
 --- credentials.is_provider(v) -> v can be a client's `credentials` option
 function credentials.is_provider(v)

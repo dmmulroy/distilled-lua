@@ -10,6 +10,7 @@ return {
   "crypto_spec.lua",
   "errors_spec.lua",
   "gcp_conform_spec.lua",
+  "gcp_credentials_spec.lua",
   "gen_big_spec.lua",
   "gen_emit_spec.lua",
   "gen_errors_spec.lua",
