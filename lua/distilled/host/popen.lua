@@ -3,7 +3,8 @@
 --   local client = Neon.new({ host = require("distilled.host.popen")() })
 --   opts = { curl = "curl", follow_redirects = false, tmpdir = nil }  -- passed to popen_curl
 --
--- * transport: distilled.transport.popen_curl (curl through io.popen, request in 0600 files)
+-- * transport: distilled.transport.popen_curl (curl through io.popen, request in 0600 files),
+--   with `stream` and `duplex` entry points (curl in the background on FIFOs)
 -- * sleep: a child `sleep` process (popen_curl.sleep), so retry backoff waits in wall time
 --   instead of the default busy loop
 -- * now, epoch: os.time (whole seconds: deadlines are checked to the second)
@@ -19,8 +20,13 @@ return function(opts)
     )
   end
   local popen_curl = require("distilled.transport.popen_curl")
+  -- streaming and full-duplex entry points (task 31: AWS event streams)
+  local transport = require("distilled.transport.curl_duplex").with_entries(popen_curl(opts), {
+    stream = popen_curl.streaming(opts),
+    duplex = popen_curl.duplex(opts),
+  })
   return {
-    transport = popen_curl(opts),
+    transport = transport,
     sleep = popen_curl.sleep,
     now = os.time,
     epoch = os.time,

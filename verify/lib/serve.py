@@ -41,6 +41,8 @@ import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, urlsplit
 
+import serve_eventstream  # AWS event stream endpoints (task 31), next to this file
+
 LOCK = threading.Lock()
 SCRIPTS = {}  # path -> {"responses": [...], "next": 0, "repeat_last": bool}
 REQUESTS = []  # recorded requests, oldest first
@@ -167,6 +169,8 @@ class Handler(BaseHTTPRequestHandler):
     # -- dispatch -------------------------------------------------------------------
 
     def handle_any(self):
+        if serve_eventstream.dispatch(self):  # they read the body as it arrives
+            return None
         body = self.read_body()
         info = self.describe(body)
         path = info["path"]
