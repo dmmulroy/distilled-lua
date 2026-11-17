@@ -422,6 +422,89 @@ Notes from task 04 (see `STATUS.md` section 04 for the full list):
 - The tracer has `tracer:attach(span)` / `tracer:detach(span)` for spans that outlive one
   call (a pagination traversal).
 
+## Streams (task 29)
+
+Responses whose items arrive piece by piece: NDJSON and SSE (REST), gRPC / gRPC-Web
+(task 30), Connect (task 30), AWS event streams (task 31). Distilled: `API.makeStreaming`,
+`.stream()` (`core/src/api.ts`), `StreamFraming` (`protocol-rest.ts`), `core/src/ndjson.ts`.
+
+```lua
+-- transport: optional entry points; a transport without `stream` cannot stream
+local res, err = transport.stream(request)   -- request as today, plus (optional):
+--   request.timeout       seconds to connect (a stream lasts as long as the caller keeps it)
+--   request.max_time      seconds for the whole transfer
+--   request.idle_timeout  stop when nothing arrives for that many seconds (>= 1)
+-- res = { status, headers, body = reader }  (headers complete before the body)
+-- reader:read_line()   -> line without "\n" (strips a trailing "\r") | nil, nil at EOF | nil, err
+-- reader:read_exact(n) -> exactly n bytes | nil, nil at clean EOF before any byte | nil, err
+--                         (a body that ends inside the n bytes: err.eof = true, err.partial)
+-- reader:read_all()    -> rest of the body | nil, err
+-- reader:close()       -> stops the process / connection; idempotent
+-- err: distilled.errors tables (TransportError, + TimeoutError category ...), never raised;
+-- a last line cut by a dropped connection is the TransportError, not a line
+local conn = transport.duplex(request)       -- request.body nil (AWS input event streams)
+-- conn:write(bytes), conn:close_input(), conn:response() -> res | nil, err, conn:close()
+```
+
+`popen_curl(opts)` and `exec_curl(exec, opts)` return callable tables with `stream` and
+`duplex` (`exec_curl` only when `exec.start` or `opts.start` exists: `rex.exec.start`);
+`distilled.host.popen` and `distilled.host.rex` therefore stream. The processes are task
+31's `transport/popen_curl_duplex.lua` (curl in the background on two FIFOs in a 0700
+`mktemp -d` directory) and `transport/exec_curl_duplex.lua` (stdout pieces buffered by
+the `stdout` callback, drained with `h:wait(0.05)`); the curl config is
+`transport/curl_duplex.lua` (no write-out, `no-buffer`). Secrets stay out of argv as for
+plain calls. HTTP trailers of a streamed reply are not exposed (curl writes them after the
+body on the same stream); `grpc.trailers_of` reads `res.trailers` / `reader.trailers` /
+`reader:trailers()` if a transport provides them.
+
+```lua
+-- op descriptor: op.stream = { framing = "ndjson" | "sse" | "grpc" | "aws_eventstream"
+--   | "connect", item = <schema node>,
+--   set_input = { <member> = value } | nil,    -- streamWhen: what `_stream` sets (Boat: stream = true)
+--   member, input = { member, item } | nil }    -- aws_eventstream only (task 31)
+protocol.stream(ctx, op, input) -> parts, nil, meta | nil, err, meta
+-- parts = { status, headers, next = fn() -> item | nil, nil | nil, err, close = fn(),
+--           output?, send?, close_input? }; a status >= 400 is read whole and returned as
+--           the call's typed error (nil, err, meta)
+
+local stream, err = client:<op>_stream(input [, { timeout = s, idle_timeout = s }])
+for item, item_err in stream:iter() do ... end     -- item is false when item_err is set; then the loop ends
+stream:next() -> item | nil, nil (end) | nil, err (once; then nil, nil; stream.err keeps it)
+stream:collect([limit]) -> list | nil, err
+stream:close()                                       -- idempotent, reaps curl
+stream.status, stream.headers, stream.output (AWS initial response), stream.err
+stream:send(event), stream:close_input()            -- duplex ops (AWS)
+require("distilled.stream")    -- new(parts, hooks), is, framing(name), register_framing,
+                               -- string_reader(text), FRAMINGS; .ndjson / .sse modules
+```
+
+- **One span** covers a stream: it starts with the call (the request carries its
+  traceparent), stays open off the tracer's stack between pulls, and ends at the last
+  item, an error or `close()`, with `distilled.stream.items` and `distilled.stream.end`
+  (`end` | `error` | `closed`); a failure sets the error's `trace_id`.
+- **Retry only before the first item.** An attempt opens the transfer and reads the first
+  item: a failure to open (status, transport) or a `TransportError` before the first item
+  is retried under the operation's policy (refresh-on-401 too); an in-band error (an
+  error event, a bad frame) is the stream's first result; after the first item nothing
+  is retried. Duplex streams are not peeked (their server may wait for input). So
+  `<op>_stream` returns once the first item (or the end) has arrived.
+- **Deadline**: `deadline_s` bounds opening (retries); the transfer's own limits are the
+  `timeout` / `idle_timeout` options (curl `max-time`, `speed-limit 1` / `speed-time`).
+- **Items** are decoded as a 2xx body (keys, validation mode, redaction of sensitive
+  members). NDJSON: each non-empty line; a line that is not JSON ends the stream with the
+  provider's parse error (body `[REDACTED]` when the item can hold a secret). SSE: each
+  event's `data` (JSON, or the text for a string item). A plain call of an NDJSON
+  operation collects the lines into `{ items }` when the reply is `application/x-ndjson`.
+- **Generator**: a REST provider spec with `stream_framing = "ndjson" | "sse"` emits
+  `op.stream` for `streamWhen` (with `set_input`) and `serverStreaming` operations (item:
+  the element of the output's `items`); the frame shape is kept reachable. gRPC: task 30
+  (`gen/proto.lua`); AWS: task 31 (`gen/aws.lua`). `allow_unsupported = { "streaming" }`
+  still emits `unsupported = "streaming"` for providers with no framing.
+- `distilled.testing.stream_transport{ responses = { { status, headers, chunks = { "bytes",
+  err, fn } }, err } }`: `tr.stream`, `tr.requests`, `tr.readers[n]` (`pulled`, `closed`).
+- `dl serve`: a scripted response with `chunks` / `chunks_b64` streams chunked
+  (`chunk_delay`, `stall`, `drop_after`, `hang`); `GET /_dl/streams` logs what was sent.
+
 ## Test harness (`spec/harness.lua`)
 
 ```lua
