@@ -941,6 +941,58 @@ conformance with Distilled: 16 signer vectors, 17 requests, 85 responses, 0 mism
 - One unexplained Rex failure in the first `dl test --http tencentcloud` run (output
   lost); 14 reruns (rex alone and all three runtimes) passed. Recorded in the done file.
 
+## 23 grpc
+
+**Status: done** (branch `task-23`). Done file: `tasks/23-grpc.done.md`.
+
+Built:
+- `lua/distilled/protobuf.lua`: the proto3 codec.
+- `lua/distilled/protocol/grpc.lua`: gRPC and gRPC-Web, unary plus collected server streams.
+- `lua/distilled/protocol/connect.lua`: Connect JSON (e2b).
+- `lua/distilled/protocol/rpc.lua`: the runtime for the provider spec's `proto` section (settings, hosts, headers).
+- `lua/distilled/gen/proto.lua`.
+- Transport trailers and `request.http2` in `transport/curl_common.lua`.
+- Providers and committed clients for modal (304 ops), boxd (135) and e2b (97), plus generated clients for namespacelabs (182). All four reach parity with Distilled.
+- The full feature list is in `verify/features/grpc.md`.
+
+Decisions others should know:
+- **New provider spec key `proto`** (I renamed it from `rpc` when merging task 22, which owns `rpc` for operations without http traits; `proto` together with `rpc` is refused).
+  - It is validated by `gen/proto.lua` and documented at the top of that file.
+  - With `proto`, a provider's `init.lua` comes from `proto.client`, not `writer.client`.
+  - `status_map`, `classify_error`, `protocol` and `rpc` are refused alongside `proto`.
+- **Edits outside "descriptor emission" in `gen/*`.** These are hooks only, each guarded by `spec.proto`; non-rpc providers generate the same bytes as before.
+  - `gen/provider.lua`: `proto` in TOP, plus the validation call.
+  - `gen/init.lua`:
+    - `proto.streaming` after `ops.streaming`;
+    - `proto.prepare_model` before errors;
+    - `proto.plan` after the plan;
+    - the extra files.
+- **`verify/dl models sync`** now also copies `packages/<pkg>/src/descriptors.ts` to `models/<pkg>/`. The generator reads it from there.
+- **gRPC server-streaming ops are callable** on the grpc wires: they return `{ items }`.
+  - They are still `unsupported = "streaming"` on Connect and REST.
+  - `gen/traits.lua`'s note for `com.distilled.grpc#serverStreaming` predates this. Proposed: say "callable on rpc grpc wires (gen/proto.lua); else unsupported".
+- **Merge with main (task 13):**
+  - Main brought its own `providers/e2b.lua` and `providers/namespacelabs.lua`.
+  - **namespacelabs:** I kept main's REST + glue spec. Task 13's keys cover it, and it is Connect JSON, which is plain REST. My `proto` variant is not needed.
+  - **e2b:** I kept mine at first, because task 13's `models.override` took only `{ base_url, title }`. Task 27 then extended the overrides and rewrote `providers/e2b.lua` with them (plus `glue/e2b_envd.lua`). At that merge I took task 27's spec and `clients/e2b`, and my e2b client specs pass against them.
+  - **Result:** no generated client uses `proto` `wire = "connect"` (`protocol/connect.lua`) now. It stays supported and tested by `gen.proto`'s spec.
+  - **Overlap to fold later:** `proto.options`, `proto.headers` and `proto.base_url` duplicate task 13's top-level `options`, `headers` and templated `base_url` for the grpc wires.
+  - **Proposed follow-up:** let task 13's model overrides carry `options` and `headers`. `proto` could then keep only `wire`, `descriptors`, `http2` and `error_matchers_trait`.
+- **Outside my files:** I added `"boxd"` and `"modal"` to `NAMES` in `spec/provider_spec.lua`. It lists every `providers/*.lua`, and the merge broke it otherwise.
+- **`testing.transport` drops `response.trailers`.** `spec/grpc_spec.lua` uses its own scripted transport.
+  - Proposed: pass `trailers` through in `distilled.testing`.
+- **`verify/features/parity.md` is stale.** `verify/dl parity` regenerates it with these four packages complete; I did not commit the regenerated file because I do not own it.
+- **Proposed contract addition (`docs/interfaces.md`, transport):**
+  - `request.http2?: boolean`;
+  - `response.trailers?: { [lowercase name] = value }`.
+- **Fixed a race in exec_curl bodies** (`transport/curl_common.lua`).
+  - curl reads a `data-binary = "@/dev/fd/3"` file as soon as it parses that config line.
+  - fd 3 shares its file offset with the stdin that `dd` copies the config from. So any config line after `data-binary` could be taken as body.
+  - Seen as "curl output has no write-out trailer" and a body 8 bytes long instead of 1, in about one full `dl test --http` run in three. My longer write-out line made it visible.
+  - `data-binary` is now always the last config line; `spec/grpc_spec.lua` checks this.
+- **`clients/hetzner` is stale on main.** It differs from a fresh generation on main's own tree (task 13's error-envelope emission), so `dl gen-diff hetzner` fails. This is not from task 23: main's tree and task-23 give byte-identical hetzner output.
+
+
 ## 18 big-models
 
 **Done.** See `tasks/18-big-models.done.md` and `verify/features/generator.md` ("Large
@@ -1042,3 +1094,175 @@ models"). infisical's client now loads on luajit, and `require` takes 74 ms in R
   `docs/interfaces.md` could gain a section from the API list above.
 - Random bytes for key generation, Coinbase nonces and DPoP `jti` need a host field,
   as task 14 proposed. `ecdsa.private_key(curve, random32)` turns them into a key.
+
+## 26 clients
+
+**Done.** See `tasks/26-clients.done.md`. 89 REST packages generated and committed
+(953 models, 2 skipped as Distilled skips them: github/webhooks and resend/webhook_events
+have no operations); every one passes `verify/dl gen-diff`. `verify/features/parity.md`
+regenerated.
+
+### Fixes (each with a spec)
+
+- `gen/emit.lua`: code layout measures width in **bytes** (`emit.code_width`), as stylua
+  2.6 does (measured: `"é"` counts 2, `"🔥"` 4). huggingface/papers' emoji enum fitted in
+  100 characters but not 100 bytes and failed `stylua --check`. Comment wrapping still
+  counts characters (`emit.width`; stylua does not reflow comments). No other committed
+  client changed. Spec: `spec/gen_emit_spec.lua`.
+- `verify/lib/gen_input.lua` (not in my list; needed for gen-diff): a cycle through a
+  **required list** ends with an empty list instead of failing the synthesized input
+  (starburst-galaxy/live_table `update_live_table_schema`, nestedColumns). A cycle through
+  required struct members still fails. Spec: `spec/gen_input_spec.lua` (new).
+- `verify/lib/parity.lua` (not in my list; it undercounted): Lua ops are counted in
+  `service/ops_NNN.lua` of a split service (task 18) and when stylua hangs the assignment
+  (`ops.<very_long_name> =` then the table on the next line: doppler, workos, vercel).
+- No provider spec needed a change.
+
+### For others
+
+- infisical was skipped until task 18 landed; after `git merge main` it generates split
+  and passes gen-diff (Rex service load ~70 ms).
+- Packages below 100% parity are spec drift, not generator gaps: Distilled's committed
+  `src/services` were generated from older specs than the current `.generated-specs`
+  (whop 14 ops in companies/entries/recommended_actions/ad_reports, posthog 10 `loops`
+  ops, coinflow 3 subsidiary ops; coinflow has 9 embedded-account/withdrawal ops TS lacks).
+- `clients/` is 231 MB in 4,629 files without tencentcloud (275 MB with it); `types.lua`
+  files are 118 MB of the 231 (51%).
+
+## 25 s3
+
+**Done** (see `tasks/25-s3.done.md`, `verify/features/s3.md`). Source:
+`../distilled/packages/s3/src/` (the runtime) and `packages/aws/.generated-specs/s3.json`
+(the model: S3 has no convert script of its own, `packages/aws/scripts/generate.ts`
+writes `s3/src/services/s3.ts` from the AWS mirror with `packages/aws/patches/s3/`;
+here `verify/dl models sync aws` gives `models/aws/s3.json`).
+
+**Merge order: this branch contains origin/task-17 up to 8768002** (task 17's AWS
+runtime and generator, which clients/s3 needs). Merge task 17 first, or at least know
+that merging task-25 brings those commits in. Conflicts resolved here (identically to
+the obvious union): `lua/distilled/gen/init.lua` (aws client files vs glue.lua),
+`spec/provider_spec.lua` (the `aws` entry), `STATUS.md`.
+
+### Split with task 17 (aws)
+
+Distilled's S3 package *is* the AWS runtime base (protocol.ts, restXml, endpoint rules,
+middleware, presign); `@distilled.cloud/aws` imports it. Task 17 owns the generic AWS
+protocol (`lua/distilled/aws/`, gen/aws.lua): httpChecksum, UNSIGNED-PAYLOAD rules,
+custom endpoint, endpoint rules with virtual-host/path addressing, restXml, credentials.
+clients/s3 is generated by its generator from `providers/s3.lua`. Task 25 adds:
+
+- `distilled.s3.presign`: `url`, `s3_url`, `post` (presign.ts presignUrl / presignS3Url /
+  presignPost), checked against vectors from Distilled (`spec/golden/s3/presign.lua`,
+  `verify/lib/s3_vectors.mjs`).
+- `distilled.s3`: the same with a client's credentials/region/endpoint/host
+  (`s3.presign_s3_url(client, ...)`, ...) and `s3.presign_request(client, op, input,
+  opts)` (Presign.presignRequest): it calls the client's `protocol.encode`, strips the
+  header signature and signs the request into its query string. A "presign instead of
+  sign" hook in `aws/protocol.lua` would save one signature; not needed.
+- `distilled.s3.checksum`, `distilled.s3.payload`: the httpChecksum middleware and the
+  x-amz-content-sha256 rules as standalone tested modules (task 17 inlined the same
+  rules in `aws/protocol.lua`; behaviour is identical, either may call the other).
+- `spec/s3_conform_spec.lua` + `spec/golden/s3/conform.lua` (from
+  `verify/lib/s3_conform.mjs`, Distilled's S3 client over a stub HttpClient): 47 signed
+  requests (every header and the SigV4 signature compared), 39 response outcomes, 3
+  ListObjectsV2 page flows, 10 presigned requests. `spec/s3_http_spec.lua` over
+  `dl serve`.
+- Edits outside my list: `spec/provider_spec.lua` (NAMES gains `s3`, and `aws` which
+  task 17 added the same way).
+
+### For task 17 (found by s3_conform_spec; each is a KNOWN entry there)
+
+A KNOWN case is reported pending and also run: **once fixed it fails with "known gap
+fixed: remove <id> from KNOWN in spec/s3_conform_spec.lua"** - delete the entry then.
+
+- **GetObject bodies that look like base64 are decoded** (`"abcd"` comes back as 3
+  bytes; `"hello world"` survives only because it is not base64): `aws/protocol.lua`
+  `decode_success` ignores `read.raw` in the `by_name` branch (rest_xml returns blob
+  payloads that way). Fix: after `codec.decode(node, read.members, ...)`, put
+  `read.members[name]` back for every `read.raw[name]`.
+- GetBucketLocation (`aws.customizations#s3UnwrappedXmlOutput`) returns `{}`: the
+  generator puts the flag on the op (`op.aws.unwrapped_output = true`), rest_xml.lua
+  reads `node.unwrapped_output` (the output shape).
+- Error categories: generated S3 errors have `categories = {}` where Distilled derives
+  them from the status (spec.ts errorCategories: NoSuchKey/NoSuchBucket/NoSuchUpload 404
+  -> BadRequestError, BucketAlreadyOwnedByYou 409 -> AlreadyExistsError + ConflictError,
+  InvalidObjectState 403 -> AuthError). InternalError gets RetryableError + ServerError,
+  Distilled only ServerError. A client-side ParseError has the ParseError category;
+  Distilled's (errors.ts) none.
+- A missing required label (GetObject without Key) is sent; Distilled fails with
+  ParseError `Expected a value, got "[REDACTED]" at ["Key"]`.
+- GetObject with an empty 200 body: Distilled's Body is `""` (an empty stream), ours
+  absent. PutObject with `Body = ""` sends no body; Distilled sends an empty one.
+- `parse_tag`: the S3 model declares an error shape `ParseError`, so the generator
+  refuses `parse_tag = "ParseError"` (Distilled's tag); providers/s3.lua uses
+  `S3ParseError`, but client-side parse failures come out as `ParseError` anyway (the
+  runtime's own class). Proposal: allow a parse_tag equal to a member-less model error.
+- Kept as intended differences (spec INTENDED table, verify/features/s3.md): a custom
+  endpoint's trailing "/" is dropped (Distilled sends `//bucket/key`); SHA256/SHA1/CRC32C
+  checksums are computed (Distilled sends the algorithm header alone); Distilled's
+  HttpBody gives a string body `content-type: text/plain` when no member sets one.
+
+### Proposed (files I do not own)
+
+- `verify/dl models sync` / `gen-diff`: S3's model is `models/aws/s3.json`, so `dl
+  gen-diff s3` says "no models in models/s3". A mapping (package s3 -> aws's s3.json)
+  would let gen-diff and gen-all cover it; until then the done file runs gen_check.lua
+  directly. `dl parity` already counts clients/s3 (112/112).
+- `verify/features/README.md`: a row for `s3.md`.
+
+## 27 provider-gaps
+
+**Done.** See `tasks/27-provider-gaps.done.md`. Clients committed (each passing
+`verify/dl gen-diff`, operation counts equal to `tasks/notes/ts-op-counts.txt`): clerk 320,
+convex 79, digitalocean 924, e2b 97, exa 72, fly_io 174, mailchimp 393, onepassword 33,
+slack 355, scaleway 1580, questrade 25.
+
+### What others can use
+
+- **`models.override.<model>` takes spec keys** (`provider.MODEL_SPEC_KEYS`): `auth`,
+  `options`, `headers`, `require_one_of`, `public_operations`, `oauth`, `user_agent`,
+  `error_envelope`, `unknown_fields`, `transform_response`, `empty_json_body`, `glue`.
+  Each replaces the package's key; `false` removes it; `base_url` merges field by field
+  (`false` removes a field). The merged raw spec is validated whole by `provider.validate`
+  (problems prefixed `provider spec models.override.<m>:`) and `for_model` returns it.
+  A title/classic-base_url-only override takes the old task 10 path (output unchanged).
+- **`pagination = { modes = { page = "total_count" } }`** (provider.lua): a trait mode ->
+  runtime strategy. New `distilled.paginate` mode `total_count` (Scaleway's
+  paginateByTotalCount: sized by the first page, stops after ceil(total / length) pages
+  or on an empty page).
+- `rest.lua`: glue/opts `transform_input(input, op, settings, service)` (was
+  `(input, op)`) and `transform_response(body, op, { status, headers })`; existing
+  two-argument functions are unaffected. An op with `raw_download = true` gets `dl=1`
+  (Scaleway `...Raw` downloads; task 12 emitted the flag, nothing used it).
+- A glue may call `host.transport` for credential exchanges the spec's `oauth` cannot
+  express (questrade's refresh-token redemption, fly_io sprites' token mint).
+- URLs with secrets: the curl transports already carried the URL in the config text
+  (exec_curl stdin, popen_curl 0600 file) and scrubbed the query from errors, so **no
+  transport change was needed**; task 13's note that popen_curl puts URLs in process
+  arguments was wrong. `spec/questrade_client_spec.lua` checks argv / the shell command
+  for both transports, and `verify/dl canary tasks/notes/27-questrade-canary.lua` passes
+  under all three runtimes (with a negative control that fails).
+
+### Edits outside my file list (orchestrator: please check on merge)
+
+- `lua/distilled/paginate.lua`: the `total_count` strategy and its `MODES` entry (additive).
+- `lua/distilled/gen/ops.lua`: one line in `ops.pagination`, the mode map
+  (`ctx.provider.pagination.modes`).
+- `spec/provider_spec.lua`: `NAMES` lists questrade, scaleway, slack.
+- `tasks/notes/27-questrade-canary.lua` (new): the canary script.
+
+### Proposed (files I do not own)
+
+- `lua/distilled/gen/provider_ext.lua` `ext.HOOKS` doc strings: `transform_input` is now
+  `fn(input, op, settings, service)`, `transform_response` `fn(body, op, { status, headers })`.
+- `docs/providers-survey.md` (task 13): the slack, scaleway and questrade rows still say
+  "not written"; the per-model rows can point at `models.override`.
+- `docs/interfaces.md`: the two glue signatures, `pagination.modes` and the `total_count`
+  mode, `provider.MODEL_SPEC_KEYS`, op `raw_download` -> `dl=1`.
+- An `on_refresh` hook for Questrade's rotated refresh tokens needs a function-typed
+  provider option (`provider_ext.check_option` allows string/number/boolean only); until
+  then they live in memory, as with Distilled's CredentialsFromEnv.
+- Task 23 also owns `providers/e2b.lua` and `clients/e2b/`: I added the envd /
+  filesystem / process overrides (EnvdProtocol: sandbox headers, host, empty JSON bodies,
+  `providers/glue/e2b_envd.lua`) and volume_content's (VolumeContentProtocol). The Connect
+  streaming parts are task 23's; expect a conflict there.

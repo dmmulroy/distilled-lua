@@ -858,6 +858,14 @@ cmd_models() {
       fi
       cp "$f" "$dst/$b.tmp" && mv "$dst/$b.tmp" "$dst/$b"
     done
+    # gRPC packages (task 23): the descriptors Distilled's convert writes next to the
+    # services (src/descriptors.ts); the generator reads them from models/<pkg>/
+    if [ -f "$PACKAGES/$pkg/src/descriptors.ts" ]; then
+      cmp -s "$PACKAGES/$pkg/src/descriptors.ts" "$dst/descriptors.ts" ||
+        cp "$PACKAGES/$pkg/src/descriptors.ts" "$dst/descriptors.ts"
+    else
+      rm -f "$dst/descriptors.ts"
+    fi
     n=$((new + changed + same))
     total=$((total + n))
     if [ "$gq" = none ]; then gq_note=""; else gq_note="; graphql $gq"; fi
