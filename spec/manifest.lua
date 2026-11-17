@@ -8,6 +8,7 @@ return {
   "credentials_spec.lua",
   "crypto_spec.lua",
   "errors_spec.lua",
+  "gen_big_spec.lua",
   "gen_emit_spec.lua",
   "gen_errors_spec.lua",
   "gen_layout_spec.lua",
