@@ -306,6 +306,12 @@ const responses = [
     response: { status: 200, headers: { "content-type": "application/octet-stream" }, body: "\u00e9\u00e8 bytes" },
   },
   {
+    id: "get-object-base64-text",
+    op: "GetObject",
+    input: { Bucket: "b", Key: "k" },
+    response: { status: 200, headers: { "content-type": "text/plain" }, body: "abcd" },
+  },
+  {
     id: "get-object-206",
     op: "GetObject",
     input: { Bucket: "b", Key: "k", Range: "bytes=0-4" },

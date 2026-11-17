@@ -1585,6 +1585,31 @@ return {
         ["ok"] = true,
         ["value"] = {
           ["Body"] = {
+            ["$text"] = "abcd",
+          },
+          ["ContentType"] = "text/plain",
+          ["Metadata"] = {},
+        },
+      },
+      ["id"] = "get-object-base64-text",
+      ["input"] = {
+        ["Bucket"] = "b",
+        ["Key"] = "k",
+      },
+      ["op"] = "get_object",
+      ["response"] = {
+        ["body"] = "abcd",
+        ["headers"] = {
+          ["content-type"] = "text/plain",
+        },
+        ["status"] = 200,
+      },
+    },
+    {
+      ["expected"] = {
+        ["ok"] = true,
+        ["value"] = {
+          ["Body"] = {
             ["$text"] = "hello",
           },
           ["ContentLength"] = 5,

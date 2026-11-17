@@ -44,6 +44,7 @@ return {
   "s3_checksum_spec.lua",
   "s3_client_spec.lua",
   "s3_conform_spec.lua",
+  "s3_http_spec.lua",
   "s3_presign_spec.lua",
   "schema_spec.lua",
   "scope_spec.lua",

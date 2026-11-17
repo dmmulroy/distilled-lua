@@ -46,6 +46,7 @@ local CATEGORIES = "error categories from the status (spec.ts errorCategories) n
 local KNOWN = {
   ["get-object-missing-key"] = "a missing required label is sent; Distilled fails with ParseError",
   ["put-object-empty-body"] = "Body = '' sends no body; Distilled sends an empty one",
+  ["get-object-base64-text"] = "a blob payload read by name is base64-decoded (protocol.lua decode_success ignores read.raw)",
   ["get-object-empty"] = "an empty streaming payload is absent; Distilled's Body is ''",
   ["get-bucket-location-eu"] = "aws.customizations#s3UnwrappedXmlOutput not read",
   ["error-no-such-key"] = CATEGORIES,
