@@ -40,7 +40,10 @@ local function table_for(name)
       c2 = floor(c2 / 2) + (c3 % 2) * 128
       c3 = floor(c3 / 2)
       if low == 1 then
-        c0, c1, c2, c3 = X[c0][p[0]], X[c1][p[1]], X[c2][p[2]], X[c3][p[3]]
+        c0 = X[c0][p[0]]
+        c1 = X[c1][p[1]]
+        c2 = X[c2][p[2]]
+        c3 = X[c3][p[3]]
       end
     end
     T0[n], T1[n], T2[n], T3[n] = c0, c1, c2, c3
@@ -78,8 +81,14 @@ local function run(name, message, crc)
     end
     local chunk = { byte(message, at, last) }
     for i = 1, #chunk do
+      -- crc = T[(crc XOR b) AND 0xff] XOR (crc >> 8), byte by byte. Assigned one at a
+      -- time in this order on purpose: each line reads the next byte before it changes
+      -- (gopher-lua does a multiple assignment to locals sequentially anyway).
       local n = X[c0][chunk[i]]
-      c0, c1, c2, c3 = X[c1][T0[n]], X[c2][T1[n]], X[c3][T2[n]], T3[n]
+      c0 = X[c1][T0[n]]
+      c1 = X[c2][T1[n]]
+      c2 = X[c3][T2[n]]
+      c3 = T3[n]
     end
   end
   return 4294967295 - (((c3 * 256 + c2) * 256 + c1) * 256 + c0)

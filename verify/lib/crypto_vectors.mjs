@@ -14,14 +14,17 @@ let seed = 20260514;
 const next = () => (seed = (seed * 16807) % 2147483647);
 const bytes = (n) => Buffer.from(Array.from({ length: n }, () => next() % 256));
 
-const HASHES = ["md5", "sha1", "sha224", "sha256", "sha384", "sha512"];
+const HASHES = ["md5", "sha1", "sha224", "sha256", "sha384", "sha512", "sha3-256"];
+const luaName = (h) => h.replace("-", "_");
 const hex = (b) => Buffer.from(b).toString("hex");
 const luaString = (s) => JSON.stringify(s); // hex/base64 text only: JSON quoting is Lua quoting
 
 // lengths around every block boundary (64 and 128 bytes, minus the 9/17 padding bytes)
+// (and 136 for SHA3-256's rate)
 const lengths = [0, 1, 2, 3, 31, 32, 54, 55, 56, 57, 63, 64, 65, 110, 111, 112, 113, 119, 120,
-  127, 128, 129, 183, 191, 192, 200, 255, 256, 257, 300, 511, 512, 513, 1000];
-const keyLengths = [0, 1, 16, 20, 32, 63, 64, 65, 100, 127, 128, 129, 200];
+  127, 128, 129, 135, 136, 137, 183, 191, 192, 200, 255, 256, 257, 271, 272, 273, 300, 511, 512,
+  513, 1000];
+const keyLengths = [0, 1, 16, 20, 32, 63, 64, 65, 100, 127, 128, 129, 136, 137, 200];
 
 const lines = [];
 const w = (s) => lines.push(s);
@@ -31,18 +34,18 @@ w("return {");
 w("  digests = {");
 for (const n of lengths) {
   const input = bytes(n);
-  const fields = HASHES.map((h) => `${h} = ${luaString(createHash(h).update(input).digest("hex"))}`);
+  const fields = HASHES.map((h) => `${luaName(h)} = ${luaString(createHash(h).update(input).digest("hex"))}`);
   w(`    { input = ${luaString(hex(input))}, ${fields.join(", ")} },`);
 }
 w("  },");
 w("  hmacs = {");
 let i = 0;
 for (const k of keyLengths) {
-  for (const h of ["md5", "sha1", "sha256", "sha512", "sha224", "sha384"]) {
+  for (const h of ["md5", "sha1", "sha256", "sha512", "sha224", "sha384", "sha3-256"]) {
     const key = bytes(k);
     const input = bytes(lengths[i++ % lengths.length]);
     const mac = createHmac(h, key).update(input).digest("hex");
-    w(`    { hash = "${h}", key = ${luaString(hex(key))}, input = ${luaString(hex(input))}, mac = ${luaString(mac)} },`);
+    w(`    { hash = "${luaName(h)}", key = ${luaString(hex(key))}, input = ${luaString(hex(input))}, mac = ${luaString(mac)} },`);
   }
 }
 w("  },");

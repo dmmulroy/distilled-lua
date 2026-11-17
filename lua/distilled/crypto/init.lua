@@ -1,7 +1,8 @@
 -- distilled.crypto: hashing, HMAC and encodings in pure Lua 5.1, for request signing.
 --
 --   crypto.digest(name, message) -> binary digest
---     name: "md5" | "sha1" | "sha224" | "sha256" | "sha384" | "sha512"
+--     name: "md5" | "sha1" | "sha224" | "sha256" | "sha384" | "sha512" | "sha3_256"
+--           | "keccak256" (Ethereum's Keccak-256, original padding)
 --   crypto.sha256(message), crypto.sha1(message), ... -> binary digest
 --   crypto.hmac(name, key, message) -> binary MAC     (key may be a distilled.secret)
 --   crypto.hmac_sha256(key, message), crypto.hmac_sha1, crypto.hmac_sha512
@@ -24,6 +25,8 @@ local HASHES = {
   sha256 = { "sha2", 64, 32 },
   sha384 = { "sha2", 128, 48 },
   sha512 = { "sha2", 128, 64 },
+  sha3_256 = { "keccak", 136, 32 },
+  keccak256 = { "keccak", 136, 32 },
 }
 crypto.HASHES = HASHES
 
@@ -37,6 +40,8 @@ local function hash_fn(name)
     return function(message)
       return m.digest(name, message)
     end
+  elseif h[1] == "keccak" then
+    return m[name]
   end
   return m.digest
 end

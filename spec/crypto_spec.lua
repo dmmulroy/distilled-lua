@@ -91,6 +91,29 @@ t.describe("crypto: published test vectors", function()
     end
   end)
 
+  t.it("Keccak-256 (Ethereum) and SHA3-256 (FIPS 202 examples)", function()
+    t.eq(
+      digest_hex("keccak256", ""),
+      "c5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470"
+    )
+    t.eq(
+      digest_hex("keccak256", "abc"),
+      "4e03657aea45a94fc7d47ba826c8d667c0d1e6e33a64a036ec44f58fa12d6c45"
+    )
+    t.eq(
+      digest_hex("keccak256", "The quick brown fox jumps over the lazy dog"),
+      "4d741b6f1eb29cb2a9b9911c82f56fa8d73b04959d3d9d222895df6c0b28aa15"
+    )
+    t.eq(
+      digest_hex("sha3_256", ""),
+      "a7ffc6f8bf1ed76651c14756a061d662f580ff4de43b49fa82d80a4b80f8434a"
+    )
+    t.eq(
+      digest_hex("sha3_256", "abc"),
+      "3a985da74fe225b2045c172d6bd390bd855f086e3e9d525b46bfe24511431532"
+    )
+  end)
+
   t.it("HMAC-SHA-2 (RFC 4231 test cases 1-7)", function()
     local AA131 = rep("\170", 131)
     local cases = {
@@ -248,7 +271,7 @@ t.describe("crypto: random inputs against node:crypto (spec/golden/crypto/vector
     t.truthy(#vectors.digests > 30)
     for _, v in ipairs(vectors.digests) do
       local input = unhex(v.input)
-      for _, name in ipairs({ "md5", "sha1", "sha224", "sha256", "sha384", "sha512" }) do
+      for _, name in ipairs({ "md5", "sha1", "sha224", "sha256", "sha384", "sha512", "sha3_256" }) do
         t.eq(digest_hex(name, input), v[name], name .. " of " .. #input .. " bytes")
       end
     end
@@ -355,6 +378,7 @@ t.describe("crypto: API", function()
     t.match(sha2.source("sha256"), "^local tb, L = %.%.%.")
     t.match(require("distilled.crypto.sha1").source(), "R5_1")
     t.match(require("distilled.crypto.md5").source(), "^local tb, L")
+    t.match(require("distilled.crypto.keccak").source(), "^local tb, L")
   end)
 
   t.it("bytes.linear shares the tables of a pure rotation across output bytes", function()
