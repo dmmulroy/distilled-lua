@@ -225,6 +225,14 @@ local function transfer_new(opts, one_way)
           local pid = string.match(read_file(path("pid")), "%d+")
           if pid then
             os.execute("kill " .. pid .. " 2>/dev/null")
+            -- the background shell writes `status` once curl is gone: wait for it, or
+            -- it lands after cleanup and leaves the directory behind (task 29)
+            for _ = 1, 40 do
+              if exited() then
+                break
+              end
+              popen_curl.sleep(0.05)
+            end
           end
         end
         cleanup()

@@ -172,6 +172,13 @@ t.describe("streams over HTTP (dl serve)", function()
     st:close()
     t.eq(st:next(), nil)
     t.eq(#streams_for("/sandboxes/sb1/commands")[1].sent, 1)
+    if not in_rex then
+      -- popen: curl killed and its FIFO directory removed (no distilled-duplex.* left)
+      local p = io.popen('ls "${TMPDIR:-/tmp}" | grep -c "^distilled-duplex" || true')
+      local n = tonumber((p:read("*a"):gsub("%s", "")))
+      p:close()
+      t.eq(n, 0)
+    end
   end)
 
   t.it("SSE: events arrive one at a time", function()
