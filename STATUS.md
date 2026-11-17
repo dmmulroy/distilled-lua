@@ -473,3 +473,45 @@ neon` ok (177/178 operations build; the multipart one is acknowledged, see below
   for an assignment whose `target = {` cannot fit (`gen/emit.lua`). Neon output unchanged.
 - `docs/interfaces.md` updated to the code (all deviations listed in sections 01-08).
 - Still open: `verify/conform/node/*.mjs` bind only Neon.
+
+## 15 xml
+
+**Done.** `lua/distilled/xml.lua` (port of core `xml.ts`), `spec/xml_spec.lua`, fixtures
+in `spec/fixtures/xml/`, `dl test --xml-fuzz`, `dl xml-bench`, `verify/features/xml.md`.
+See `tasks/15-xml.done.md`.
+
+### API (proposed for `docs/interfaces.md`)
+
+- `xml.decode(text, { max_depth = 256, max_length = 64 MiB }) -> tree | nil, err`
+  (Distilled's `parseXmlSync`). Tree: an element with only text is a string; otherwise a
+  table with children by name, `"@_<attr>"`, `"#text"`; repeated siblings are a list.
+  `err` is `ParseError` with Distilled's message (`"<what> at <line>:<column>"`),
+  `err.offset` (0-based byte), `err.position` (1-based byte), `err.line`, `err.column`
+  (UTF-16 units, as Distilled). Raises only for misuse (non-string text, non-table
+  options, unknown option, non-number limit).
+- `xml.escape(s)` (`escapeXml`), `xml.wrap_tag(tag, content, xmlns?)` (`wrapTag`),
+  `xml.is_list(v)`, `xml.MAX_DEPTH`, `xml.MAX_LENGTH`.
+
+### Decisions others should know (AWS protocol tasks)
+
+- **Distilled bug found, not copied:** xml.ts's ASCII-name fast path rejects any name
+  that continues past ASCII (`<Straße>`, `<Größe>`, attribute `Größe=`): the regex
+  `/[A-Za-z_:][\w:.-]*(?![^\0-\x7f])/y` backtracks. Its reference parser
+  (`test/fixtures/xml/reference-parser.ts`) reads them; so do we. The fuzz compares with
+  xml.ts with that pattern fixed and checks every document against the reference parser
+  too. Worth reporting upstream (fix: lookahead `(?![\w:.-]|[^\0-\x7f])`).
+- Input is UTF-8; invalid UTF-8 (and encoded surrogates) is "Invalid XML character".
+  Distilled's protocols decode the body with `TextDecoder` first (U+FFFD for bad
+  bytes), so a body with invalid UTF-8 fails here where Distilled would parse it with
+  replacement characters. A protocol that wants Distilled's behaviour must replace
+  invalid sequences before `xml.decode`.
+- `max_length` counts bytes (Distilled: UTF-16 units).
+- S3's `src/util/xml.ts` helpers (`elementText`, `readXmlMap`, `extractXmlRoot`,
+  unwrap of list wrappers) are protocol-level and not ported here.
+
+### Outside my files
+
+- `verify/dl` (not listed in my brief, required by its item 3): added the `--xml-fuzz`
+  flag of `dl test`, the `xml-bench` command and their help lines. Additions only.
+- `verify/features/README.md` should list `xml.md` (left for the orchestrator, to avoid
+  conflicting edits).
