@@ -882,3 +882,26 @@ gives 1016 models ok, 0 failed, 2 skipped (models.skip). Two generator changes m
 possible: an `error_classes` tag that a model also declares uses the model's class (Vercel,
 Whop, Starburst, Atlas declare PaymentRequired / PreconditionFailed in some models only),
 and `naming.operations` is not checked against a single model of a multi-model package (exa).
+
+## 25 s3
+
+**In progress.** Source: `../distilled/packages/s3/src/` (the runtime) and
+`packages/aws/.generated-specs/s3.json` (the model: S3 has no convert script of its own,
+`packages/aws/scripts/generate.ts` writes `s3/src/services/s3.ts` from the AWS mirror with
+`packages/aws/patches/s3/`; here `verify/dl models sync aws` gives `models/aws/s3.json`).
+
+### Plan / split with task 17 (aws)
+
+Distilled's S3 package *is* the AWS runtime base (protocol.ts, restXml, endpoint rules,
+middleware, presign); `@distilled.cloud/aws` imports it. Task 17 owns the generic AWS
+protocol (`lua/distilled/aws/`: codec, http bindings, restXml, endpoint rules, protocol
+seam, credentials). Task 25 adds only the S3-specific parts in `lua/distilled/s3/`, written
+so task 17's protocol can call them for any service:
+
+- `distilled.s3.checksum`: `aws.protocols#httpChecksum` middleware (port of
+  `middleware/checksum.ts`; whole-string bodies, so the non-streaming path).
+- `distilled.s3.payload`: the `x-amz-content-sha256` / UNSIGNED-PAYLOAD decision of
+  `protocol.ts` `toHttpRequest` (streaming input, service checksum, S3 Control/Glacier).
+- `distilled.s3.presign`: `presign_url`, `presign_s3_url`, `presign_post`, and
+  `presign_request` (needs a "presign instead of sign" hook in task 17's protocol).
+- `providers/s3.lua`, `clients/s3/` once task 17's generator accepts AWS models.
