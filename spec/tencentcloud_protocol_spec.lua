@@ -346,3 +346,52 @@ t.describe("tencentcloud spans", function()
     t.no_match(text, SECRET_KEY, true)
   end)
 end)
+
+t.describe("tencentcloud over HTTP (dl serve)", function()
+  t.it("a signed call through the real transport, retried on RequestLimitExceeded", function()
+    local serve = require("verify.lib.serve")
+    if not serve.url() then
+      t.pending("DL_SERVE_URL is not set (run verify/dl test --http)")
+      return
+    end
+    local h = require("verify.lib.canary").host()
+    local s = serve.client(h.transport)
+    s.reset()
+    s.script("/tc/cvm/", {
+      { status = 200, json = failure("RequestLimitExceeded", "slow down") },
+      { status = 200, json = ok_body({ TotalCount = 7 }) },
+    })
+    local c = require("tencentcloud.cvm").new({
+      host = h,
+      secret_id = "AKIDhttp",
+      secret_key = SECRET_KEY,
+      endpoint = serve.url() .. "/tc/{service}",
+      retry = { base_ms = 10, max_retries = 2 },
+    })
+    local v, err = c:describe_instances({ region = "ap-guangzhou", Limit = 7 })
+    t.eq(err, nil)
+    t.eq(v.TotalCount, 7)
+    local seen = s.requests()
+    t.eq(#seen, 2)
+    local r = seen[2]
+    t.eq(r.method, "POST")
+    t.eq(r.body, '{"Limit":7}')
+    local hd = {}
+    for k, x in pairs(r.headers) do
+      hd[string.lower(k)] = x
+    end
+    t.eq(hd["x-tc-action"], "DescribeInstances")
+    t.eq(hd["x-tc-region"], "ap-guangzhou")
+    local expected = signer.sign({
+      secret_id = "AKIDhttp",
+      secret_key = SECRET_KEY,
+      service = "cvm",
+      host = hd.host,
+      action = "DescribeInstances",
+      timestamp = tonumber(hd["x-tc-timestamp"]),
+      content_type = hd["content-type"],
+      payload = r.body,
+    })
+    t.eq(hd.authorization, expected.authorization)
+  end)
+end)
