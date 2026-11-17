@@ -318,7 +318,7 @@ return {
 
 - `verify/dl conform hetzner`: `verify/conform/node/*.mjs` bind only Neon (open since task
   07). Hetzner's request and error behaviour is checked by hand against Distilled's
-  sources in `spec/gen_layout_spec.lua` instead (each case names the TS it follows).
+  sources in `spec/gen_layout_spec.lua` instead (the request cases name the TS they follow).
 - No live Hetzner or npm call (no credentials; the proof bar forbids network in tests).
 - `models sync` for gcp: its `.generated-specs/` has `stable/` and `unstable/`
   subdirectories, which the flat `models/<pkg>/<model>.json` layout does not cover; left
