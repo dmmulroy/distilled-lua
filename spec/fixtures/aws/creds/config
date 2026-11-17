@@ -1,0 +1,38 @@
+# shared config file for spec/aws_credentials_spec.lua
+[default]
+region = eu-central-1
+
+[profile other]
+region = ap-northeast-1
+
+[profile admin]
+role_arn = arn:aws:iam::123456789012:role/Admin
+source_profile = base
+region = us-west-2
+external_id = ext
+duration_seconds = 900
+
+[profile mfa]
+role_arn = arn:aws:iam::123456789012:role/Admin
+source_profile = base
+mfa_serial = arn:aws:iam::123456789012:mfa/me
+
+[profile a]
+role_arn = arn:aws:iam::123456789012:role/A
+source_profile = b
+
+[profile b]
+role_arn = arn:aws:iam::123456789012:role/B
+source_profile = a
+
+[profile env]
+credential_source = Environment
+
+[profile proc]
+credential_process = print-creds --v1
+
+[profile v2]
+credential_process = print-creds --v2
+
+[profile junk]
+credential_process = print-creds --junk

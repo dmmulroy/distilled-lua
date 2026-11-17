@@ -523,10 +523,10 @@ local CMDS_IP = "169.254.170.2"
 
 -- from-http.ts checkUrl: https, or a loopback / container host over http
 local function accepted_url(url)
-  local scheme, host = match(url, "^(%a[%w+.-]*)://([^/:?#]*)")
-  if not host then
-    -- an IPv6 host keeps its brackets
-    scheme, host = match(url, "^(%a[%w+.-]*)://(%[[^%]]*%])")
+  -- an IPv6 host keeps its brackets (and holds colons)
+  local scheme, host = match(url, "^(%a[%w+.-]*)://(%[[^%]]*%])")
+  if not scheme then
+    scheme, host = match(url, "^(%a[%w+.-]*)://([^/:?#]*)")
   end
   if not scheme then
     return false, "not a valid credential provider URL"
