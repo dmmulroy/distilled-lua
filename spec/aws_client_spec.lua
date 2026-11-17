@@ -136,6 +136,34 @@ t.describe("aws client: requests", function()
   end)
 end)
 
+t.describe("aws client: trace propagation (core telemetry-xray.ts)", function()
+  t.it("sends X-Amzn-Trace-Id continuing the parent trace, no traceparent", function()
+    local trace = require("distilled.trace")
+    local parent = "00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01"
+    local host = testing.host({ responses = { json_res(200, "{}") } })
+    local tracer = trace.new({
+      exporter = function()
+        return true
+      end,
+      parent = parent,
+      host = host,
+    })
+    local c =
+      DynamoDB.new({ region = "us-east-1", credentials = CREDS, host = host, tracer = tracer })
+    assert(c:list_tables({}))
+    local h = host.requests[1].headers
+    t.match(
+      h["x-amzn-trace-id"],
+      "^Root=1%-4bf92f35%-77b34da6a3ce929d0e0e4736;Parent=%x+;Sampled=1$"
+    )
+    t.eq(h["traceparent"], nil)
+    t.eq(
+      require("distilled.aws.protocol").xray_header(string.rep("a", 32), string.rep("b", 16), false),
+      "Root=1-aaaaaaaa-" .. string.rep("a", 24) .. ";Parent=" .. string.rep("b", 16) .. ";Sampled=0"
+    )
+  end)
+end)
+
 t.describe("aws client: pagination", function()
   t.it("awsJson: a string token, then a map token (DynamoDB Scan's LastEvaluatedKey)", function()
     local c, host = client(DynamoDB, {
