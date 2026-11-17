@@ -1,0 +1,2 @@
+// A descriptors.ts as Distilled's convert scripts write it, for spec/grpc_spec.lua (gen.proto).
+export const descriptors = JSON.parse('{"messages":{"t.GetReq":[[1,"id","string"]],"t.Thing":[[1,"id","string"],[2,"state","enum","t.State"],[3,"child","message","t.Child"]],"t.Child":[[1,"n","int64"]],"t.Unused":[[1,"x","string"]]},"enums":{"t.State":{"S_UNSPECIFIED":0,"S_READY":1},"t.Other":{"O":0}},"methods":{"/t.Svc/Get":["t.GetReq","t.Thing"],"/t.Svc/Watch":["t.GetReq","t.Thing",1],"/t.Svc/Unused":["t.Unused","t.Unused"]}}');

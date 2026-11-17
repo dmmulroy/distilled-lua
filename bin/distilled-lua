@@ -319,6 +319,36 @@ local function cmd_package(args)
   for _, entry in ipairs(layout.models) do
     names[#names + 1] = entry.name
   end
+  -- <models>/unstable/*.json (task 21): always one module per model, <lua>.unstable.<model>
+  local unstable = {}
+  for _, stem in ipairs(list_models(models_dir .. "/unstable")) do
+    local name = gen.lua_model_name(stem)
+    if not gen.provider.is_model_name(name) or gen.INDEX_RESERVED[name] then
+      die(
+        "generation failed:\nunstable model "
+          .. stem
+          .. ": its Lua name "
+          .. name
+          .. " is not usable"
+      )
+    end
+    unstable[#unstable + 1] =
+      { stem = stem, name = name, module = layout.lua .. ".unstable." .. name, dir = name }
+    names[#names + 1] = name
+  end
+  table.sort(unstable, function(a, b)
+    return a.name < b.name
+  end)
+  if #unstable > 0 then
+    if not layout.multi then
+      die("generation failed:\n" .. models_dir .. "/unstable needs a multi-model package")
+    end
+    for _, entry in ipairs(layout.models) do
+      if entry.name == "unstable" then
+        die("generation failed:\nmodel " .. entry.stem .. " collides with the unstable/ directory")
+      end
+    end
+  end
   if layout.multi then
     local ok, cerr = gen.provider.check_models(spec, names)
     if not ok then
@@ -353,62 +383,96 @@ local function cmd_package(args)
   mkdir_p(stage)
 
   local counts = { ok = 0, failed = 0, skipped = 0, ops = 0 }
-  local services = {}
   local function report(status, entry, text)
     if not o.quiet or status == "FAIL" then
       print(string.format("%-4s %s/%s: %s", status, pkg, entry.stem, text))
     end
   end
-  for _, entry in ipairs(layout.models) do
-    if only and not only[entry.name] then
-      -- not selected by --only (a partial run, for debugging): nothing written
-    elseif spec.models.skip[entry.name] then
-      counts.skipped = counts.skipped + 1
-      report("skip", entry, "models.skip in the provider spec")
-    else
-      local m, merr = gen.model.load(models_dir .. "/" .. entry.stem .. ".json")
-      if not m and string.find(tostring(merr), ": the model has no operations$") then
-        -- Distilled skips them too (github/webhooks, resend/webhook_events)
+  -- generate_models(dir, entries, model_spec, stage_dir, multi) -> services: every model
+  -- of one directory (models/<pkg>/, or models/<pkg>/unstable/)
+  local function generate_models(dir, entries, model_spec, stage_dir, multi)
+    local services = {}
+    for _, entry in ipairs(entries) do
+      if only and not only[entry.name] then
+        -- not selected by --only (a partial run, for debugging): nothing written
+      elseif spec.models.skip[entry.name] then
         counts.skipped = counts.skipped + 1
-        report("skip", entry, "no operations")
-      elseif not m then
-        counts.failed = counts.failed + 1
-        report("FAIL", entry, first_line(merr))
+        report("skip", entry, "models.skip in the provider spec")
       else
-        -- a generator bug (a raise) fails this model only, not the whole package
-        local compat = require("distilled.compat")
-        local raised, files, gerr, plan = compat.pcall(gen.generate, {
-          model = m,
-          provider = spec,
-          model_name = layout.multi and entry.name or nil,
-          telemetry = not o["no-telemetry"],
-        })
-        if not raised then
-          files, gerr = nil, "generator raised: " .. tostring(files)
-        end
-        if not files then
+        local m, merr = gen.model.load(dir .. "/" .. entry.stem .. ".json")
+        if not m and string.find(tostring(merr), ": the model has no operations$") then
+          -- Distilled skips them too (github/webhooks, resend/webhook_events)
+          counts.skipped = counts.skipped + 1
+          report("skip", entry, "no operations")
+        elseif not m then
           counts.failed = counts.failed + 1
-          report("FAIL", entry, first_line(gerr))
+          report("FAIL", entry, first_line(merr))
         else
-          local dir = layout.multi and (stage .. "/" .. entry.dir) or stage
-          mkdir_p(dir)
-          local ok, werr = write_files(gen, files, dir)
-          if not ok then
-            die(werr)
+          -- a generator bug (a raise) fails this model only, not the whole package
+          local compat = require("distilled.compat")
+          local raised, files, gerr, plan = compat.pcall(gen.generate, {
+            model = m,
+            provider = model_spec,
+            model_name = multi and entry.name or nil,
+            telemetry = not o["no-telemetry"],
+          })
+          if not raised then
+            files, gerr = nil, "generator raised: " .. tostring(files)
           end
-          counts.ok = counts.ok + 1
-          counts.ops = counts.ops + #plan.ops
-          services[#services + 1] = {
-            name = entry.name,
-            title = plan.provider.title,
-            operations = #plan.ops,
-            source = entry.stem .. ".json",
-            hash = m.hash,
-          }
-          report("ok", entry, string.format("%d operations, %d shapes", #plan.ops, #plan.nodes))
+          if not files then
+            counts.failed = counts.failed + 1
+            report("FAIL", entry, first_line(gerr))
+          else
+            local out_dir = multi and (stage_dir .. "/" .. entry.dir) or stage_dir
+            mkdir_p(out_dir)
+            local ok, werr = write_files(gen, files, out_dir)
+            if not ok then
+              die(werr)
+            end
+            counts.ok = counts.ok + 1
+            counts.ops = counts.ops + #plan.ops
+            services[#services + 1] = {
+              name = entry.name,
+              title = plan.provider.title,
+              operations = #plan.ops,
+              source = entry.stem .. ".json",
+              hash = m.hash,
+            }
+            report("ok", entry, string.format("%d operations, %d shapes", #plan.ops, #plan.nodes))
+          end
         end
+        collectgarbage()
       end
-      collectgarbage()
+    end
+    return services
+  end
+  local services = generate_models(models_dir, layout.models, spec, stage, layout.multi)
+  -- unstable/ (task 21: gcp, google-workspace): Distilled's non-preferred API versions,
+  -- `@distilled.cloud/gcp/unstable/<service>`, become clients/<lua>/unstable/<model>/,
+  -- module <lua>.unstable.<model>, with their own index <lua>.unstable
+  local unstable_services
+  if #unstable > 0 then
+    local uspec = {}
+    for k, v in pairs(spec) do
+      uspec[k] = v
+    end
+    uspec.name = spec.name .. ".unstable"
+    mkdir_p(stage .. "/unstable")
+    unstable_services =
+      generate_models(models_dir .. "/unstable", unstable, uspec, stage .. "/unstable", true)
+    if #unstable_services > 0 then
+      local files, ierr = gen.index({
+        provider = uspec,
+        services = unstable_services,
+        local_name = spec.name .. "_unstable",
+      })
+      if not files then
+        die("generation failed:\n" .. ierr)
+      end
+      local ok, werr = gen.write(files, stage .. "/unstable")
+      if not ok then
+        die(werr)
+      end
     end
   end
   if gql_model and not only then

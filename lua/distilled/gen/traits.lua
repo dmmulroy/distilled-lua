@@ -13,14 +13,17 @@ traits.TABLE = {
   -- operations
   ["smithy.api#http"] = {
     handled = "ops.lua: method, uri, code, contentType, bodyMediaType, and the extensions"
-      .. " baseUrl, server, accept, rawDownload (op.base_url, op.server, op.accept,"
-      .. " op.raw_download)",
+      .. " baseUrl, server, accept, rawDownload, apiVersion (op.base_url, op.server,"
+      .. " op.accept, op.raw_download, op.api_version)",
   },
   ["com.tencentcloud#action"] = {
     handled = "rpc.lua: op.rpc (service, version, action) when the provider spec has rpc",
   },
   ["smithy.api#paginated"] = { handled = "ops.lua: pagination, validated against members" },
   ["smithy.api#documentation"] = { handled = "types.lua and README.md: descriptions" },
+  ["com.distilled.openapi#apiVersion"] = {
+    handled = "azure.lua: op.api_version (with the Azure protocol only)",
+  },
   ["com.distilled.openapi#contentType"] = {
     handled = "ops.lua: op.content_type (the same value as smithy.api#http contentType)",
   },
@@ -93,6 +96,43 @@ traits.TABLE = {
     handled = "errors.lua: matchers (regexes compiled at generation time)",
   },
   ["distilled.errors#categories"] = { handled = "errors.lua: extra categories" },
+
+  -- Cloudflare's v4 envelope protocol (gen/cloudflare.lua rewrites these first)
+  ["com.cloudflare.protocols#v4Json"] = {
+    handled = "cloudflare.lua: the model speaks the v4 envelope (distilled.protocol.cloudflare)",
+  },
+  ["com.cloudflare.protocols#envelopePayload"] = {
+    handled = "cloudflare.lua: bind = payload (the envelope's result); a sole member of a"
+      .. " non-paginated output is the output itself (output_raw)",
+  },
+  ["com.cloudflare.protocols#nullable"] = {
+    handled = "cloudflare.lua: as com.distilled.openapi#nullable",
+  },
+  ["com.cloudflare.protocols#errorMatchers"] = {
+    handled = "cloudflare.lua: as com.distilled.openapi#errorMatchers",
+  },
+  ["com.cloudflare.protocols#formDataFile"] = {
+    handled = "cloudflare.lua: member form_file (one multipart part per file, by filename)",
+  },
+  ["com.cloudflare.protocols#binaryResponseBody"] = {
+    handled = "cloudflare.lua: a Blob payload member (the raw body bytes)",
+  },
+  ["com.cloudflare.protocols#deepQuery"] = {
+    handled = 'cloudflare.lua: bind = query, style = "deep", wire = the trait value',
+  },
+  ["com.cloudflare.protocols#host"] = {
+    handled = "cloudflare.lua: op.host, the operation's own origin filled from its labels",
+  },
+  ["com.cloudflare.protocols#jurisdiction"] = {
+    handled = "cloudflare.lua: op.jurisdiction (the client's jurisdiction option is sent as"
+      .. " cf-r2-jurisdiction)",
+  },
+  ["com.cloudflare.protocols#keyDictionary"] = {
+    ignored = "Lua member names are wire names: there is no camelCase key mapping to keep",
+  },
+  ["com.cloudflare.protocols#verbatimPayload"] = {
+    ignored = "Lua member names are wire names: payload keys are never renamed anyway",
+  },
 
   -- ignored on purpose
   ["smithy.api#input"] = { ignored = "marks an operation input; the operation says so already" },
@@ -246,6 +286,7 @@ traits.GUARDED = {
   "com.distilled.telemetry#",
   "com.distilled.grpc#",
   "distilled.",
+  "com.cloudflare.protocols#",
   "aws.",
   "smithy.rules#",
 }

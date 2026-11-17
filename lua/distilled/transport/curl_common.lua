@@ -9,10 +9,17 @@
 --
 -- Output layout, on curl's stdout, in order:
 --   every response header block (`dump-header = "-"`: 1xx blocks, then the final one;
---   several when redirects are followed), the body, then the write-out trailer
---   "\n" .. TRAILER .. " <http_code> <size_download>".
--- The trailer gives the exact body length, so the body is cut from the end of the output
--- and may hold anything, including text that looks like headers or like the trailer.
+--   several when redirects are followed), the body, the HTTP trailers if the response
+--   has any (curl writes them to the header dump after the body: HTTP/2 trailers, or a
+--   chunked HTTP/1.1 body's), then the write-out trailer
+--   "\n" .. TRAILER .. " <http_code> <size_download> <size_header>".
+-- size_header counts the header blocks but not the HTTP trailers (measured with curl
+-- 8.7 against Node's http and http2 servers), so the body starts right after them, is
+-- size_download bytes long and may hold anything, including text that looks like
+-- headers or like the trailer; what lies between it and the write-out is the trailers.
+--
+-- request.http2 = true asks for HTTP/2 (gRPC, task 23): `http2-prior-knowledge` for
+-- http:// (gRPC servers do not upgrade from HTTP/1.1), `http2` (ALPN) for https://.
 local errors = require("distilled.errors")
 local compat = require("distilled.compat")
 
@@ -92,6 +99,9 @@ function M.check(req)
   if req.timeout ~= nil and (type(req.timeout) ~= "number" or req.timeout ~= req.timeout) then
     return nil, invalid("transport: request.timeout must be a number of seconds", "timeout")
   end
+  if req.http2 ~= nil and type(req.http2) ~= "boolean" then
+    return nil, invalid("transport: request.http2 must be a boolean", "http2")
+  end
   return true
 end
 
@@ -133,6 +143,9 @@ function M.config(req, opts)
     lines[#lines + 1] = line
   end
   add("url = " .. quote(req.url))
+  if req.http2 then
+    add(string.find(req.url, "^[hH][tT][tT][pP][sS]") and "http2" or "http2-prior-knowledge")
+  end
   local method = string.upper(req.method)
   if method == "HEAD" then
     -- `request = "HEAD"` makes curl wait for a body that never comes; `head` does not,
@@ -165,7 +178,6 @@ function M.config(req, opts)
     if type(opts.body_path) ~= "string" then
       compat.raise("curl_common.config: a request with a body needs opts.body_path", 2)
     end
-    add("data-binary = " .. quote("@" .. opts.body_path))
   end
   if req.timeout then
     add("max-time = " .. max_time(req.timeout))
@@ -174,7 +186,17 @@ function M.config(req, opts)
     add("location")
     add("max-redirs = " .. tostring(opts.max_redirects or 10))
   end
-  add("write-out = " .. quote("\\n" .. M.TRAILER .. " %{http_code} %{size_download}"))
+  add(
+    "write-out = " .. quote("\\n" .. M.TRAILER .. " %{http_code} %{size_download} %{size_header}")
+  )
+  if req.body ~= nil then
+    -- Last, always: curl reads a `data-binary = "@file"` file when it parses that line.
+    -- exec_curl's body file is /dev/fd/3, which shares its offset with the stdin `dd`
+    -- copies the config from; a config line after this one could still be in flight, and
+    -- curl would take its bytes as body (found in task 23: a cut write-out, a body 8
+    -- bytes long instead of 1, about one full test run in three).
+    add("data-binary = " .. quote("@" .. opts.body_path))
+  end
   return compat.concat(lines, "\n") .. "\n"
 end
 
@@ -340,7 +362,7 @@ function M.parse(out, req)
   local tail = string.sub(out, tail_start)
   -- the last trailer in the tail (the body may contain the marker text too); found
   -- with a plain search because the marker is full of pattern characters
-  local at, code, size
+  local at, code, size, head_size
   local search = 1
   local marker = "\n" .. M.TRAILER .. " "
   while true do
@@ -348,9 +370,9 @@ function M.parse(out, req)
     if not i then
       break
     end
-    local c, n = string.match(tail, "^(%d+) (%d+)%s*$", j + 1)
+    local c, n, h = string.match(tail, "^(%d+) (%d+) ?(%d*)%s*$", j + 1)
     if c then
-      at, code, size = i, c, n
+      at, code, size, head_size = i, c, n, h
     end
     search = i + 1
   end
@@ -365,6 +387,19 @@ function M.parse(out, req)
   size = tonumber(size)
   local body_end = trailer_from - 1
   local body_start = body_end - size + 1
+  -- HTTP trailers sit between the body and the write-out: with size_header the body
+  -- starts right after the header blocks, and anything after it is the trailers
+  local trailer_text
+  head_size = tonumber(head_size)
+  if head_size and head_size + size < body_end and head_size >= 0 then
+    local start = head_size + 1
+    local gap = string.sub(out, start + size, body_end)
+    if string.find(gap, "^[%w!#$%%&'*+%-.^_`|~]+:") then
+      body_start = start
+      body_end = start + size - 1
+      trailer_text = gap
+    end
+  end
   if body_start < 1 then
     return nil,
       errors.new(
@@ -387,7 +422,12 @@ function M.parse(out, req)
   if size > 0 and string.upper(req and req.method or "") ~= "HEAD" then
     body = string.sub(out, body_start, body_end)
   end
-  return { status = status, headers = final.headers, body = body }
+  local res = { status = status, headers = final.headers, body = body }
+  if trailer_text then
+    local _, trailers = parse_block("trailers\r\n" .. trailer_text)
+    res.trailers = trailers
+  end
+  return res
 end
 
 --- M.exec_timeout(request, margin) -> seconds | nil: how long the process may run

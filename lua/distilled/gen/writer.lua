@@ -568,6 +568,9 @@ end
 
 --- writer.client(plan) -> source of init.lua
 function writer.client(plan)
+  if plan.ctx.cloudflare then
+    return require("distilled.gen.cloudflare").client(plan)
+  end
   local spec = plan.provider
   if spec.rpc then
     return require("distilled.gen.rpc").client(plan) -- RPC models (task 22)
@@ -759,7 +762,17 @@ function writer.client(plan)
     b:line("local protocol = require(" .. emit.string(spec.protocol) .. ")(service, {")
     b:line("  unknown_tag = " .. emit.string(spec.unknown_tag) .. ",")
     b:line("  parse_tag = " .. emit.string(spec.parse_tag) .. ",")
-    b:line("  base_url_option = " .. emit.string(spec.base_url.option) .. ",")
+    if spec.discovery then
+      -- a Google discovery model: the service's own base URL (gen/discovery.lua, task 21)
+      b:line("  base_url = " .. emit.string(spec.base_url.default) .. ",")
+    else
+      b:line("  base_url_option = " .. emit.string(spec.base_url.option) .. ",")
+    end
+    if spec.runtime and require("distilled.gen.azure").applies(spec) then
+      -- the provider-spec data of a task-13 spec (options, env, defaults, auth), as
+      -- rest.new's `provider` (Azure's protocol builds on rest.compile_provider)
+      b:lines_of(emit.value(spec.runtime, "  ", "provider = ", ","))
+    end
     b:line("})")
   else
     b:line("local protocol = rest.new({")
@@ -841,7 +854,8 @@ function writer.option_rows(spec)
   local rows = {}
   for _, d in ipairs(spec.option_docs or {}) do
     local parts = {}
-    local what = d.base_url and "base URL" or (d.secret and "secret" or "text")
+    local what = d.base_url and "base URL"
+      or (d.secret and "secret" or (d.table and "table" or "text"))
     parts[#parts + 1] = (d.required and "required " or "") .. what
     if d.secret then
       parts[#parts] = parts[#parts] .. ": a string, a secret, or `fn(host) -> value, err`"
@@ -898,7 +912,9 @@ function writer.readme(plan)
   add()
   add("local " .. spec.title .. ' = require("' .. spec.name .. '")')
   add("local client = " .. spec.title .. ".new({")
-  if spec.auth.kind == "basic" then
+  if plan.ctx.cloudflare then
+    add("  api_token = token, -- default: $CLOUDFLARE_API_TOKEN")
+  elseif spec.auth.kind == "basic" then
     add("  " .. spec.auth.username .. " = user,")
     add("  " .. spec.auth.password .. " = password,")
   elseif spec.auth.kind ~= "none" then
@@ -911,13 +927,12 @@ function writer.readme(plan)
   add()
   add("| Option | Meaning |")
   add("| --- | --- |")
-  if spec.runtime then
+  if plan.ctx.cloudflare then
+    require("distilled.gen.cloudflare").readme_options(plan, add)
+  elseif spec.runtime then
     for _, line in ipairs(writer.option_rows(spec)) do
       add(line)
     end
-  end
-  if spec.runtime then
-    -- rows written above
   elseif spec.auth.kind ~= "none" then
     add(
       "| `"

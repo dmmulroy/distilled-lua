@@ -32,6 +32,7 @@ local ops_mod = require("distilled.gen.ops")
 local types_mod = require("distilled.gen.types")
 local writer = require("distilled.gen.writer")
 local emit = require("distilled.gen.emit")
+local proto = require("distilled.gen.proto")
 
 local gen = {}
 
@@ -204,6 +205,15 @@ function gen.plan(args)
     end
     spec = provider_mod.for_model(spec, args.model_name)
   end
+  if spec.discovery then
+    -- Google discovery models (gcp, google-workspace): gen/discovery.lua (task 21)
+    local discovery = require("distilled.gen.discovery")
+    local ok, derr = discovery.prepare(m, spec.discovery)
+    if not ok then
+      return nil, derr
+    end
+    spec = discovery.spec_for_model(spec, m)
+  end
   local telemetry = args.telemetry ~= false
   local ctx = {
     model = m,
@@ -212,6 +222,22 @@ function gen.plan(args)
     greedy = {},
     items_root = {},
   }
+  -- Azure Resource Manager models (gen/azure.lua): leading ARM-id labels become greedy
+  local azure = require("distilled.gen.azure")
+  local name_overrides = spec.naming.operations
+  if azure.applies(spec) then
+    azure.prepare(m)
+    -- ARM ids that differ only in case (one per api-version) get distinct names
+    name_overrides = azure.operation_names(m, spec)
+  end
+  -- Cloudflare's v4 envelope models (gen/cloudflare.lua): model rewrites and hooks
+  local cloudflare = require("distilled.gen.cloudflare")
+  if cloudflare.applies(m, spec) then
+    local ok, cerr = cloudflare.prepare(ctx)
+    if not ok then
+      return nil, cerr
+    end
+  end
   if m.is_aws then
     -- AWS models (gen/aws.lua): protocol, service facts, the telemetry the runtime skips
     local aws_ctx, aerr = require("distilled.gen.aws").context(m, spec)
@@ -237,13 +263,14 @@ function gen.plan(args)
   for _, op in ipairs(m.operations) do
     entries[#entries + 1] = {
       id = op.id,
-      name = op.name,
+      -- a discovery operation renamed with a trailing _ keeps its plain method name
+      name = spec.discovery and require("distilled.gen.discovery").op_name(op.name) or op.name,
       paginated = op.def.traits ~= nil and op.def.traits["smithy.api#paginated"] ~= nil,
     }
   end
   local method_names, nerr, page_methods = naming.operation_names(entries, {
     words = spec.naming.words,
-    overrides = spec.naming.operations,
+    overrides = name_overrides,
   })
   if not method_names then
     return nil, nerr
@@ -308,7 +335,11 @@ function gen.plan(args)
               bind = "body"
             end
             if bind == "label" then
-              if not placeholder[mem.name] then
+              -- a label may name the operation's own host instead (Cloudflare's host)
+              local host_label = ctx.host_labels
+                and ctx.host_labels[op.id]
+                and ctx.host_labels[op.id][mem.name]
+              if not placeholder[mem.name] and not host_label then
                 problems[#problems + 1] = op.id
                   .. ": label member "
                   .. mem.name
@@ -372,6 +403,10 @@ function gen.plan(args)
     return fail(problems)
   end
 
+  if ctx.cloudflare then
+    cloudflare.after_select(ctx, plan_ops)
+  end
+
   -- request-reachable shapes (for the @default rule)
   local req_roots = {}
   for _, op in ipairs(plan_ops) do
@@ -414,6 +449,10 @@ function gen.plan(args)
     if ctx.aws and unsupported == nil then
       unsupported = require("distilled.gen.aws").event_stream(ctx, op)
     end
+    if spec.proto then
+      -- gRPC server streams are collected from one response (task 23)
+      unsupported, uerr = proto.streaming(ctx, op, unsupported, uerr)
+    end
     if unsupported == false then
       problems[#problems + 1] = uerr
     else
@@ -422,6 +461,10 @@ function gen.plan(args)
   end
   if #problems > 0 then
     return fail(problems)
+  end
+
+  if spec.proto then
+    proto.prepare_model(m, spec) -- the provider's error matchers trait (task 23)
   end
 
   -- 4. errors: every error the selected operations name (collectOpErrorIds)
@@ -636,7 +679,7 @@ function gen.plan(args)
     return a.method_name < b.method_name
   end)
 
-  return {
+  local result = {
     ctx = ctx,
     model = m,
     provider = spec,
@@ -650,6 +693,14 @@ function gen.plan(args)
     selected_all = args.ops == nil,
     generator_version = gen.VERSION,
   }
+  if spec.proto then
+    -- gRPC descriptors and the proto settings (task 23)
+    local ok, perr = proto.plan(result)
+    if not ok then
+      return nil, perr
+    end
+  end
+  return result
 end
 
 --- gen.generate(args) -> files | nil, message
@@ -682,6 +733,20 @@ function gen.generate(args)
   files["types.lua"] = types_mod.render(plan)
   files["README.md"] = plan.ctx.aws and require("distilled.gen.aws").readme(plan)
     or writer.readme(plan)
+  if plan.provider.proto then
+    -- proto-sourced providers (task 23): the gRPC / Connect client and its descriptors
+    local spec = plan.provider
+    files["init.lua"] = proto.client(
+      plan,
+      writer.header(plan, spec.title .. ' client: what require("' .. spec.name .. '") returns.')
+    )
+    if plan.proto.descriptors then
+      files["descriptors.lua"] =
+        proto.descriptors_file(plan, writer.header(plan, spec.title .. " gRPC descriptors."))
+    end
+    files["types.lua"] = proto.patch_types(plan, files["types.lua"])
+    files["README.md"] = files["README.md"] .. "\n" .. proto.readme(plan)
+  end
   local order = {}
   for name in pairs(files) do
     order[#order + 1] = name
@@ -765,6 +830,10 @@ function gen.index(args)
     return fail(problems)
   end
   local name, title = spec.name, spec.title
+  -- the variable the usage examples bind the index to (task 21: gcp.unstable is a module
+  -- name, not a Lua name, so its examples say gcp_unstable)
+  local var = args.local_name or name
+  local dir = (string.gsub(name, "%.", "/"))
   local function field(n)
     return naming.is_identifier(n) and ("." .. n) or ("[" .. emit.string(n) .. "]")
   end
@@ -798,17 +867,17 @@ function gen.index(args)
   b:lines_of(
     emit.comment(
       "Each service is its own client class in "
-        .. name
+        .. dir
         .. "/<service>/, loaded on first use. See README.md next to this file."
     )
   )
   b:line("--")
-  b:line("--   local " .. name .. ' = require("' .. name .. '")')
+  b:line("--   local " .. var .. ' = require("' .. name .. '")')
   b:line(
     "--   local "
       .. class_title
       .. " = "
-      .. name
+      .. var
       .. field(example.name)
       .. ' -- = require("'
       .. name
@@ -818,7 +887,7 @@ function gen.index(args)
   )
   b:line("--   local client = " .. class_title .. ".new({ host = ... })")
   b:line("--   -- or one set of options for every service, each client built on first use:")
-  b:line("--   local clients = " .. name .. ".new({ host = ... })")
+  b:line("--   local clients = " .. var .. ".new({ host = ... })")
   b:line("--   clients" .. field(example.name) .. ":<operation>({ ... })")
   b:line("local MODULE = ... or " .. emit.string(name))
   b:blank()
@@ -888,19 +957,19 @@ function gen.index(args)
       .. " services, "
       .. total
       .. " operations), each in `"
-      .. name
+      .. dir
       .. "/<service>/`"
   )
   add('with its own README.md. `require("' .. name .. '")` is an index that loads a service on')
   add("first use.")
   add()
   add("```lua")
-  add("local " .. name .. ' = require("' .. name .. '")')
+  add("local " .. var .. ' = require("' .. name .. '")')
   add(
     "local "
       .. class_title
       .. " = "
-      .. name
+      .. var
       .. field(example.name)
       .. ' -- require("'
       .. name
@@ -911,10 +980,10 @@ function gen.index(args)
   add("local client = " .. class_title .. '.new({ host = require("distilled.host.popen")() })')
   add()
   add("-- one set of options for every service; each client is built on first use")
-  add("local clients = " .. name .. '.new({ host = require("distilled.host.popen")() })')
+  add("local clients = " .. var .. '.new({ host = require("distilled.host.popen")() })')
   add("```")
   add()
-  add("`" .. name .. ".services` lists the service names.")
+  add("`" .. var .. ".services` lists the service names.")
   add()
   add("| Service | Module | Operations | Model |")
   add("| --- | --- | --- | --- |")
