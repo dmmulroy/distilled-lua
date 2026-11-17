@@ -1,0 +1,77 @@
+[
+  { "id": "linear.viewer", "sdk": "linear",
+    "plan": { "obj": { "email": { "q": [{ "root": "viewer" }, "email"] }, "name": { "q": [{ "root": "viewer" }, "name"] } } } },
+  { "id": "linear.teams_nested", "sdk": "linear",
+    "plan": { "q": [{ "root": "teams", "args": { "first": 5, "includeArchived": false } },
+      { "map": { "obj": { "id": { "q": [{ "item": true }, "id"] }, "key": { "q": [{ "item": true }, "key"] },
+        "members": { "q": [{ "item": true }, { "f": "members", "args": { "first": 3 } }, { "map": { "q": [{ "item": true }, "name"] } }] } } } }] } },
+  { "id": "linear.issue_aliases", "sdk": "linear",
+    "plan": { "obj": {
+      "a": { "q": [{ "root": "issue", "args": { "id": "ISS-1" } }, "title"] },
+      "b": { "q": [{ "root": "issue", "args": { "id": "ISS-2" } }, "title"] },
+      "c": { "q": [{ "root": "issue", "args": { "id": "ISS-1" } }, "assignee", "email"] } } } },
+  { "id": "linear.scalar_args", "sdk": "linear",
+    "plan": { "obj": {
+      "all": { "q": [{ "root": "team", "args": { "id": "T1" } }, { "f": "issueCount", "args": { "includeArchived": true } }] },
+      "plain": { "q": [{ "root": "team", "args": { "id": "T1" } }, "issueCount"] } } } },
+  { "id": "linear.filter", "sdk": "linear",
+    "plan": { "q": [{ "root": "teams", "args": { "first": 10 } },
+      { "filter": { "q": [{ "item": true }, "private"] } },
+      { "map": { "q": [{ "item": true }, "name"] } }] } },
+  { "id": "linear.issue_create", "sdk": "linear",
+    "plan": { "q": [{ "root": "issueCreate", "args": { "input": { "teamId": "T1", "title": "Bug", "labelIds": ["L1", "L2"], "priority": 2, "description": null } } },
+      "issue", "identifier"] } },
+  { "id": "linear.teams_pages", "sdk": "linear",
+    "pages": { "q": [{ "root": "teams", "args": { "first": 2 } }, { "map": { "q": [{ "item": true }, "id"] } }] } },
+  { "id": "linear.literal_and_root", "sdk": "linear",
+    "plan": { "obj": { "lit": { "lit": 7 }, "of": { "of": "x" }, "viewer": { "q": [{ "root": "viewer" }, "id"] } } } },
+
+  { "id": "railway.project_services", "sdk": "railway",
+    "plan": { "obj": {
+      "name": { "q": [{ "root": "project", "args": { "id": "p1" } }, "name"] },
+      "services": { "q": [{ "root": "project", "args": { "id": "p1" } }, { "f": "services", "args": { "first": 20 } }, { "map": { "q": [{ "item": true }, "name"] } }] } } } },
+  { "id": "railway.variables_secret", "sdk": "railway",
+    "plan": { "obj": {
+      "a": { "q": [{ "root": "variableCollectionUpsert", "args": { "input": { "environmentId": "e1", "projectId": "p1", "variables": { "S3_SECRET": { "$secret": "first-secret" } } } } }] },
+      "b": { "q": [{ "root": "variableCollectionUpsert", "args": { "input": { "environmentId": "e1", "projectId": "p1", "variables": { "S3_SECRET": { "$secret": "second-secret" } } } } }] } } } },
+  { "id": "railway.token_leaf", "sdk": "railway",
+    "plan": { "q": [{ "root": "apiTokenCreate", "args": { "input": { "name": "ci" } } }] } },
+  { "id": "railway.bucket_credentials", "sdk": "railway",
+    "plan": { "q": [{ "root": "bucketS3Credentials", "args": { "projectId": "p1", "environmentId": "e1", "bucketId": "b1" } },
+      { "map": { "obj": { "id": { "q": [{ "item": true }, "accessKeyId"] }, "secret": { "q": [{ "item": true }, "secretAccessKey"] } } } }] } },
+  { "id": "railway.project_services_pages", "sdk": "railway", "page_path": ["project", "services"],
+    "pages": { "q": [{ "root": "project", "args": { "id": "p1" } }, { "f": "services", "args": { "first": 2 } }, { "map": { "q": [{ "item": true }, "name"] } }] } },
+  { "id": "railway.projects_pages_after", "sdk": "railway",
+    "pages": { "q": [{ "root": "projects", "args": { "first": 2, "after": "c0" } }] } },
+
+  { "id": "expo_eas.app_by_id", "sdk": "expo_eas",
+    "plan": { "obj": {
+      "name": { "q": [{ "root": "app" }, { "f": "byId", "args": { "appId": "a1" } }, "fullName"] },
+      "icon": { "q": [{ "root": "app" }, { "f": "byId", "args": { "appId": "a1" } }, { "f": "profileImageUrl", "args": { "width": "SIZE_64" } }] } } } },
+  { "id": "expo_eas.viewer", "sdk": "expo_eas",
+    "plan": { "q": [{ "root": "viewer" }, "username"] } },
+
+  { "id": "github.repository", "sdk": "github",
+    "plan": { "obj": {
+      "pr": { "q": [{ "root": "repository", "args": { "owner": "o", "name": "r" } }, { "f": "pullRequest", "args": { "number": 7 } }, "title"] },
+      "issues": { "q": [{ "root": "repository", "args": { "owner": "o", "name": "r" } }, { "f": "issues", "args": { "first": 10, "states": ["OPEN"] } },
+        { "map": { "obj": { "n": { "q": [{ "item": true }, "number"] }, "t": { "q": [{ "item": true }, "title"] } } } }] } } } },
+  { "id": "github.node_and_draft", "sdk": "github",
+    "plan": { "q": [{ "root": "convertPullRequestToDraft", "args": { "input": { "pullRequestId": "PR_1" } } }, "pullRequest", "isDraft"] } },
+  { "id": "github.search_union", "sdk": "github",
+    "plan": { "q": [{ "root": "search", "args": { "query": "is:open", "type": "ISSUE", "first": 3 } }, { "map": { "q": [{ "item": true }, "__typename"] } }] } },
+  { "id": "github.avatar_sizes", "sdk": "github",
+    "plan": { "obj": {
+      "a": { "q": [{ "root": "viewer" }, { "f": "avatarUrl", "args": { "size": 64 } }] },
+      "b": { "q": [{ "root": "viewer" }, "avatarUrl"] },
+      "c": { "q": [{ "root": "viewer" }, "login"] } } } },
+
+  { "id": "fly_io.apps_pages", "sdk": "fly_io",
+    "pages": { "q": [{ "root": "apps", "args": { "first": 2, "active": true } }, { "map": { "obj": { "name": { "q": [{ "item": true }, "name"] }, "org": { "q": [{ "item": true }, "organization", "slug"] } } } }] } },
+  { "id": "fly_io.addon_sensitive", "sdk": "fly_io",
+    "plan": { "obj": {
+      "env": { "q": [{ "root": "addOn", "args": { "name": "bucket" } }, "environment"] },
+      "pw": { "q": [{ "root": "addOn", "args": { "name": "bucket" } }, "password"] } } } },
+  { "id": "fly_io.tos", "sdk": "fly_io",
+    "plan": { "q": [{ "root": "organization", "args": { "slug": "acme" } }, { "f": "agreedToProviderTos", "args": { "providerName": "tigris" } }] } }
+]
