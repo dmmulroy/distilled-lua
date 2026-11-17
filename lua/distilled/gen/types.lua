@@ -70,7 +70,7 @@ local function doc_lines(doc, indent)
   doc = string.gsub(doc, "\r\n?", "\n")
   doc = string.gsub(doc, "%s+$", "")
   for raw in string.gmatch(doc .. "\n", "(.-)\n") do
-    local line = string.gsub(raw, "%s+$", "")
+    local line = naming.rtrim(raw)
     if string.sub(line, 1, 1) == "@" then
       -- would read as an annotation
       line = " " .. line
