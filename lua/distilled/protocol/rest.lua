@@ -15,7 +15,8 @@
 --     map_member_header, unknown_key_to_wire, empty_json_body, query_style,  -- request.build
 --     user_agent = "...",
 --     -- provider-spec features (task 13; see "Provider-spec features" below):
---     provider = { title, options, headers, base_url, require_one_of, anonymous, oauth },
+--     provider = { title, options, headers, base_url, require_one_of, anonymous, oauth,
+--                  user_agent },
 --     unknown_fields = { reason = "/reason" },   -- extra fields of the unknown error
 --     transform_input = fn(input, op) -> input,
 --     classify_success = fn{ status, headers, body, non_json, op } -> err | nil,
@@ -626,6 +627,23 @@ function rest.compile_provider(p)
     return out
   end
 
+  -- user_agent = { default, env }: the provider's User-Agent (GitHub, Modrinth,
+  -- Squarespace), used when the caller sets no user_agent client option
+  function compiled.user_agent(host)
+    local ua = p.user_agent
+    if not ua then
+      return nil
+    end
+    local getenv = (host and host.getenv) or os.getenv
+    for _, var in ipairs(as_list(ua.env)) do
+      local e = getenv(var)
+      if e ~= nil and e ~= "" then
+        return e
+      end
+    end
+    return ua.default
+  end
+
   return compiled
 end
 
@@ -938,6 +956,13 @@ function rest.new(opts)
           )
       end
       headers = h
+    end
+    if provider_rt and ctx.user_agent == nil then
+      local ua = provider_rt.user_agent(ctx.host)
+      if ua ~= nil then
+        headers = headers or {}
+        headers["user-agent"] = ua
+      end
     end
     if headers_hook then
       local ok, h = protect("the glue's headers", headers_hook, creds, route, headers or {})
