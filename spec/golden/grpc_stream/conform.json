@@ -1,0 +1,988 @@
+{
+ "cases": [
+  {
+   "kind": "boxd",
+   "name": "two chunks then an OK trailer frame",
+   "op": "stream_logs",
+   "input": {
+    "vmId": "vm-1",
+    "follow": true
+   },
+   "reply": {
+    "status": 200,
+    "headers": {
+     "content-type": "application/grpc-web+proto"
+    },
+    "chunks": [
+     "AAAAAAQKAmhpAAAAAAQKAnlvgAAAABBncnBjLXN0YXR1czogMA0K"
+    ]
+   },
+   "sent": [
+    {
+     "method": "POST",
+     "url": "https://boxd.test/boxd.api.v1.BoxdApi/StreamLogs",
+     "headers": {
+      "authorization": "Bearer bxd_tok",
+      "content-type": "application/grpc-web+proto",
+      "content-length": "13",
+      "x-grpc-web": "1",
+      "b3": "92519217f5c9d66152ed366a37f8d721-d940df78e31fc01b-1",
+      "traceparent": "00-92519217f5c9d66152ed366a37f8d721-d940df78e31fc01b-01"
+     },
+     "body_b64": "AAAAAAgKBHZtLTEQAQ==",
+     "content_type": "application/grpc-web+proto"
+    }
+   ],
+   "items": [
+    {
+     "data": "aGk="
+    },
+    {
+     "data": "eW8="
+    }
+   ]
+  },
+  {
+   "kind": "boxd",
+   "name": "split one byte at a time",
+   "op": "stream_logs",
+   "input": {
+    "vmId": "vm-1",
+    "follow": true
+   },
+   "reply": {
+    "status": 200,
+    "headers": {
+     "content-type": "application/grpc-web+proto"
+    },
+    "chunks": [
+     "AA==",
+     "AA==",
+     "AA==",
+     "AA==",
+     "BQ==",
+     "Cg==",
+     "Aw==",
+     "YQ==",
+     "Yg==",
+     "Yw==",
+     "gA==",
+     "AA==",
+     "AA==",
+     "AA==",
+     "Dw==",
+     "Zw==",
+     "cg==",
+     "cA==",
+     "Yw==",
+     "LQ==",
+     "cw==",
+     "dA==",
+     "YQ==",
+     "dA==",
+     "dQ==",
+     "cw==",
+     "Og==",
+     "MA==",
+     "DQ==",
+     "Cg=="
+    ]
+   },
+   "sent": [
+    {
+     "method": "POST",
+     "url": "https://boxd.test/boxd.api.v1.BoxdApi/StreamLogs",
+     "headers": {
+      "authorization": "Bearer bxd_tok",
+      "content-type": "application/grpc-web+proto",
+      "content-length": "13",
+      "x-grpc-web": "1",
+      "b3": "5ba154c35451afd99f1845210a2d8782-0dde473118bede3e-1",
+      "traceparent": "00-5ba154c35451afd99f1845210a2d8782-0dde473118bede3e-01"
+     },
+     "body_b64": "AAAAAAgKBHZtLTEQAQ==",
+     "content_type": "application/grpc-web+proto"
+    }
+   ],
+   "items": [
+    {
+     "data": "YWJj"
+    }
+   ]
+  },
+  {
+   "kind": "boxd",
+   "name": "mid-stream status error",
+   "op": "stream_logs",
+   "input": {
+    "vmId": "vm-1",
+    "follow": true
+   },
+   "reply": {
+    "status": 200,
+    "headers": {
+     "content-type": "application/grpc-web+proto"
+    },
+    "chunks": [
+     "AAAAAAUKA29uZYAAAAApZ3JwYy1zdGF0dXM6IDUNCmdycGMtbWVzc2FnZTogdm0lMjBnb25lDQo="
+    ]
+   },
+   "sent": [
+    {
+     "method": "POST",
+     "url": "https://boxd.test/boxd.api.v1.BoxdApi/StreamLogs",
+     "headers": {
+      "authorization": "Bearer bxd_tok",
+      "content-type": "application/grpc-web+proto",
+      "content-length": "13",
+      "x-grpc-web": "1",
+      "b3": "31ac344915b07e79103ffe68bfb26f74-7e8b3da2e0c2d643-1",
+      "traceparent": "00-31ac344915b07e79103ffe68bfb26f74-7e8b3da2e0c2d643-01"
+     },
+     "body_b64": "AAAAAAgKBHZtLTEQAQ==",
+     "content_type": "application/grpc-web+proto"
+    }
+   ],
+   "items": [
+    {
+     "data": "b25l"
+    }
+   ],
+   "error": {
+    "tag": "NotFound",
+    "message": "vm gone",
+    "categories": [
+     "NotFoundError"
+    ],
+    "fields": {}
+   }
+  },
+  {
+   "kind": "boxd",
+   "name": "no status at the end",
+   "op": "stream_logs",
+   "input": {
+    "vmId": "vm-1",
+    "follow": true
+   },
+   "reply": {
+    "status": 200,
+    "headers": {
+     "content-type": "application/grpc-web+proto"
+    },
+    "chunks": [
+     "AAAAAAUKA29uZQ=="
+    ]
+   },
+   "sent": [
+    {
+     "method": "POST",
+     "url": "https://boxd.test/boxd.api.v1.BoxdApi/StreamLogs",
+     "headers": {
+      "authorization": "Bearer bxd_tok",
+      "content-type": "application/grpc-web+proto",
+      "content-length": "13",
+      "x-grpc-web": "1",
+      "b3": "87265e326ea686123e0f05af52dc2604-65828012fba1dd99-1",
+      "traceparent": "00-87265e326ea686123e0f05af52dc2604-65828012fba1dd99-01"
+     },
+     "body_b64": "AAAAAAgKBHZtLTEQAQ==",
+     "content_type": "application/grpc-web+proto"
+    }
+   ],
+   "items": [
+    {
+     "data": "b25l"
+    }
+   ],
+   "error": {
+    "tag": "InternalServerError",
+    "message": "server ended the call without a grpc-status",
+    "categories": [
+     "ServerError"
+    ],
+    "fields": {}
+   }
+  },
+  {
+   "kind": "boxd",
+   "name": "trailers-only error",
+   "op": "stream_logs",
+   "input": {
+    "vmId": "vm-1",
+    "follow": true
+   },
+   "reply": {
+    "status": 200,
+    "headers": {
+     "content-type": "application/grpc-web+proto",
+     "grpc-status": "16",
+     "grpc-message": "bad token"
+    },
+    "chunks": [
+     ""
+    ]
+   },
+   "sent": [
+    {
+     "method": "POST",
+     "url": "https://boxd.test/boxd.api.v1.BoxdApi/StreamLogs",
+     "headers": {
+      "authorization": "Bearer bxd_tok",
+      "content-type": "application/grpc-web+proto",
+      "content-length": "13",
+      "x-grpc-web": "1",
+      "b3": "6cca75e5c19d5eadcdcdf8c172307afc-c1c7fafc48d4a9f6-1",
+      "traceparent": "00-6cca75e5c19d5eadcdcdf8c172307afc-c1c7fafc48d4a9f6-01"
+     },
+     "body_b64": "AAAAAAgKBHZtLTEQAQ==",
+     "content_type": "application/grpc-web+proto"
+    }
+   ],
+   "items": [],
+   "error": {
+    "tag": "Unauthorized",
+    "message": "bad token",
+    "categories": [
+     "AuthError"
+    ],
+    "fields": {}
+   }
+  },
+  {
+   "kind": "boxd",
+   "name": "trailers-only OK",
+   "op": "stream_logs",
+   "input": {
+    "vmId": "vm-1",
+    "follow": true
+   },
+   "reply": {
+    "status": 200,
+    "headers": {
+     "content-type": "application/grpc-web+proto",
+     "grpc-status": "0"
+    },
+    "chunks": [
+     ""
+    ]
+   },
+   "sent": [
+    {
+     "method": "POST",
+     "url": "https://boxd.test/boxd.api.v1.BoxdApi/StreamLogs",
+     "headers": {
+      "authorization": "Bearer bxd_tok",
+      "content-type": "application/grpc-web+proto",
+      "content-length": "13",
+      "x-grpc-web": "1",
+      "b3": "607ef1d20addde447abb242050c19841-7f926cab2f206600-1",
+      "traceparent": "00-607ef1d20addde447abb242050c19841-7f926cab2f206600-01"
+     },
+     "body_b64": "AAAAAAgKBHZtLTEQAQ==",
+     "content_type": "application/grpc-web+proto"
+    }
+   ],
+   "items": []
+  },
+  {
+   "kind": "boxd",
+   "name": "truncated frame after OK",
+   "op": "stream_logs",
+   "input": {
+    "vmId": "vm-1",
+    "follow": true
+   },
+   "reply": {
+    "status": 200,
+    "headers": {
+     "content-type": "application/grpc-web+proto"
+    },
+    "chunks": [
+     "AAAAAAUKA29uZYAAAAAQZ3JwYy1zdGF0dXM6IDANCgAAAAAJAQ=="
+    ]
+   },
+   "sent": [
+    {
+     "method": "POST",
+     "url": "https://boxd.test/boxd.api.v1.BoxdApi/StreamLogs",
+     "headers": {
+      "authorization": "Bearer bxd_tok",
+      "content-type": "application/grpc-web+proto",
+      "content-length": "13",
+      "x-grpc-web": "1",
+      "b3": "2e6450fd11d71e214f22e8e1ea937f68-032fef4d7a64ab27-1",
+      "traceparent": "00-2e6450fd11d71e214f22e8e1ea937f68-032fef4d7a64ab27-01"
+     },
+     "body_b64": "AAAAAAgKBHZtLTEQAQ==",
+     "content_type": "application/grpc-web+proto"
+    }
+   ],
+   "items": [
+    {
+     "data": "b25l"
+    }
+   ],
+   "error": {
+    "tag": "InternalServerError",
+    "message": "truncated gRPC frame",
+    "categories": [
+     "ServerError"
+    ],
+    "fields": {}
+   }
+  },
+  {
+   "kind": "boxd",
+   "name": "compressed frame",
+   "op": "stream_logs",
+   "input": {
+    "vmId": "vm-1",
+    "follow": true
+   },
+   "reply": {
+    "status": 200,
+    "headers": {
+     "content-type": "application/grpc-web+proto"
+    },
+    "chunks": [
+     "AQAAAAIBAg=="
+    ]
+   },
+   "sent": [
+    {
+     "method": "POST",
+     "url": "https://boxd.test/boxd.api.v1.BoxdApi/StreamLogs",
+     "headers": {
+      "authorization": "Bearer bxd_tok",
+      "content-type": "application/grpc-web+proto",
+      "content-length": "13",
+      "x-grpc-web": "1",
+      "b3": "6be3bc25d8db959206c58b6bf5b24c57-42451f62d7b440c0-1",
+      "traceparent": "00-6be3bc25d8db959206c58b6bf5b24c57-42451f62d7b440c0-01"
+     },
+     "body_b64": "AAAAAAgKBHZtLTEQAQ==",
+     "content_type": "application/grpc-web+proto"
+    }
+   ],
+   "items": [],
+   "error": {
+    "tag": "InternalServerError",
+    "message": "compressed gRPC frames are not supported",
+    "categories": [
+     "ServerError"
+    ],
+    "fields": {}
+   }
+  },
+  {
+   "kind": "boxd",
+   "name": "HTTP 503 text",
+   "op": "stream_logs",
+   "input": {
+    "vmId": "vm-1",
+    "follow": true
+   },
+   "reply": {
+    "status": 503,
+    "headers": {
+     "content-type": "text/plain"
+    },
+    "chunks": [
+     "ZG93bg=="
+    ]
+   },
+   "sent": [
+    {
+     "method": "POST",
+     "url": "https://boxd.test/boxd.api.v1.BoxdApi/StreamLogs",
+     "headers": {
+      "authorization": "Bearer bxd_tok",
+      "content-type": "application/grpc-web+proto",
+      "content-length": "13",
+      "x-grpc-web": "1",
+      "b3": "3dd82f506ef5c709818f6ba50a75cdca-ccf7428ece75be11-1",
+      "traceparent": "00-3dd82f506ef5c709818f6ba50a75cdca-ccf7428ece75be11-01"
+     },
+     "body_b64": "AAAAAAgKBHZtLTEQAQ==",
+     "content_type": "application/grpc-web+proto"
+    }
+   ],
+   "items": [],
+   "error": {
+    "tag": "ServiceUnavailable",
+    "message": "down",
+    "categories": [
+     "ServerError"
+    ],
+    "fields": {}
+   }
+  },
+  {
+   "kind": "e2b",
+   "name": "start: events then end of stream",
+   "fn": "startProcess",
+   "input": {
+    "process": {
+     "args": [
+      "-c",
+      "echo hi"
+     ],
+     "cmd": "sh"
+    }
+   },
+   "reply": {
+    "status": 200,
+    "headers": {
+     "content-type": "application/connect+json"
+    },
+    "chunks": [
+     "AAAAAB57ImV2ZW50Ijp7InN0YXJ0Ijp7InBpZCI6NDJ9fX0AAAAAJHsiZXZlbnQiOnsiZGF0YSI6eyJzdGRvdXQiOiJhR2tLIn19fQAAAAAoeyJldmVudCI6eyJkYXRhIjp7InN0ZGVyciI6ImQyRnliZz09In19fQAAAAAaeyJldmVudCI6eyJrZWVwYWxpdmUiOnt9fX0AAAAAR3siZXZlbnQiOnsiZW5kIjp7ImV4aXRDb2RlIjoxLCJleGl0ZWQiOnRydWUsInN0YXR1cyI6ImV4aXQgc3RhdHVzIDEifX19AgAAAAJ7fQ=="
+    ]
+   },
+   "sent": [
+    {
+     "method": "POST",
+     "url": "https://sandbox.e2b.app/process.Process/Start",
+     "headers": {
+      "connect-protocol-version": "1",
+      "e2b-sandbox-id": "sb-1",
+      "e2b-sandbox-port": "49983",
+      "x-access-token": "envd-tok",
+      "content-type": "application/connect+json",
+      "content-length": "53",
+      "b3": "2b5e8253c6d644477ef8f526ca22a6e4-9fec745654d19c02-1",
+      "traceparent": "00-2b5e8253c6d644477ef8f526ca22a6e4-9fec745654d19c02-01"
+     },
+     "body_b64": "AAAAADB7InByb2Nlc3MiOnsiYXJncyI6WyItYyIsImVjaG8gaGkiXSwiY21kIjoic2gifX0=",
+     "content_type": "application/connect+json"
+    }
+   ],
+   "items": [
+    {
+     "_tag": "Start",
+     "pid": 42
+    },
+    {
+     "_tag": "Stdout",
+     "data": {
+      "bytes_b64": "aGkK"
+     }
+    },
+    {
+     "_tag": "Stderr",
+     "data": {
+      "bytes_b64": "d2Fybg=="
+     }
+    },
+    {
+     "_tag": "KeepAlive"
+    },
+    {
+     "_tag": "End",
+     "exitCode": 1,
+     "exited": true,
+     "status": "exit status 1"
+    }
+   ]
+  },
+  {
+   "kind": "e2b",
+   "name": "start: split in 3-byte chunks",
+   "fn": "startProcess",
+   "input": {
+    "process": {
+     "cmd": "ls"
+    }
+   },
+   "reply": {
+    "status": 200,
+    "headers": {
+     "content-type": "application/connect+json"
+    },
+    "chunks": [
+     "AAAA",
+     "AB17",
+     "ImV2",
+     "ZW50",
+     "Ijp7",
+     "InN0",
+     "YXJ0",
+     "Ijp7",
+     "InBp",
+     "ZCI6",
+     "MX19",
+     "fQAA",
+     "AAAV",
+     "eyJl",
+     "dmVu",
+     "dCI6",
+     "eyJk",
+     "YXRh",
+     "Ijp7",
+     "fX19",
+     "AgAA",
+     "AAJ7",
+     "fQ=="
+    ]
+   },
+   "sent": [
+    {
+     "method": "POST",
+     "url": "https://sandbox.e2b.app/process.Process/Start",
+     "headers": {
+      "connect-protocol-version": "1",
+      "e2b-sandbox-id": "sb-1",
+      "e2b-sandbox-port": "49983",
+      "x-access-token": "envd-tok",
+      "content-type": "application/connect+json",
+      "content-length": "29",
+      "b3": "cd33d00ca37070756182e81f5ae06930-3d2b1f2f690e7680-1",
+      "traceparent": "00-cd33d00ca37070756182e81f5ae06930-3d2b1f2f690e7680-01"
+     },
+     "body_b64": "AAAAABh7InByb2Nlc3MiOnsiY21kIjoibHMifX0=",
+     "content_type": "application/connect+json"
+    }
+   ],
+   "items": [
+    {
+     "_tag": "Start",
+     "pid": 1
+    },
+    {
+     "_tag": "Stdout",
+     "data": {
+      "bytes_b64": ""
+     }
+    }
+   ]
+  },
+  {
+   "kind": "e2b",
+   "name": "start: end-of-stream error",
+   "fn": "startProcess",
+   "input": {
+    "process": {
+     "cmd": "nope"
+    }
+   },
+   "reply": {
+    "status": 200,
+    "headers": {
+     "content-type": "application/connect+json"
+    },
+    "chunks": [
+     "AAAAAB17ImV2ZW50Ijp7InN0YXJ0Ijp7InBpZCI6M319fQIAAAA3eyJlcnJvciI6eyJjb2RlIjoibm90X2ZvdW5kIiwibWVzc2FnZSI6Im5vIHN1Y2ggZmlsZSJ9fQ=="
+    ]
+   },
+   "sent": [
+    {
+     "method": "POST",
+     "url": "https://sandbox.e2b.app/process.Process/Start",
+     "headers": {
+      "connect-protocol-version": "1",
+      "e2b-sandbox-id": "sb-1",
+      "e2b-sandbox-port": "49983",
+      "x-access-token": "envd-tok",
+      "content-type": "application/connect+json",
+      "content-length": "31",
+      "b3": "4e81de356619f8839655ab7d2190bba3-eb8c18b84a4d4d00-1",
+      "traceparent": "00-4e81de356619f8839655ab7d2190bba3-eb8c18b84a4d4d00-01"
+     },
+     "body_b64": "AAAAABp7InByb2Nlc3MiOnsiY21kIjoibm9wZSJ9fQ==",
+     "content_type": "application/connect+json"
+    }
+   ],
+   "items": [
+    {
+     "_tag": "Start",
+     "pid": 3
+    }
+   ],
+   "error": {
+    "tag": "NotFound",
+    "message": "no such file",
+    "categories": [
+     "NotFoundError"
+    ],
+    "fields": {}
+   }
+  },
+  {
+   "kind": "e2b",
+   "name": "start: unknown end-of-stream code",
+   "fn": "startProcess",
+   "input": {
+    "process": {
+     "cmd": "x"
+    }
+   },
+   "reply": {
+    "status": 200,
+    "headers": {
+     "content-type": "application/connect+json"
+    },
+    "chunks": [
+     "AgAAACd7ImVycm9yIjp7ImNvZGUiOiJyZXNvdXJjZV9leGhhdXN0ZWQifX0="
+    ]
+   },
+   "sent": [
+    {
+     "method": "POST",
+     "url": "https://sandbox.e2b.app/process.Process/Start",
+     "headers": {
+      "connect-protocol-version": "1",
+      "e2b-sandbox-id": "sb-1",
+      "e2b-sandbox-port": "49983",
+      "x-access-token": "envd-tok",
+      "content-type": "application/connect+json",
+      "content-length": "28",
+      "b3": "c16f26c193217a30b0f791c5539ff4e0-3cd461bf5b806869-1",
+      "traceparent": "00-c16f26c193217a30b0f791c5539ff4e0-3cd461bf5b806869-01"
+     },
+     "body_b64": "AAAAABd7InByb2Nlc3MiOnsiY21kIjoieCJ9fQ==",
+     "content_type": "application/connect+json"
+    }
+   ],
+   "items": [],
+   "error": {
+    "tag": "UnknownE2BError",
+    "message": "",
+    "categories": [],
+    "fields": {
+     "status": 200,
+     "code": "resource_exhausted"
+    }
+   }
+  },
+  {
+   "kind": "e2b",
+   "name": "start: 502 before the stream",
+   "fn": "startProcess",
+   "input": {
+    "process": {
+     "cmd": "x"
+    }
+   },
+   "reply": {
+    "status": 502,
+    "headers": {
+     "content-type": "application/json"
+    },
+    "chunks": [
+     "eyJzYW5kYm94SWQiOiJzYi0xIiwibWVzc2FnZSI6IlRoZSBzYW5kYm94IHdhcyBub3QgZm91bmQiLCJjb2RlIjo1MDJ9"
+    ]
+   },
+   "sent": [
+    {
+     "method": "POST",
+     "url": "https://sandbox.e2b.app/process.Process/Start",
+     "headers": {
+      "connect-protocol-version": "1",
+      "e2b-sandbox-id": "sb-1",
+      "e2b-sandbox-port": "49983",
+      "x-access-token": "envd-tok",
+      "content-type": "application/connect+json",
+      "content-length": "28",
+      "b3": "45f89245da6d4588a87fa46facb391bd-b76f576716a04e1a-1",
+      "traceparent": "00-45f89245da6d4588a87fa46facb391bd-b76f576716a04e1a-01"
+     },
+     "body_b64": "AAAAABd7InByb2Nlc3MiOnsiY21kIjoieCJ9fQ==",
+     "content_type": "application/connect+json"
+    }
+   ],
+   "items": [],
+   "error": {
+    "tag": "SandboxNotRunning",
+    "message": "The sandbox was not found",
+    "categories": [
+     "ConflictError"
+    ],
+    "fields": {
+     "code": 502
+    }
+   }
+  },
+  {
+   "kind": "e2b",
+   "name": "start: 404 without a code",
+   "fn": "startProcess",
+   "input": {
+    "process": {
+     "cmd": "x"
+    }
+   },
+   "reply": {
+    "status": 404,
+    "headers": {},
+    "chunks": [
+     "NDA0IHBhZ2Ugbm90IGZvdW5k"
+    ]
+   },
+   "sent": [
+    {
+     "method": "POST",
+     "url": "https://sandbox.e2b.app/process.Process/Start",
+     "headers": {
+      "connect-protocol-version": "1",
+      "e2b-sandbox-id": "sb-1",
+      "e2b-sandbox-port": "49983",
+      "x-access-token": "envd-tok",
+      "content-type": "application/connect+json",
+      "content-length": "28",
+      "b3": "8409824bd97872973d3978c0dcbcd871-9cf51cfa8a8dc995-1",
+      "traceparent": "00-8409824bd97872973d3978c0dcbcd871-9cf51cfa8a8dc995-01"
+     },
+     "body_b64": "AAAAABd7InByb2Nlc3MiOnsiY21kIjoieCJ9fQ==",
+     "content_type": "application/connect+json"
+    }
+   ],
+   "items": [],
+   "error": {
+    "tag": "NotFound",
+    "message": "envd process.Process/Start not found",
+    "categories": [
+     "NotFoundError"
+    ],
+    "fields": {}
+   }
+  },
+  {
+   "kind": "e2b",
+   "name": "start: 400 with a Connect code",
+   "fn": "startProcess",
+   "input": {
+    "process": {
+     "cmd": "x"
+    }
+   },
+   "reply": {
+    "status": 400,
+    "headers": {},
+    "chunks": [
+     "eyJjb2RlIjoiaW52YWxpZF9hcmd1bWVudCIsIm1lc3NhZ2UiOiJiYWQifQ=="
+    ]
+   },
+   "sent": [
+    {
+     "method": "POST",
+     "url": "https://sandbox.e2b.app/process.Process/Start",
+     "headers": {
+      "connect-protocol-version": "1",
+      "e2b-sandbox-id": "sb-1",
+      "e2b-sandbox-port": "49983",
+      "x-access-token": "envd-tok",
+      "content-type": "application/connect+json",
+      "content-length": "28",
+      "b3": "52cb1a8977ce7f5f15c5ae61f765c32a-0c2317ddaa32f6a2-1",
+      "traceparent": "00-52cb1a8977ce7f5f15c5ae61f765c32a-0c2317ddaa32f6a2-01"
+     },
+     "body_b64": "AAAAABd7InByb2Nlc3MiOnsiY21kIjoieCJ9fQ==",
+     "content_type": "application/connect+json"
+    }
+   ],
+   "items": [],
+   "error": {
+    "tag": "BadRequest",
+    "message": "bad",
+    "categories": [
+     "BadRequestError"
+    ],
+    "fields": {}
+   }
+  },
+  {
+   "kind": "e2b",
+   "name": "start: 500 without a code",
+   "fn": "startProcess",
+   "input": {
+    "process": {
+     "cmd": "x"
+    }
+   },
+   "reply": {
+    "status": 500,
+    "headers": {},
+    "chunks": [
+     "b29wcw=="
+    ]
+   },
+   "sent": [
+    {
+     "method": "POST",
+     "url": "https://sandbox.e2b.app/process.Process/Start",
+     "headers": {
+      "connect-protocol-version": "1",
+      "e2b-sandbox-id": "sb-1",
+      "e2b-sandbox-port": "49983",
+      "x-access-token": "envd-tok",
+      "content-type": "application/connect+json",
+      "content-length": "28",
+      "b3": "52f4efe92d37b5ab7a4df40be73a9560-672569f4a75dc84e-1",
+      "traceparent": "00-52f4efe92d37b5ab7a4df40be73a9560-672569f4a75dc84e-01"
+     },
+     "body_b64": "AAAAABd7InByb2Nlc3MiOnsiY21kIjoieCJ9fQ==",
+     "content_type": "application/connect+json"
+    }
+   ],
+   "items": [],
+   "error": {
+    "tag": "InternalServerError",
+    "message": "HTTP 500",
+    "categories": [
+     "ServerError"
+    ],
+    "fields": {}
+   }
+  },
+  {
+   "kind": "e2b",
+   "name": "start: unknown event",
+   "fn": "startProcess",
+   "input": {
+    "process": {
+     "cmd": "x"
+    }
+   },
+   "reply": {
+    "status": 200,
+    "headers": {
+     "content-type": "application/connect+json"
+    },
+    "chunks": [
+     "AAAAABh7ImV2ZW50Ijp7Im15c3RlcnkiOnt9fX0="
+    ]
+   },
+   "sent": [
+    {
+     "method": "POST",
+     "url": "https://sandbox.e2b.app/process.Process/Start",
+     "headers": {
+      "connect-protocol-version": "1",
+      "e2b-sandbox-id": "sb-1",
+      "e2b-sandbox-port": "49983",
+      "x-access-token": "envd-tok",
+      "content-type": "application/connect+json",
+      "content-length": "28",
+      "b3": "0948a19220aa0b1d9432b77b52864fcc-8fc1cc92752e5d50-1",
+      "traceparent": "00-0948a19220aa0b1d9432b77b52864fcc-8fc1cc92752e5d50-01"
+     },
+     "body_b64": "AAAAABd7InByb2Nlc3MiOnsiY21kIjoieCJ9fQ==",
+     "content_type": "application/connect+json"
+    }
+   ],
+   "items": [],
+   "error": {
+    "tag": "E2BParseError",
+    "message": "",
+    "categories": [
+     "ParseError"
+    ],
+    "fields": {}
+   }
+  },
+  {
+   "kind": "e2b",
+   "name": "connect: by tag",
+   "fn": "connectProcess",
+   "input": {
+    "process": {
+     "tag": "web"
+    }
+   },
+   "reply": {
+    "status": 200,
+    "headers": {
+     "content-type": "application/connect+json"
+    },
+    "chunks": [
+     "AAAAACF7ImV2ZW50Ijp7ImRhdGEiOnsicHR5IjoiRzF0QiJ9fX0CAAAAAnt9"
+    ]
+   },
+   "sent": [
+    {
+     "method": "POST",
+     "url": "https://sandbox.e2b.app/process.Process/Connect",
+     "headers": {
+      "connect-protocol-version": "1",
+      "e2b-sandbox-id": "sb-1",
+      "e2b-sandbox-port": "49983",
+      "x-access-token": "envd-tok",
+      "content-type": "application/connect+json",
+      "content-length": "30",
+      "b3": "99edaac6f5d97632c628c154a9284135-e42d8916314aa8f8-1",
+      "traceparent": "00-99edaac6f5d97632c628c154a9284135-e42d8916314aa8f8-01"
+     },
+     "body_b64": "AAAAABl7InByb2Nlc3MiOnsidGFnIjoid2ViIn19",
+     "content_type": "application/connect+json"
+    }
+   ],
+   "items": [
+    {
+     "_tag": "Pty",
+     "data": {
+      "bytes_b64": "G1tB"
+     }
+    }
+   ]
+  },
+  {
+   "kind": "e2b",
+   "name": "watch: events",
+   "fn": "watchDir",
+   "input": {
+    "path": "/home/user",
+    "recursive": true
+   },
+   "reply": {
+    "status": 200,
+    "headers": {
+     "content-type": "application/connect+json"
+    },
+    "chunks": [
+     "AAAAAAx7InN0YXJ0Ijp7fX0AAAAAW3siZmlsZXN5c3RlbSI6eyJuYW1lIjoiYS50eHQiLCJ0eXBlIjoiRVZFTlRfVFlQRV9XUklURSIsImVudHJ5Ijp7Im5hbWUiOiJhLnR4dCIsInNpemUiOjN9fX0AAAAAEXsiZmlsZXN5c3RlbSI6e319AAAAABB7ImtlZXBhbGl2ZSI6e319AgAAAAJ7fQ=="
+    ]
+   },
+   "sent": [
+    {
+     "method": "POST",
+     "url": "https://sandbox.e2b.app/filesystem.Filesystem/WatchDir",
+     "headers": {
+      "connect-protocol-version": "1",
+      "e2b-sandbox-id": "sb-1",
+      "e2b-sandbox-port": "49983",
+      "x-access-token": "envd-tok",
+      "content-type": "application/connect+json",
+      "content-length": "43",
+      "b3": "8aacb2bf4c7b4befa8514cdd4a3e055c-314437a668292426-1",
+      "traceparent": "00-8aacb2bf4c7b4befa8514cdd4a3e055c-314437a668292426-01"
+     },
+     "body_b64": "AAAAACZ7InBhdGgiOiIvaG9tZS91c2VyIiwicmVjdXJzaXZlIjp0cnVlfQ==",
+     "content_type": "application/connect+json"
+    }
+   ],
+   "items": [
+    {
+     "_tag": "Start"
+    },
+    {
+     "_tag": "Filesystem",
+     "name": "a.txt",
+     "type": "EVENT_TYPE_WRITE",
+     "entry": {
+      "name": "a.txt",
+      "size": 3
+     }
+    },
+    {
+     "_tag": "Filesystem",
+     "name": "",
+     "type": "EVENT_TYPE_UNSPECIFIED"
+    },
+    {
+     "_tag": "KeepAlive"
+    }
+   ]
+  }
+ ]
+}

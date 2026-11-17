@@ -179,7 +179,7 @@ function helpers.connect_error(info)
   return errors.new(info.client.protocol.unknown_class or "UnknownE2BError", {
     status = info.status,
     code = e.code,
-    message = e.message or message,
+    message = e.message, -- as connect.ts: no message when the error has none
     body = info.body,
   })
 end
