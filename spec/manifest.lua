@@ -2,6 +2,8 @@
 -- Rex (gopher-lua) has no io.popen, so spec/run.lua reads this list instead.
 return {
   "client_spec.lua",
+  "cloudflare_pagination_spec.lua",
+  "cloudflare_protocol_spec.lua",
   "compat_spec.lua",
   "conform_diff_spec.lua",
   "conform_replay_spec.lua",
