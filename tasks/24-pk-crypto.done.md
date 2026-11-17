@@ -57,17 +57,15 @@ ok   manifest: spec/manifest.lua lists every spec
 doctor: ok
 
 $ verify/dl test
-  lua: FAIL (exit 1) FAIL 1 failed, 1432 passed, 4 pending [Lua 5.5]
-  luajit: FAIL (exit 1) FAIL 1 failed, 1432 passed, 4 pending [luajit]
+== summary
+  lua: ok 1433 passed, 4 pending [Lua 5.5]
+  luajit: ok 1433 passed, 4 pending [luajit]
   rex: ok 1421 passed, 8 pending [rex]
 ```
 
-The one failure is not from this branch. On `main`, `spec/provider_spec.lua` (task 13)
-lists the files in `providers/`, but task 16 added `providers/expo_eas.lua` and
-`providers/linear.lua`, which the list does not name ("the list names every file in
-providers/ (lua and luajit only)": expected "fly_io", got "expo_eas"). `git diff main --
-providers spec/provider_spec.lua` is empty on this branch. The orchestrator should add
-those two names to the list.
+(Before the second `git merge main`, one provider-listing test from main failed:
+`spec/provider_spec.lua` did not name `providers/expo_eas.lua` / `linear.lua`. Main
+fixed that in 68aecd2; this branch never touched those files.)
 
 ```text
 $ lua spec/run.lua crypto          ok 57 passed [Lua 5.5]     (crypto_pk: 34, crypto: 23)
@@ -137,7 +135,6 @@ LuaJIT.
 
 ## Open problems / proposals
 
-- `spec/provider_spec.lua` on main misses `expo_eas` and `linear` (above).
 - `distilled.crypto` (`init.lua`, task 14) could lazy-load the new modules.
   `docs/interfaces.md` could take the API list in STATUS section 24.
 - I added `verify/dl` commands `pk-bench`/`pk-vectors` and the new file
