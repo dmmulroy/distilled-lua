@@ -79,6 +79,44 @@ t.describe("crypto_pk: bigint", function()
     end
   end)
 
+  t.it("generated products equal the generic loops (narrow and wide moduli)", function()
+    local next_byte = 7
+    local function rnd(n)
+      local out = {}
+      for i = 1, n do
+        next_byte = (next_byte * 16807) % 2147483647
+        out[i] = string.char(next_byte % 256)
+      end
+      return table.concat(out)
+    end
+    -- 2, 12, 47, 60 (last with locals), 62 and 100 limbs (tables)
+    for _, nb in ipairs({ 5, 32, 128, 165, 170, 275 }) do
+      local m = bigint.from_bytes("\255" .. rnd(nb - 2) .. "\1")
+      local gen, loop = bigint.mont(m), bigint.mont(m, { generic = true })
+      gen:compile()
+      loop:compile()
+      t.truthy(gen.source, "generated for " .. gen.k .. " limbs")
+      t.eq(loop.source, nil)
+      for i = 1, 6 do
+        local a = gen:mod(bigint.from_bytes(rnd(nb)))
+        local b = gen:mod(bigint.from_bytes(rnd(nb)))
+        if i == 1 then -- the largest operands: m - 1
+          a = bigint.sub(m, { 1 })
+          b = bigint.copy(a)
+        end
+        t.eq(bigint.cmp(gen:mul(a, b), loop:mul(a, b)), 0)
+        t.eq(bigint.cmp(gen:sqr(a), loop:sqr(a)), 0)
+        t.eq(bigint.cmp(gen:sqr(a), loop:mul(a, a)), 0)
+        -- in place, as pow uses them
+        local c = bigint.copy(a)
+        gen:mul(c, b, c)
+        t.eq(bigint.cmp(c, loop:mul(a, b)), 0)
+        gen:sqr(c, c)
+        t.eq(bigint.cmp(c, loop:sqr(loop:mul(a, b))), 0)
+      end
+    end
+  end)
+
   t.it("converts bytes, hex and numbers", function()
     t.eq(bigint.to_bytes(bigint.from_bytes("")), "")
     t.eq(bigint.to_hex(bigint.from_bytes("\0\0\1\0")), "100")
@@ -154,11 +192,17 @@ t.describe("crypto_pk: PEM and DER", function()
   t.it("fails with InvalidInput on bad input, without quoting it", function()
     t.fails_with("InvalidInput", pem.private_key(KEYS.encrypted.pkcs8))
     t.fails_with("InvalidInput", pem.private_key("not a key"))
-    t.fails_with("InvalidInput", pem.private_key("-----BEGIN PRIVATE KEY-----\n%%%%\n-----END PRIVATE KEY-----"))
+    t.fails_with(
+      "InvalidInput",
+      pem.private_key("-----BEGIN PRIVATE KEY-----\n%%%%\n-----END PRIVATE KEY-----")
+    )
     t.fails_with("InvalidInput", pem.private_key("-----BEGIN PRIVATE KEY-----\nAAAA\n"))
     t.fails_with("InvalidInput", pem.private_key(KEYS.rsa2048.spki))
     t.fails_with("InvalidInput", pem.public_key(KEYS.rsa2048.pkcs1))
-    t.fails_with("InvalidInput", pem.private_key("-----BEGIN PRIVATE KEY-----\nMAA=\n-----END PRIVATE KEY-----"))
+    t.fails_with(
+      "InvalidInput",
+      pem.private_key("-----BEGIN PRIVATE KEY-----\nMAA=\n-----END PRIVATE KEY-----")
+    )
     -- a truncated key: every prefix of the DER fails cleanly
     local der = pem.decode(KEYS.p256.pkcs8)[1].der
     for cut = 1, #der - 1, 7 do
@@ -183,7 +227,10 @@ t.describe("crypto_pk: PEM and DER", function()
   end)
 
   t.it("DER integers, OIDs and lengths", function()
-    local seq = asn1.sequence(asn1.encode_integer(bigint.from_hex("80")), asn1.encode_oid("1.2.840.10045.3.1.7"))
+    local seq = asn1.sequence(
+      asn1.encode_integer(bigint.from_hex("80")),
+      asn1.encode_oid("1.2.840.10045.3.1.7")
+    )
     t.eq(hex.encode(seq), "300e020200800608" .. "2a8648ce3d030107")
     local items = asn1.items(asn1.read_all(seq).value)
     t.eq(bigint.to_hex(assert(asn1.integer(items[1]))), "80")
@@ -320,7 +367,10 @@ t.describe("crypto_pk: ECDSA", function()
     t.eq(#c, 33)
     t.eq(hex.encode(assert(ecdsa.public_key("secp256k1", c)).y), hex.encode(k.y))
     local p = key("p256", "sec1")
-    t.eq(hex.encode(assert(ecdsa.public_key("P-256", ecdsa.point_bytes(p, true))).y), hex.encode(p.y))
+    t.eq(
+      hex.encode(assert(ecdsa.public_key("P-256", ecdsa.point_bytes(p, true))).y),
+      hex.encode(p.y)
+    )
     local bad_y = "\4" .. k.x .. k.x
     t.fails_with("InvalidInput", ecdsa.public_key("secp256k1", bad_y))
     t.fails_with("InvalidInput", ecdsa.public_key("secp256k1", "\4" .. string.rep("\255", 64)))
@@ -331,7 +381,10 @@ t.describe("crypto_pk: ECDSA", function()
     t.fails_with("InvalidInput", ecdsa.der_to_raw("\48\0"))
     t.falsy(ecdsa.verify(p, "m", string.rep("\0", 64)))
     t.falsy(ecdsa.verify(p, "m", "short"))
-    t.fails_with("InvalidInput", ecdsa.recover("secp256k1", string.rep("\1", 32), string.rep("\0", 64), 0))
+    t.fails_with(
+      "InvalidInput",
+      ecdsa.recover("secp256k1", string.rep("\1", 32), string.rep("\0", 64), 0)
+    )
     t.fails_with("InvalidInput", ecdsa.sign(key("p256", "spki"), "m"))
     t.raises(function()
       ecdsa.private_key("P-384", "x")
@@ -505,7 +558,14 @@ t.describe("crypto_pk: tokens as Distilled's packages mint them", function()
     t.same(signed, tokens.acme_es256)
     local get = assert(jws.flattened({
       key = key("rsa2048", "pkcs8"),
-      header = jws.object("nonce", nonce, "url", "https://acme.example/acme/order/1", "kid", "https://acme.example/acme/acct/1"),
+      header = jws.object(
+        "nonce",
+        nonce,
+        "url",
+        "https://acme.example/acme/order/1",
+        "kid",
+        "https://acme.example/acme/acct/1"
+      ),
     }))
     t.same(get, tokens.acme_rs256_post_as_get)
     local eab = tokens.acme_eab
@@ -532,7 +592,10 @@ t.describe("crypto_pk: JWS, JWT and JWK", function()
       -- the private JWK node exports imports to the same key and exports back equal
       local priv = assert(jws.key_from_jwk(secret(v.private_jwk)))
       t.truthy(priv.private)
-      t.same(json.decode(assert(jws.json(jws.jwk(priv, { private = true })))), json.decode(v.private_jwk))
+      t.same(
+        json.decode(assert(jws.json(jws.jwk(priv, { private = true })))),
+        json.decode(v.private_jwk)
+      )
       t.same(json.decode(assert(jws.json(jws.jwk(k)))), json.decode(v.jwk))
     end
   end)
@@ -559,7 +622,10 @@ t.describe("crypto_pk: JWS, JWT and JWK", function()
     t.truthy(jwt.verify(token, key("ed25519", "spki"), { now = 1001, leeway = 5 }))
     t.fails_with("InvalidInput", jwt.verify(token, key("ed25519", "spki"), { now = 800 }))
     t.fails_with("InvalidInput", jwt.verify(token, key("p256", "spki"), { now = 950 }))
-    t.fails_with("InvalidInput", jwt.verify(token, key("ed25519", "spki"), { now = 950, algorithms = { "RS256" } }))
+    t.fails_with(
+      "InvalidInput",
+      jwt.verify(token, key("ed25519", "spki"), { now = 950, algorithms = { "RS256" } })
+    )
     local claims2 = jwt.decode(token)
     t.eq(claims2.exp, 1000)
     t.fails_with("InvalidInput", jwt.decode("a.b"))
@@ -574,7 +640,10 @@ t.describe("crypto_pk: JWS, JWT and JWK", function()
   end)
 
   t.it("ordered JSON: order kept, nils dropped, nesting bounded", function()
-    t.eq(assert(jws.json(jws.object("b", 1, "a", nil, "c", { 1, 2 }, "d", { z = 1, y = "x" }))), '{"b":1,"c":[1,2],"d":{"y":"x","z":1}}')
+    t.eq(
+      assert(jws.json(jws.object("b", 1, "a", nil, "c", { 1, 2 }, "d", { z = 1, y = "x" }))),
+      '{"b":1,"c":[1,2],"d":{"y":"x","z":1}}'
+    )
     t.eq(assert(jws.json(json.array({}))), "[]")
     t.eq(assert(jws.json({})), "{}")
     t.eq(assert(jws.json("é\n")), '"é\\n"')
@@ -593,8 +662,14 @@ t.describe("crypto_pk: JWS, JWT and JWK", function()
   end)
 
   t.it("alg and key must agree", function()
-    t.fails_with("InvalidInput", jws.compact({ key = key("p256", "sec1"), alg = "RS256", payload = "x" }))
-    t.fails_with("InvalidInput", jws.compact({ key = key("p256", "sec1"), alg = "ES256K", payload = "x" }))
+    t.fails_with(
+      "InvalidInput",
+      jws.compact({ key = key("p256", "sec1"), alg = "RS256", payload = "x" })
+    )
+    t.fails_with(
+      "InvalidInput",
+      jws.compact({ key = key("p256", "sec1"), alg = "ES256K", payload = "x" })
+    )
     local es256k = assert(jws.compact({ key = key("secp256k1", "sec1"), payload = "x" }))
     t.eq(jws.decode(es256k).header.alg, "ES256K")
     t.truthy(jws.verify(es256k, key("secp256k1", "spki")))

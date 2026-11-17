@@ -13,6 +13,7 @@
 --     ctx:pow(a, e)         a^e (a Montgomery, e plain) -> Montgomery
 --     ctx:inv(a)            a^(m-2): the inverse when m is prime (Montgomery form)
 --     ctx:eq(a, b), ctx:is_zero(a), ctx.one (R mod m), ctx.k (limbs)
+--     ctx:compile()         switch to generated straight-line products now (see below)
 --
 -- Representation: a little-endian array of 22-bit limbs (x[1] least significant).
 -- Plain numbers may carry zero limbs on top; Montgomery elements always have exactly
@@ -347,6 +348,8 @@ end
 local Mont = {}
 Mont.__index = Mont
 
+local generate -- defined with the code generator below
+
 local function pad(x, k)
   local out = {}
   for i = 1, k do
@@ -382,7 +385,32 @@ end
 
 -- out = a * b / R mod m. out may be a or b: column c writes limb c - k only after
 -- every read of the limbs below it.
+-- Generated code replaces the loops after GENERATE_AFTER products on a context: RSA
+-- public-key checks (about 35 products each) mostly do not pay for compiling it.
+bigint.GENERATE_AFTER = 256
+
+local function compile(self)
+  if self.generate and not self.source then
+    local mul, mul_source = generate(self, false)
+    local sqr, sqr_source = generate(self, true)
+    self.mul, self.sqr = mul, sqr
+    self.source = { mul = mul_source, sqr = sqr_source }
+  end
+end
+
+-- ctx:compile(): generate now (no-op for generic contexts or ones already compiled)
+Mont.compile = compile
+
+local function count_use(self)
+  local uses = self.uses + 1
+  self.uses = uses
+  if uses == bigint.GENERATE_AFTER then
+    compile(self)
+  end
+end
+
 function Mont:mul(a, b, out)
+  count_use(self)
   local m, k, minv, q = self.m, self.k, self.minv, self.q
   out = out or {}
   local acc = 0
@@ -416,6 +444,7 @@ end
 
 -- out = a * a / R mod m: each cross product once, doubled
 function Mont:sqr(a, out)
+  count_use(self)
   local m, k, minv, q = self.m, self.k, self.minv, self.q
   out = out or {}
   local acc = 0
@@ -600,6 +629,9 @@ function Mont:pow(a, e)
   if nbits == 0 then
     return pad(self.one, self.k)
   end
+  if nbits >= 128 then -- a long exponent: at least 128 products follow
+    compile(self)
+  end
   local tbl = { [0] = self.one, a }
   for i = 2, 15 do
     tbl[i] = self:mul(tbl[i - 1], a)
@@ -643,8 +675,11 @@ end
 ---------------------------------------------------------------------------------------
 
 bigint.CODEGEN_LIMBS = 60
+-- above CODEGEN_LIMBS the generated code indexes the operand tables (RSA-4096's CRT
+-- halves, 94 limbs, and RSA-3072's, 70); up to this bound
+bigint.CODEGEN_WIDE_LIMBS = 100
 
-local function generate(ctx, square)
+function generate(ctx, square)
   local k, m = ctx.k, ctx.m
   local L = {}
   local function w(line)
@@ -664,14 +699,38 @@ local function generate(ctx, square)
     end
     return "local " .. list(prefix, 1, k) .. " = " .. table.concat(t, ", ")
   end
+  -- wide moduli (more limbs than locals allow) read the operands from their tables
+  local wide = k > bigint.CODEGEN_LIMBS
+  local A = wide and function(i)
+    return "a[" .. i .. "]"
+  end or function(i)
+    return "a" .. i
+  end
+  local Bf = wide and function(i)
+    return "b[" .. i .. "]"
+  end or function(i)
+    return "b" .. i
+  end
+  local Q = wide and function(i)
+    return "q[" .. i .. "]"
+  end or function(i)
+    return "q" .. i
+  end
   w("local ge, sub_in_place, M = ...")
   w("return function(self, a, " .. (square and "" or "b, ") .. "out)")
-  w("out = out or {}")
-  w(reads("a", "a"))
-  if not square then
-    w(reads("b", "b"))
+  if wide then
+    -- out may alias a or b: write into a fresh table, copy at the end
+    w("local dst = out")
+    w("out = {}")
+    w("local q = self.q")
+  else
+    w("out = out or {}")
+    w(reads("a", "a"))
+    if not square then
+      w(reads("b", "b"))
+    end
+    w("local " .. list("q", 1, k))
   end
-  w("local " .. list("q", 1, k))
   w("local acc, lo = 0, 0")
   -- terms of column c (1-based; pairs i + j = c + 1), q terms for j < c (or all in phase 2)
   local function column(c)
@@ -686,26 +745,26 @@ local function generate(ctx, square)
       for j = lo_j, hi_j do
         local i = c + 1 - j
         if j < i then
-          cross[#cross + 1] = "a" .. j .. " * a" .. i
+          cross[#cross + 1] = A(j) .. " * " .. A(i)
         end
       end
       if #cross > 0 then
         terms[#terms + 1] = "2 * (" .. table.concat(cross, " + ") .. ")"
       end
       if c % 2 == 1 then
-        local h = (c + 1) / 2
-        terms[#terms + 1] = string.format("a%d * a%d", h, h)
+        local h = floor((c + 1) / 2)
+        terms[#terms + 1] = A(h) .. " * " .. A(h)
       end
     else
       for j = lo_j, hi_j do
-        terms[#terms + 1] = "a" .. j .. " * b" .. (c + 1 - j)
+        terms[#terms + 1] = A(j) .. " * " .. Bf(c + 1 - j)
       end
     end
     local q_hi = c <= k and c - 1 or k
     for j = lo_j, q_hi do
       local mi = m[c + 1 - j]
       if mi ~= 0 then
-        terms[#terms + 1] = string.format("q%d * %d", j, mi)
+        terms[#terms + 1] = Q(j) .. string.format(" * %d", mi)
       end
     end
     if #terms > 0 then
@@ -714,8 +773,8 @@ local function generate(ctx, square)
   end
   for c = 1, k do
     column(c)
-    w(string.format("q%d = ((acc %% %d) * %d) %% %d", c, B, ctx.minv, B))
-    w(string.format("acc = (acc + q%d * %d) / %d", c, m[1], B))
+    w(string.format("%s = ((acc %% %d) * %d) %% %d", Q(c), B, ctx.minv, B))
+    w(string.format("acc = (acc + %s * %d) / %d", Q(c), m[1], B))
   end
   for c = k + 1, 2 * k - 1 do
     column(c)
@@ -725,6 +784,12 @@ local function generate(ctx, square)
   end
   w(string.format("out[%d] = acc", k))
   w(string.format("if ge(out, M, %d) then sub_in_place(out, M, %d) end", k, k))
+  if wide then
+    w("if dst then")
+    w(string.format("for i = 1, %d do dst[i] = out[i] end", k))
+    w("return dst")
+    w("end")
+  end
   w("return out")
   w("end")
   local source = table.concat(L, "\n")
@@ -742,7 +807,7 @@ function bigint.mont(m, opts)
   if k > bigint.MAX_LIMBS then
     compat.raise("bigint.mont: modulus larger than " .. bigint.MAX_LIMBS * W .. " bits", 2)
   end
-  local ctx = setmetatable({ k = k, m = pad(m, k), q = {} }, Mont)
+  local ctx = setmetatable({ k = k, m = pad(m, k), q = {}, uses = 0 }, Mont)
   -- minv = -m^-1 mod B by Newton's iteration (x = m is right to 3 bits for odd m)
   local m1 = m[1]
   local x = m1
@@ -792,12 +857,7 @@ function bigint.mont(m, opts)
   end
   ctx.r2 = v
   ctx.m_minus_2 = bigint.sub(m, { 2 })
-  if k <= bigint.CODEGEN_LIMBS and not (opts and opts.generic) then
-    local mul, mul_source = generate(ctx, false)
-    local sqr, sqr_source = generate(ctx, true)
-    ctx.mul, ctx.sqr = mul, sqr
-    ctx.source = { mul = mul_source, sqr = sqr_source }
-  end
+  ctx.generate = k <= bigint.CODEGEN_WIDE_LIMBS and not (opts and opts.generic)
   return ctx
 end
 
