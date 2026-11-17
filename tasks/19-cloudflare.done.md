@@ -153,3 +153,18 @@ Fixes in the harness:
   - core `errors.match` should default `code` to 0, as `matchTypedError` does;
   - `validate` could take an `opaque` union flag.
 - One-line edit outside my list: `spec/provider_spec.lua` now lists `cloudflare`.
+
+## Fix after the orchestrator's merge
+
+`spec/cloudflare_conform_spec.lua` failed on main. The comparison read the key
+dictionaries from `models/cloudflare/*.json`, which is synced locally and not committed,
+so a fresh checkout has no such files. `cases.lua` now writes
+`verify/conform/cloudflare/dictionaries.json` (committed), and `compare.lua` reads only
+that. The regenerated `cases.jsonl` is byte-identical.
+
+Checks, after `git merge main` (task 26):
+
+- With `models/cloudflare` moved away, `verify/dl test` passed: lua 1681, luajit 1681 and
+  rex 1668, 0 failed.
+- In a fresh `git clone` of the branch, `verify/dl doctor` was ok and `verify/dl test
+  cloudflare` passed 82/82 in all three runtimes.
