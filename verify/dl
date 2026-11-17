@@ -721,7 +721,7 @@ pkg_of() {
 spec_packages() {
   for d in "$PACKAGES"/*/; do
     p=$(basename "$d")
-    if ls "$d.generated-specs" 2>/dev/null | grep -q '\.json$' || [ -f "$d.generated-graphql/$p.json" ]; then
+    if ls "$d.generated-specs" 2>/dev/null | grep -q '\.json$' || ls "$d.generated-specs/stable" 2>/dev/null | grep -q '\.json$' || [ -f "$d.generated-graphql/$p.json" ]; then
       printf '%s\n' "$p"
     fi
   done
@@ -748,6 +748,37 @@ sync_graphql() {
     cp "$g_src" "$g_dst.tmp" && mv "$g_dst.tmp" "$g_dst"
     printf 'changed'
   fi
+}
+
+# sync_json_dir SRC DST: mirror SRC/*.json into DST/ (stale DST/*.json removed; DST's
+# subdirectories are left alone); prints "<models> <new> <changed> <removed>" (task 21)
+sync_json_dir() {
+  sj_new=0
+  sj_changed=0
+  sj_same=0
+  sj_removed=0
+  mkdir -p "$2"
+  for f in "$2"/*.json; do
+    [ -f "$f" ] || continue
+    if [ ! -f "$1/$(basename "$f")" ]; then
+      rm -f "$f"
+      sj_removed=$((sj_removed + 1))
+    fi
+  done
+  for f in "$1"/*.json; do
+    [ -f "$f" ] || continue
+    b=$(basename "$f")
+    if [ ! -f "$2/$b" ]; then
+      sj_new=$((sj_new + 1))
+    elif cmp -s "$f" "$2/$b"; then
+      sj_same=$((sj_same + 1))
+      continue
+    else
+      sj_changed=$((sj_changed + 1))
+    fi
+    cp "$f" "$2/$b.tmp" && mv "$2/$b.tmp" "$2/$b"
+  done
+  printf '%s %s %s %s\n' $((sj_new + sj_changed + sj_same)) "$sj_new" "$sj_changed" "$sj_removed"
 }
 
 NODE_CONVERT="node --conditions=bun --experimental-transform-types --no-warnings"
@@ -795,6 +826,17 @@ cmd_models() {
       fi
     fi
     gq=$(sync_graphql "$pkg")
+    if [ -d "$src/stable" ] && ! ls "$src" | grep -q '\.json$'; then
+      # gcp, google-workspace (task 21): .generated-specs/stable/ (Distilled's preferred
+      # versions, @distilled.cloud/gcp/<service>) -> models/<pkg>/, and unstable/
+      # (@distilled.cloud/gcp/unstable/<service>) -> models/<pkg>/unstable/
+      st=$(sync_json_dir "$src/stable" "$ROOT/models/$pkg")
+      un=$(sync_json_dir "$src/unstable" "$ROOT/models/$pkg/unstable")
+      set -- $st $un
+      total=$((total + $1 + $5))
+      say "ok   $pkg: $1 stable models ($2 new, $3 changed, $4 removed), $5 unstable models ($6 new, $7 changed, $8 removed)"
+      continue
+    fi
     if [ ! -d "$src" ] || ! ls "$src" | grep -q '\.json$'; then
       if [ "$gq" != none ] && [ "$gq" != removed ]; then
         say "ok   $pkg: a GraphQL model only (graphql $gq)"
@@ -1058,7 +1100,9 @@ verify/dl: distilled-lua verification driver
                             Exit 3 (skipped) when Docker is not running.
   dl models sync [pkg ...]  copy ../distilled/packages/<pkg>/.generated-specs/*.json to
                             models/<pkg>/ (all packages when none named; git-ignored
-                            except models/neon/). DL_DISTILLED overrides ../distilled
+                            except models/neon/). DL_DISTILLED overrides ../distilled.
+                            stable/ + unstable/ (gcp, google-workspace): models/<pkg>/
+                            and models/<pkg>/unstable/
       --convert             first re-run the package's scripts/convert.ts (Node)
   dl gen-all [pkg ...]      regenerate every package with models/<pkg>/ and
                             providers/<lua>.lua into clients/<lua>/, in parallel (luajit;
