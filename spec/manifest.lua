@@ -69,6 +69,8 @@ return {
   "schema_spec.lua",
   "scope_spec.lua",
   "secret_spec.lua",
+  "signed_rest_conform_spec.lua",
+  "signed_rest_spec.lua",
   "sigv4_spec.lua",
   "slack_client_spec.lua",
   "tencentcloud_conform_spec.lua",

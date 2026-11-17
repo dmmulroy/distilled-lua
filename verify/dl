@@ -323,6 +323,21 @@ cmd_pk_vectors() {
   stylua "$dir/vectors.lua" "$dir/published.lua"
 }
 
+# signed-rest-vectors (task 28): Coinbase / Polymarket conformance data and L1 vectors
+cmd_signed_rest_vectors() {
+  dir="$ROOT/spec/golden/signed_rest"
+  mkdir -p "$dir"
+  node --conditions=bun --experimental-transform-types --no-warnings \
+    "$LIB/signed_rest_conform.mjs" "$dir/conform.lua" || die "node failed"
+  # L1: Polymarket's clob-client and ethers v5, installed outside the repo (see the
+  # header of polymarket_l1_vectors.mjs); skipped when absent
+  if [ -d "${DL_L1_MODULES:-/tmp/l1vec/node_modules}/@polymarket/clob-client" ]; then
+    node "$LIB/polymarket_l1_vectors.mjs" "$dir/l1.lua" || die "node failed"
+  else
+    echo "skip l1.lua: no @polymarket/clob-client in ${DL_L1_MODULES:-/tmp/l1vec/node_modules}"
+  fi
+}
+
 # ----------------------------------------------------------------------------------
 # fmt
 # ----------------------------------------------------------------------------------
@@ -1157,6 +1172,9 @@ verify/dl: distilled-lua verification driver
   dl pk-vectors             regenerate spec/golden/crypto_pk/{vectors,published}.lua: node:crypto
                             signatures for keys.json (generated once, when missing) and
                             the RFC 6979/7515/8032/8037 and tiny-secp256k1 vectors (network)
+  dl signed-rest-vectors    regenerate spec/golden/signed_rest/conform.lua (Distilled's Coinbase
+                            and Polymarket) and l1.lua (@polymarket/clob-client in
+                            DL_L1_MODULES, default /tmp/l1vec/node_modules)
   dl xml-bench [file]       time xml.decode per runtime and xml.ts in Node (default: a
                             generated 5 MB S3 ListObjectsV2 page)
   dl trace <script>         run a script with a tracer (verify/lib/trace_env.lua), write
@@ -1316,6 +1334,7 @@ case $cmd in
   tencentcloud-ref) cmd_tencentcloud_ref "$@" ;;
   pk-bench) cmd_pk_bench "$@" ;;
   pk-vectors) cmd_pk_vectors "$@" ;;
+  signed-rest-vectors) cmd_signed_rest_vectors "$@" ;;
   xml-bench) cmd_xml_bench "$@" ;;
   help | -h | --help) cmd_help ;;
   trace) cmd_trace_or_expect trace "$@" ;;

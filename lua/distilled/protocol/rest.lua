@@ -27,7 +27,12 @@
 --                        -- (settings, host, route) -> settings | nil, err; base_url;
 --                        -- headers (settings, route, headers) -> headers; transform_input;
 --                        -- error_envelope; classify_error; classify_success;
---                        -- transform_response; unknown_error
+--                        -- transform_response; unknown_error;
+--                        -- sign (request, settings, { host, op, base_url }) -> request
+--                        --   | nil, err: after the request is built (task 28: Coinbase's
+--                        --   per-request JWT, Polymarket's L1/L2 headers);
+--                        -- accept_failure { status, headers, body, op } -> true: decode a
+--                        --   >= 400 answer as the success value (Coinbase's isValid bodies)
 --   }
 --   With `provider`, base_url and headers default to the provider's; `creds` they see
 --   are the resolved settings.
@@ -930,6 +935,8 @@ function rest.new(opts)
   local classify_error = pick("classify_error")
   local unknown_hook = pick("unknown_error")
   local transform_response = pick("transform_response")
+  local sign_hook = glue.sign
+  local accept_failure = glue.accept_failure
   local unknown_fields = opts.unknown_fields
   local envelope = pick("error_envelope") or default_envelope
   local status_map = opts.status_map or errors.STATUS_MAP
@@ -1135,6 +1142,28 @@ function rest.new(opts)
       -- a `...Raw` file download (Scaleway, task 12's op.raw_download) asks for the file
       -- itself, not its JSON description: ScalewayProtocol appends dl=1
       req.url = req.url .. (string.find(req.url, "?", 1, true) and "&" or "?") .. "dl=1"
+    end
+    if req and sign_hook then
+      -- the glue signs the final request (method, URL, headers, body): Coinbase's JWT
+      -- covers the label-filled path, Polymarket's HMAC the path and the exact body
+      local ok, signed, err = protect(
+        "the glue's sign",
+        sign_hook,
+        req,
+        creds,
+        { host = ctx.host or {}, op = op, base_url = url }
+      )
+      if not ok then
+        return nil, signed
+      end
+      if type(signed) ~= "table" then
+        return nil,
+          errors.is(err) and err or errors.new(
+            "SdkError",
+            { message = "the glue's sign returned no request" }
+          )
+      end
+      req = signed
     end
     return req, berr
   end
@@ -1355,6 +1384,23 @@ function rest.new(opts)
         non_json = true
       else
         value = v
+      end
+    end
+    if status >= 400 and accept_failure then
+      -- a provider whose API delivers some success values with an error status
+      -- (Coinbase's policy-validation results: isValid / success keys, matchError)
+      local ok, accepted = protect("the glue's accept_failure", accept_failure, {
+        status = status,
+        headers = headers,
+        body = non_json and text or value,
+        non_json = non_json,
+        op = op,
+      })
+      if not ok then
+        return nil, accepted
+      end
+      if accepted == true then
+        return decode_success(ctx, op, status, headers, text, value, non_json)
       end
     end
     if status >= 400 then
