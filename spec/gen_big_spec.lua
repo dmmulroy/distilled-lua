@@ -330,3 +330,111 @@ t.describe("gen.emit: long strings and scan (task 18)", function()
     t.eq(f.tables, 8)
   end)
 end)
+
+t.describe("bin/distilled-lua with a large model (task 18)", function()
+  if rawget(_G, "rex") then
+    t.pending("CLI: needs io.popen (lua and luajit only)")
+    return
+  end
+  local function run(cmd)
+    local p = io.popen(cmd .. ' 2>&1; echo "exit:$?"')
+    local out = p:read("*a")
+    p:close()
+    local code = tonumber(string.match(out, "exit:(%d+)%s*$"))
+    return (string.gsub(out, "exit:%d+%s*$", "")), code
+  end
+  local function write(path, text)
+    local f = assert(io.open(path, "wb"))
+    f:write(text)
+    f:close()
+  end
+  local function exists(path)
+    local f = io.open(path, "rb")
+    if f then
+      f:close()
+    end
+    return f ~= nil
+  end
+  local lua = rawget(_G, "jit") and "luajit" or "lua"
+  local bin = lua .. " " .. t.root .. "/bin/distilled-lua"
+  local SPEC = [[
+return {
+  name = "syn",
+  base_url = "https://syn.example.test",
+  auth = { kind = "bearer", from = "api_key", env = "SYN_API_KEY" },
+  unknown_tag = "UnknownSynError",
+  parse_tag = "SynParseError",
+  naming = { members = "wire" },
+}
+]]
+
+  t.it(
+    "package: a split model next to a small one, the index, gen-check; generate cleans up",
+    function()
+      local dir = os.tmpname()
+      os.remove(dir)
+      run("mkdir -p " .. dir .. "/models/syn")
+      -- 600 operations: past SINGLE_FILE_MAX_BYTES with the real limits
+      write(dir .. "/models/syn/big.json", synth.text({ ops = 600, members = 8 }))
+      write(dir .. "/models/syn/small.json", synth.text({ ops = 3 }))
+      write(dir .. "/syn.lua", SPEC)
+      local out, code = run(
+        bin
+          .. " package --models "
+          .. dir
+          .. "/models/syn --provider "
+          .. dir
+          .. "/syn.lua --out "
+          .. dir
+          .. "/clients/syn"
+      )
+      t.eq(code, 0, out)
+      t.match(out, "ok   syn/big: 600 operations", true)
+      t.truthy(exists(dir .. "/clients/syn/big/service/shapes_001.lua"), "big is split")
+      t.truthy(exists(dir .. "/clients/syn/big/service/ops_001.lua"))
+      t.falsy(exists(dir .. "/clients/syn/small/service"), "small is one file")
+      out, code = run(
+        lua
+          .. " "
+          .. t.root
+          .. "/verify/lib/gen_check.lua "
+          .. t.root
+          .. " "
+          .. dir
+          .. "/clients syn"
+      )
+      t.eq(code, 0, out)
+      t.match(out, "ok gen-check", true)
+      t.match(out, "2 services", true)
+      t.match(out, "603/603 ops built", true)
+
+      -- generate into an existing split client: stale chunk files go; --ops fits one file
+      local client = dir .. "/clients/syn/big"
+      write(client .. "/service/shapes_999.lua", "return {}")
+      out, code = run(
+        bin
+          .. " generate --model "
+          .. dir
+          .. "/models/syn/big.json --provider "
+          .. dir
+          .. "/syn.lua --model-name big --out "
+          .. client
+      )
+      t.eq(code, 0, out)
+      t.falsy(exists(client .. "/service/shapes_999.lua"), "stale file removed")
+      t.truthy(exists(client .. "/service/shapes_001.lua"))
+      out, code = run(
+        bin
+          .. " generate --model "
+          .. dir
+          .. "/models/syn/big.json --provider "
+          .. dir
+          .. "/syn.lua --model-name big --ops op1,op2 --out "
+          .. client
+      )
+      t.eq(code, 0, out)
+      t.falsy(exists(client .. "/service/shapes_001.lua"), "one file again")
+      run("rm -rf " .. dir)
+    end
+  )
+end)
