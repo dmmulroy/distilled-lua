@@ -537,6 +537,14 @@ function M.new(service, args)
     if unsigned then
       return out
     end
+    if args.auth == "sigv2" then
+      -- SimpleDB (sigv2.ts): the signature travels in the form body
+      return require("distilled.aws.sigv2").sign({
+        request = out,
+        credentials = identity,
+        now_epoch = now_epoch(host),
+      })
+    end
 
     -- SigV4
     local has_sha = header_lookup(headers, "x-amz-content-sha256") ~= nil

@@ -6,18 +6,47 @@
     "input": {
       "TableName": "users",
       "Item": {
-        "id": { "S": "u-1" },
-        "age": { "N": "42" },
-        "tags": { "SS": ["a", "b"] },
-        "profile": { "M": { "active": { "BOOL": true }, "nick": { "NULL": true } } },
-        "scores": { "L": [{ "N": "1" }, { "N": "2.5" }] }
+        "id": {
+          "S": "u-1"
+        },
+        "age": {
+          "N": "42"
+        },
+        "tags": {
+          "SS": [
+            "a",
+            "b"
+          ]
+        },
+        "profile": {
+          "M": {
+            "active": {
+              "BOOL": true
+            },
+            "nick": {
+              "NULL": true
+            }
+          }
+        },
+        "scores": {
+          "L": [
+            {
+              "N": "1"
+            },
+            {
+              "N": "2.5"
+            }
+          ]
+        }
       },
       "ConditionExpression": "attribute_not_exists(id)",
       "ReturnValues": "ALL_OLD"
     },
     "response": {
       "status": 200,
-      "headers": { "content-type": "application/x-amz-json-1.0" },
+      "headers": {
+        "content-type": "application/x-amz-json-1.0"
+      },
       "body": "{\"Attributes\":{\"id\":{\"S\":\"u-1\"},\"age\":{\"N\":\"41\"}},\"ConsumedCapacity\":{\"TableName\":\"users\",\"CapacityUnits\":1.0}}"
     }
   },
@@ -25,10 +54,19 @@
     "id": "dynamodb.get_item.not_found",
     "service": "dynamodb",
     "op": "GetItem",
-    "input": { "TableName": "missing", "Key": { "id": { "S": "x" } } },
+    "input": {
+      "TableName": "missing",
+      "Key": {
+        "id": {
+          "S": "x"
+        }
+      }
+    },
     "response": {
       "status": 400,
-      "headers": { "content-type": "application/x-amz-json-1.0" },
+      "headers": {
+        "content-type": "application/x-amz-json-1.0"
+      },
       "body": "{\"__type\":\"com.amazonaws.dynamodb.v20120810#ResourceNotFoundException\",\"message\":\"Requested resource not found\"}"
     }
   },
@@ -36,10 +74,19 @@
     "id": "dynamodb.put_item.conditional",
     "service": "dynamodb",
     "op": "PutItem",
-    "input": { "TableName": "users", "Item": { "id": { "S": "u-1" } } },
+    "input": {
+      "TableName": "users",
+      "Item": {
+        "id": {
+          "S": "u-1"
+        }
+      }
+    },
     "response": {
       "status": 400,
-      "headers": { "content-type": "application/x-amz-json-1.0" },
+      "headers": {
+        "content-type": "application/x-amz-json-1.0"
+      },
       "body": "{\"__type\":\"com.amazonaws.dynamodb.v20120810#ConditionalCheckFailedException\",\"message\":\"The conditional request failed\",\"Item\":{\"id\":{\"S\":\"u-1\"}}}"
     }
   },
@@ -47,10 +94,15 @@
     "id": "dynamodb.list_tables",
     "service": "dynamodb",
     "op": "ListTables",
-    "input": { "Limit": 2, "ExclusiveStartTableName": "a" },
+    "input": {
+      "Limit": 2,
+      "ExclusiveStartTableName": "a"
+    },
     "response": {
       "status": 200,
-      "headers": { "content-type": "application/x-amz-json-1.0" },
+      "headers": {
+        "content-type": "application/x-amz-json-1.0"
+      },
       "body": "{\"TableNames\":[\"b\",\"c\"],\"LastEvaluatedTableName\":\"c\"}"
     }
   },
@@ -58,10 +110,14 @@
     "id": "dynamodb.describe_table.dates",
     "service": "dynamodb",
     "op": "DescribeTable",
-    "input": { "TableName": "users" },
+    "input": {
+      "TableName": "users"
+    },
     "response": {
       "status": 200,
-      "headers": { "content-type": "application/x-amz-json-1.0" },
+      "headers": {
+        "content-type": "application/x-amz-json-1.0"
+      },
       "body": "{\"Table\":{\"TableName\":\"users\",\"TableStatus\":\"ACTIVE\",\"CreationDateTime\":1.700000000123E9,\"ItemCount\":3,\"KeySchema\":[{\"AttributeName\":\"id\",\"KeyType\":\"HASH\"}]}}"
     }
   },
@@ -72,7 +128,9 @@
     "input": {},
     "response": {
       "status": 400,
-      "headers": { "content-type": "application/x-amz-json-1.0" },
+      "headers": {
+        "content-type": "application/x-amz-json-1.0"
+      },
       "body": "{\"__type\":\"com.amazon.coral.availability#ThrottlingException\",\"message\":\"Rate exceeded\"}"
     }
   },
@@ -83,7 +141,9 @@
     "input": {},
     "response": {
       "status": 400,
-      "headers": { "content-type": "application/x-amz-json-1.0" },
+      "headers": {
+        "content-type": "application/x-amz-json-1.0"
+      },
       "body": "{\"__type\":\"com.amazonaws.dynamodb.v20120810#SomethingNewException\",\"message\":\"new\"}"
     }
   },
@@ -96,12 +156,17 @@
       "MessageBody": "hello",
       "DelaySeconds": 5,
       "MessageAttributes": {
-        "color": { "DataType": "String", "StringValue": "red" }
+        "color": {
+          "DataType": "String",
+          "StringValue": "red"
+        }
       }
     },
     "response": {
       "status": 200,
-      "headers": { "content-type": "application/x-amz-json-1.0" },
+      "headers": {
+        "content-type": "application/x-amz-json-1.0"
+      },
       "body": "{\"MessageId\":\"m-1\",\"MD5OfMessageBody\":\"5d41402abc4b2a76b9719d911017c592\"}"
     }
   },
@@ -109,7 +174,9 @@
     "id": "sqs.queue_does_not_exist",
     "service": "sqs",
     "op": "GetQueueUrl",
-    "input": { "QueueName": "nope" },
+    "input": {
+      "QueueName": "nope"
+    },
     "response": {
       "status": 400,
       "headers": {
@@ -126,11 +193,15 @@
     "input": {
       "QueueUrl": "https://sqs.us-east-1.amazonaws.com/123456789012/q",
       "MaxNumberOfMessages": 2,
-      "MessageSystemAttributeNames": ["All"]
+      "MessageSystemAttributeNames": [
+        "All"
+      ]
     },
     "response": {
       "status": 200,
-      "headers": { "content-type": "application/x-amz-json-1.0" },
+      "headers": {
+        "content-type": "application/x-amz-json-1.0"
+      },
       "body": "{\"Messages\":[{\"MessageId\":\"m-1\",\"ReceiptHandle\":\"rh\",\"Body\":\"hi\",\"Attributes\":{\"SentTimestamp\":\"1700000000000\"}}]}"
     }
   },
@@ -144,13 +215,21 @@
       "Message": "hello & bye",
       "Subject": "s",
       "MessageAttributes": {
-        "a": { "DataType": "String", "StringValue": "x y" },
-        "b": { "DataType": "Number", "StringValue": "1" }
+        "a": {
+          "DataType": "String",
+          "StringValue": "x y"
+        },
+        "b": {
+          "DataType": "Number",
+          "StringValue": "1"
+        }
       }
     },
     "response": {
       "status": 200,
-      "headers": { "content-type": "text/xml" },
+      "headers": {
+        "content-type": "text/xml"
+      },
       "body": "<PublishResponse xmlns=\"http://sns.amazonaws.com/doc/2010-03-31/\"><PublishResult><MessageId>m-1</MessageId></PublishResult><ResponseMetadata><RequestId>r-1</RequestId></ResponseMetadata></PublishResponse>"
     }
   },
@@ -161,7 +240,9 @@
     "input": {},
     "response": {
       "status": 200,
-      "headers": { "content-type": "text/xml" },
+      "headers": {
+        "content-type": "text/xml"
+      },
       "body": "<ListTopicsResponse><ListTopicsResult><Topics><member><TopicArn>arn:1</TopicArn></member><member><TopicArn>arn:2</TopicArn></member></Topics><NextToken>n</NextToken></ListTopicsResult></ListTopicsResponse>"
     }
   },
@@ -169,10 +250,14 @@
     "id": "sns.not_found",
     "service": "sns",
     "op": "GetTopicAttributes",
-    "input": { "TopicArn": "arn:aws:sns:us-east-1:123456789012:none" },
+    "input": {
+      "TopicArn": "arn:aws:sns:us-east-1:123456789012:none"
+    },
     "response": {
       "status": 404,
-      "headers": { "content-type": "text/xml" },
+      "headers": {
+        "content-type": "text/xml"
+      },
       "body": "<ErrorResponse><Error><Type>Sender</Type><Code>NotFound</Code><Message>Topic does not exist</Message></Error><RequestId>r-2</RequestId></ErrorResponse>"
     }
   },
@@ -183,7 +268,9 @@
     "input": {},
     "response": {
       "status": 200,
-      "headers": { "content-type": "text/xml" },
+      "headers": {
+        "content-type": "text/xml"
+      },
       "body": "<GetCallerIdentityResponse><GetCallerIdentityResult><Arn>arn:aws:iam::123456789012:user/me</Arn><UserId>AIDA</UserId><Account>123456789012</Account></GetCallerIdentityResult></GetCallerIdentityResponse>"
     }
   },
@@ -191,10 +278,15 @@
     "id": "iam.list_users",
     "service": "iam",
     "op": "ListUsers",
-    "input": { "PathPrefix": "/", "MaxItems": 10 },
+    "input": {
+      "PathPrefix": "/",
+      "MaxItems": 10
+    },
     "response": {
       "status": 200,
-      "headers": { "content-type": "text/xml" },
+      "headers": {
+        "content-type": "text/xml"
+      },
       "body": "<ListUsersResponse><ListUsersResult><IsTruncated>false</IsTruncated><Users><member><UserName>me</UserName><UserId>AIDA</UserId><Arn>arn:aws:iam::1:user/me</Arn><Path>/</Path><CreateDate>2023-11-14T22:13:20Z</CreateDate></member></Users></ListUsersResult></ListUsersResponse>"
     }
   },
@@ -203,13 +295,25 @@
     "service": "ec2",
     "op": "DescribeInstances",
     "input": {
-      "Filters": [{ "Name": "instance-state-name", "Values": ["running", "stopped"] }],
-      "InstanceIds": ["i-1"],
+      "Filters": [
+        {
+          "Name": "instance-state-name",
+          "Values": [
+            "running",
+            "stopped"
+          ]
+        }
+      ],
+      "InstanceIds": [
+        "i-1"
+      ],
       "MaxResults": 5
     },
     "response": {
       "status": 200,
-      "headers": { "content-type": "text/xml" },
+      "headers": {
+        "content-type": "text/xml"
+      },
       "body": "<DescribeInstancesResponse xmlns=\"http://ec2.amazonaws.com/doc/2016-11-15/\"><requestId>r</requestId><reservationSet><item><reservationId>r-1</reservationId><ownerId>1</ownerId><instancesSet><item><instanceId>i-1</instanceId><instanceType>t3.micro</instanceType><launchTime>2023-11-14T22:13:20.000Z</launchTime><instanceState><code>16</code><name>running</name></instanceState><tagSet><item><key>Name</key><value>web</value></item></tagSet></item></instancesSet></item></reservationSet></DescribeInstancesResponse>"
     }
   },
@@ -223,13 +327,23 @@
       "MaxCount": 1,
       "InstanceType": "t3.micro",
       "TagSpecifications": [
-        { "ResourceType": "instance", "Tags": [{ "Key": "Name", "Value": "web" }] }
+        {
+          "ResourceType": "instance",
+          "Tags": [
+            {
+              "Key": "Name",
+              "Value": "web"
+            }
+          ]
+        }
       ],
       "ClientToken": "token-1"
     },
     "response": {
       "status": 200,
-      "headers": { "content-type": "text/xml" },
+      "headers": {
+        "content-type": "text/xml"
+      },
       "body": "<RunInstancesResponse><reservationId>r-1</reservationId><ownerId>1</ownerId><instancesSet><item><instanceId>i-1</instanceId></item></instancesSet></RunInstancesResponse>"
     }
   },
@@ -240,7 +354,9 @@
     "input": {},
     "response": {
       "status": 400,
-      "headers": { "content-type": "text/xml" },
+      "headers": {
+        "content-type": "text/xml"
+      },
       "body": "<Response><Errors><Error><Code>InvalidInstanceID.NotFound</Code><Message>The instance ID 'i-1' does not exist</Message></Error></Errors><RequestID>r-3</RequestID></Response>"
     }
   },
@@ -253,7 +369,9 @@
       "InvocationType": "RequestResponse",
       "LogType": "Tail",
       "Qualifier": "$LATEST",
-      "Payload": { "$bytes": "{\"k\":1}" }
+      "Payload": {
+        "$bytes": "{\"k\":1}"
+      }
     },
     "response": {
       "status": 200,
@@ -270,10 +388,15 @@
     "id": "lambda.get_function",
     "service": "lambda",
     "op": "GetFunction",
-    "input": { "FunctionName": "arn:aws:lambda:us-east-1:1:function:f", "Qualifier": "2" },
+    "input": {
+      "FunctionName": "arn:aws:lambda:us-east-1:1:function:f",
+      "Qualifier": "2"
+    },
     "response": {
       "status": 200,
-      "headers": { "content-type": "application/json" },
+      "headers": {
+        "content-type": "application/json"
+      },
       "body": "{\"Configuration\":{\"FunctionName\":\"f\",\"Runtime\":\"nodejs20.x\",\"MemorySize\":128,\"LastModified\":\"2023-11-14T22:13:20.000+0000\"},\"Tags\":{\"a\":\"b\"}}"
     }
   },
@@ -281,10 +404,15 @@
     "id": "lambda.list_functions",
     "service": "lambda",
     "op": "ListFunctions",
-    "input": { "MaxItems": 3, "Marker": "m/1" },
+    "input": {
+      "MaxItems": 3,
+      "Marker": "m/1"
+    },
     "response": {
       "status": 200,
-      "headers": { "content-type": "application/json" },
+      "headers": {
+        "content-type": "application/json"
+      },
       "body": "{\"Functions\":[{\"FunctionName\":\"f\"}],\"NextMarker\":\"m2\"}"
     }
   },
@@ -292,7 +420,9 @@
     "id": "lambda.not_found",
     "service": "lambda",
     "op": "GetFunction",
-    "input": { "FunctionName": "nope" },
+    "input": {
+      "FunctionName": "nope"
+    },
     "response": {
       "status": 404,
       "headers": {
@@ -309,7 +439,11 @@
     "input": {},
     "response": {
       "status": 429,
-      "headers": { "content-type": "application/json", "x-amzn-errortype": "TooManyRequestsException", "retry-after": "3" },
+      "headers": {
+        "content-type": "application/json",
+        "x-amzn-errortype": "TooManyRequestsException",
+        "retry-after": "3"
+      },
       "body": "{\"message\":\"Rate exceeded\",\"retryAfterSeconds\":\"3\",\"Reason\":\"CallerRateLimitExceeded\"}"
     }
   },
@@ -328,7 +462,14 @@
               "Name": "www.example.com",
               "Type": "A",
               "TTL": 60,
-              "ResourceRecords": [{ "Value": "192.0.2.1" }, { "Value": "192.0.2.2" }]
+              "ResourceRecords": [
+                {
+                  "Value": "192.0.2.1"
+                },
+                {
+                  "Value": "192.0.2.2"
+                }
+              ]
             }
           }
         ]
@@ -336,7 +477,9 @@
     },
     "response": {
       "status": 200,
-      "headers": { "content-type": "text/xml" },
+      "headers": {
+        "content-type": "text/xml"
+      },
       "body": "<?xml version=\"1.0\"?><ChangeResourceRecordSetsResponse xmlns=\"https://route53.amazonaws.com/doc/2013-04-01/\"><ChangeInfo><Id>/change/C1</Id><Status>PENDING</Status><SubmittedAt>2023-11-14T22:13:20.000Z</SubmittedAt></ChangeInfo></ChangeResourceRecordSetsResponse>"
     }
   },
@@ -344,10 +487,15 @@
     "id": "route53.list_hosted_zones",
     "service": "route-53",
     "op": "ListHostedZones",
-    "input": { "MaxItems": 2, "Marker": "Z0" },
+    "input": {
+      "MaxItems": 2,
+      "Marker": "Z0"
+    },
     "response": {
       "status": 200,
-      "headers": { "content-type": "text/xml" },
+      "headers": {
+        "content-type": "text/xml"
+      },
       "body": "<ListHostedZonesResponse><HostedZones><HostedZone><Id>/hostedzone/Z1</Id><Name>example.com.</Name><CallerReference>c</CallerReference><Config><PrivateZone>false</PrivateZone></Config><ResourceRecordSetCount>2</ResourceRecordSetCount></HostedZone></HostedZones><IsTruncated>true</IsTruncated><NextMarker>Z2</NextMarker><MaxItems>2</MaxItems><Marker>Z0</Marker></ListHostedZonesResponse>"
     }
   },
@@ -355,10 +503,14 @@
     "id": "route53.no_such_zone",
     "service": "route-53",
     "op": "GetHostedZone",
-    "input": { "Id": "Z9" },
+    "input": {
+      "Id": "Z9"
+    },
     "response": {
       "status": 404,
-      "headers": { "content-type": "text/xml" },
+      "headers": {
+        "content-type": "text/xml"
+      },
       "body": "<ErrorResponse xmlns=\"https://route53.amazonaws.com/doc/2013-04-01/\"><Error><Type>Sender</Type><Code>NoSuchHostedZone</Code><Message>No hosted zone found with ID: Z9</Message></Error><RequestId>r</RequestId></ErrorResponse>"
     }
   },
@@ -366,10 +518,16 @@
     "id": "s3control.list_access_points",
     "service": "s3-control",
     "op": "ListAccessPoints",
-    "input": { "AccountId": "123456789012", "Bucket": "b", "MaxResults": 5 },
+    "input": {
+      "AccountId": "123456789012",
+      "Bucket": "b",
+      "MaxResults": 5
+    },
     "response": {
       "status": 200,
-      "headers": { "content-type": "application/xml" },
+      "headers": {
+        "content-type": "application/xml"
+      },
       "body": "<ListAccessPointsResult><AccessPointList><AccessPoint><Name>ap</Name><NetworkOrigin>Internet</NetworkOrigin><Bucket>b</Bucket></AccessPoint></AccessPointList></ListAccessPointsResult>"
     }
   },
@@ -377,10 +535,15 @@
     "id": "cloudfront.get_distribution",
     "service": "cloudfront",
     "op": "GetDistribution",
-    "input": { "Id": "E1" },
+    "input": {
+      "Id": "E1"
+    },
     "response": {
       "status": 200,
-      "headers": { "content-type": "text/xml", "etag": "E2Q" },
+      "headers": {
+        "content-type": "text/xml",
+        "etag": "E2Q"
+      },
       "body": "<Distribution><Id>E1</Id><ARN>arn:aws:cloudfront::1:distribution/E1</ARN><Status>Deployed</Status><LastModifiedTime>2023-11-14T22:13:20Z</LastModifiedTime><InProgressInvalidationBatches>0</InProgressInvalidationBatches><DomainName>d.cloudfront.net</DomainName></Distribution>"
     }
   },
@@ -392,7 +555,9 @@
     "input": {},
     "response": {
       "status": 200,
-      "headers": { "content-type": "application/x-amz-json-1.0" },
+      "headers": {
+        "content-type": "application/x-amz-json-1.0"
+      },
       "body": "{\"TableNames\":[]}"
     }
   },
@@ -401,20 +566,37 @@
     "service": "sqs",
     "op": "ListQueues",
     "input": {},
-    "response": { "status": 503, "headers": {}, "body": "" }
+    "response": {
+      "status": 503,
+      "headers": {},
+      "body": ""
+    }
   },
   {
     "id": "cloudwatch.get_metric_data",
     "service": "cloudwatch",
     "op": "GetMetricData",
     "input": {
-      "StartTime": { "$date": 1700000000 },
-      "EndTime": { "$date": 1700003600 },
+      "StartTime": {
+        "$date": 1700000000
+      },
+      "EndTime": {
+        "$date": 1700003600
+      },
       "MetricDataQueries": [
         {
           "Id": "q1",
           "MetricStat": {
-            "Metric": { "Namespace": "AWS/EC2", "MetricName": "CPUUtilization", "Dimensions": [{ "Name": "InstanceId", "Value": "i-1" }] },
+            "Metric": {
+              "Namespace": "AWS/EC2",
+              "MetricName": "CPUUtilization",
+              "Dimensions": [
+                {
+                  "Name": "InstanceId",
+                  "Value": "i-1"
+                }
+              ]
+            },
             "Period": 60,
             "Stat": "Average"
           }
@@ -423,8 +605,67 @@
     },
     "response": {
       "status": 200,
-      "headers": { "content-type": "application/x-amz-json-1.0" },
+      "headers": {
+        "content-type": "application/x-amz-json-1.0"
+      },
       "body": "{\"MetricDataResults\":[{\"Id\":\"q1\",\"Timestamps\":[1700000000,1700000060],\"Values\":[1.5,2.0],\"StatusCode\":\"Complete\"}]}"
+    }
+  },
+  {
+    "id": "simpledb.put_attributes",
+    "service": "simpledb",
+    "op": "PutAttributes",
+    "input": {
+      "DomainName": "d",
+      "ItemName": "i 1",
+      "Attributes": [
+        {
+          "Name": "color",
+          "Value": "red",
+          "Replace": true
+        },
+        {
+          "Name": "size",
+          "Value": "L"
+        }
+      ]
+    },
+    "response": {
+      "status": 200,
+      "headers": {
+        "content-type": "text/xml"
+      },
+      "body": "<PutAttributesResponse><ResponseMetadata><RequestId>r</RequestId><BoxUsage>0.0000219907</BoxUsage></ResponseMetadata></PutAttributesResponse>"
+    }
+  },
+  {
+    "id": "simpledb.select",
+    "service": "simpledb",
+    "op": "Select",
+    "input": {
+      "SelectExpression": "select * from d"
+    },
+    "response": {
+      "status": 200,
+      "headers": {
+        "content-type": "text/xml"
+      },
+      "body": "<SelectResponse><SelectResult><Item><Name>i1</Name><Attribute><Name>color</Name><Value>red</Value></Attribute></Item></SelectResult></SelectResponse>"
+    }
+  },
+  {
+    "id": "simpledb.no_such_domain",
+    "service": "simpledb",
+    "op": "DomainMetadata",
+    "input": {
+      "DomainName": "nope"
+    },
+    "response": {
+      "status": 400,
+      "headers": {
+        "content-type": "text/xml"
+      },
+      "body": "<Response><Errors><Error><Code>NoSuchDomain</Code><Message>The specified domain does not exist.</Message><BoxUsage>0.0000071759</BoxUsage></Error></Errors><RequestID>r</RequestID></Response>"
     }
   }
 ]

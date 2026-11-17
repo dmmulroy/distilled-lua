@@ -19,6 +19,19 @@ const Exit = await import(E + "Exit.js");
 const Credentials = await import(path.join(P, "s3/src/credentials.ts"));
 const Retry = await import(path.join(P, "aws/src/retry.ts"));
 
+// The clock of distilled.testing.host (epoch 1700000000): SigV2 signs a Timestamp it
+// takes from `new Date()`, so both sides sign the same string.
+const FIXED_MS = 1700000000 * 1000;
+const RealDate = Date;
+globalThis.Date = class extends RealDate {
+  constructor(...args) {
+    super(...(args.length === 0 ? [FIXED_MS] : args));
+  }
+  static now() {
+    return FIXED_MS;
+  }
+};
+
 const cases = JSON.parse(fs.readFileSync(path.join(ROOT, "verify/conform/cases/aws.json"), "utf8"));
 const fromUtf8 = new TextDecoder();
 

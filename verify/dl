@@ -835,14 +835,18 @@ cmd_models() {
     changed=0
     same=0
     removed=0
+    # manual-specs/ holds hand-written models Distilled's generator reads too (AWS
+    # SimpleDB, task 17)
+    manual="$PACKAGES/$pkg/manual-specs"
     for f in "$dst"/*.json; do
       [ -f "$f" ] || continue
-      if [ ! -f "$src/$(basename "$f")" ]; then
+      if [ ! -f "$src/$(basename "$f")" ] && [ ! -f "$manual/$(basename "$f")" ]; then
         rm -f "$f"
         removed=$((removed + 1))
       fi
     done
-    for f in "$src"/*.json; do
+    for f in "$src"/*.json "$manual"/*.json; do
+      [ -f "$f" ] || continue
       b=$(basename "$f")
       if [ ! -f "$dst/$b" ]; then
         new=$((new + 1))
