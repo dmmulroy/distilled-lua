@@ -31,12 +31,13 @@ local client = CloudflareAcm.new({
 Every method returns `value` or `nil, err`; `err.tag` is one of the operation's errors,
 a built-in tag, `UnknownCloudflareError` (nothing matched) or `CloudflareParseError` (an unparseable body).
 
-## Operations (7)
+## Operations (8)
 
 | Method | HTTP | Summary |
 | --- | --- | --- |
 | `create_custom_trust_store` | `POST /zones/{zone_id}/acm/custom_trust_store` | Upload a root CA certificate to the Custom Origin Trust Store for a Zone. Only root CA certificates are accepted. |
 | `delete_custom_trust_store` | `DELETE /zones/{zone_id}/acm/custom_trust_store/{custom_origin_trust_store_id}` | Removes a root CA certificate from the custom origin trust store. Origins using certificates signed by this CA will no longer be trusted. |
+| `edit_total_tl` | `POST /zones/{zone_id}/acm/total_tls` | Alias of `update_total_tl` (same route, alternate export name upstream). Set Total TLS Settings or disable the feature for a Zone. |
 | `get_custom_trust_store` | `GET /zones/{zone_id}/acm/custom_trust_store/{custom_origin_trust_store_id}` | Retrieves details about a specific root CA certificate in the custom origin trust store, including expiration and subject information. |
 | `get_total_tl` | `GET /zones/{zone_id}/acm/total_tls` | Get Total TLS Settings for a Zone. |
 | `list_custom_trust_stores` (+ `_pages`, `_items`) | `GET /zones/{zone_id}/acm/custom_trust_store` | Get Custom Origin Trust Store for a Zone. |

@@ -963,6 +963,9 @@ local SHAPES = [[
 002 VerifiedBotsTopCategoriesResponseMetaUnitsList
 002 VerifiedBotsTopCategoriesResponseTop0Item
 002 VerifiedBotsTopCategoriesResponseTop0List
+003 AiToMarkdownCreateRequestFilesList
+003 AiToMarkdownCreateResultItem
+003 AiToMarkdownCreateResultList
 003 As112SummaryDnssecRequestContinentList
 003 As112SummaryDnssecRequestDateEndList
 003 As112SummaryDnssecRequestDateRangeList
@@ -1074,7 +1077,6 @@ local SHAPES = [[
 003 DnsSummaryDnssecAwareRequestNodataList
 003 DnsSummaryDnssecAwareRequestProtocol
 003 DnsSummaryDnssecAwareRequestProtocolList
-003 DnsSummaryDnssecAwareRequestQueryType
 003 DnsSummaryDnssecAwareRequestQueryTypeList
 003 DnssecAs112SummaryRequest
 003 DnssecAs112SummaryResponse
@@ -1430,13 +1432,13 @@ local SHAPES = [[
 003 RobotsTxtTopUserAgentsDirectiveResponseMetaUnitsList
 003 RobotsTxtTopUserAgentsDirectiveResponseTop0Item
 003 RobotsTxtTopUserAgentsDirectiveResponseTop0List
+003 TransformToMarkdownRequest
 004 AnnotationsOutagesGetRequestDataSource
 004 AnnotationsOutagesGetRequestFormat
 004 AnnotationsOutagesGetRequestOutageCause
 004 AnnotationsOutagesGetRequestOutageType
 004 AnnotationsOutagesGetRequestTags
 004 AnnotationsOutagesGetRequestTagsList
-004 AnnotationsOutagesGetResponseAnnotationsList
 004 As112SummaryEdnsRequestContinentList
 004 As112SummaryEdnsRequestDateEndList
 004 As112SummaryEdnsRequestDateRangeList
@@ -1577,6 +1579,7 @@ local SHAPES = [[
 004 AttacksLayer3TimeseriesGroupsDurationResponseSerie0UNDER10MINSList
 004 DatasetsDownloadRequestFormat
 004 DatasetsDownloadResponseDataset
+004 DnsSummaryDnssecAwareRequestQueryType
 004 DnsSummaryDnssecAwareRequestResponseCode
 004 DnsSummaryDnssecAwareRequestResponseCodeList
 004 DnsSummaryDnssecAwareRequestTldList
@@ -1842,7 +1845,6 @@ local SHAPES = [[
 004 EncryptedEmailRoutingTimeseriesGroupRequest
 004 EncryptedEmailRoutingTimeseriesGroupResponse
 004 GetAnnotationOutageRequest
-004 GetAnnotationOutageResponse
 004 RobotsTxtTopDomainCategoriesRequestDateList
 004 RobotsTxtTopDomainCategoriesRequestFormat
 004 RobotsTxtTopDomainCategoriesRequestNameList
@@ -1877,6 +1879,7 @@ local SHAPES = [[
 005 AnnotationsOutagesGetResponseAnnotationsItemOriginsList
 005 AnnotationsOutagesGetResponseAnnotationsItemOutage
 005 AnnotationsOutagesGetResponseAnnotationsItemTagsList
+005 AnnotationsOutagesGetResponseAnnotationsList
 005 BgpTopAsesGetRequestAsnList
 005 BgpTopAsesGetRequestDateEndList
 005 BgpTopAsesGetRequestDateRangeList
@@ -2060,6 +2063,7 @@ local SHAPES = [[
 005 GeolocationsGetResponseGeolocationParentParentType
 005 GeolocationsGetResponseGeolocationParentType
 005 GeolocationsGetResponseGeolocationType
+005 GetAnnotationOutageResponse
 005 GetBgpTopAsRequest
 005 GetBgpTopAsResponse
 005 GetBotRequest
@@ -2360,9 +2364,7 @@ local SHAPES = [[
 005 HttpAsesIpVersionGetResponseMetaConfidenceInfoAnnotationsItemEventType
 005 HttpAsesIpVersionGetResponseMetaConfidenceInfoAnnotationsItemTagsList
 005 HttpAsesIpVersionGetResponseMetaConfidenceInfoAnnotationsList
-005 HttpAsesIpVersionGetResponseMetaDateRangeItem
 005 HttpAsesIpVersionGetResponseMetaDateRangeList
-005 HttpAsesIpVersionGetResponseMetaNormalization
 006 GetHttpAsOsRequest
 006 GetHttpAsOsResponse
 006 GetHttpAsTlsVersionRequest
@@ -2404,6 +2406,8 @@ local SHAPES = [[
 006 GetTrafficAnomalyResponse
 006 HistogramQualitySpeedRequest
 006 HistogramQualitySpeedResponse
+006 HttpAsesIpVersionGetResponseMetaDateRangeItem
+006 HttpAsesIpVersionGetResponseMetaNormalization
 006 HttpAsesIpVersionGetResponseMetaUnitsItem
 006 HttpAsesIpVersionGetResponseMetaUnitsList
 006 HttpAsesIpVersionGetResponseTop0Item
@@ -2845,10 +2849,7 @@ local SHAPES = [[
 006 QualitySpeedHistogramResponseMetaConfidenceInfoAnnotationsItemEventType
 006 QualitySpeedHistogramResponseMetaConfidenceInfoAnnotationsItemTagsList
 006 QualitySpeedHistogramResponseMetaConfidenceInfoAnnotationsList
-006 QualitySpeedHistogramResponseMetaDateRangeItem
 006 QualitySpeedHistogramResponseMetaDateRangeList
-006 QualitySpeedHistogramResponseMetaNormalization
-006 QualitySpeedHistogramResponseMetaTotalTestsList
 006 RankingDomainGetRequestDateList
 006 RankingDomainGetRequestFormat
 006 RankingDomainGetRequestNameList
@@ -3142,8 +3143,6 @@ local SHAPES = [[
 007 AttacksLayer7TopIndustryRequestDateEndList
 007 AttacksLayer7TopIndustryRequestDateRangeList
 007 AttacksLayer7TopIndustryRequestDateStartList
-007 AttacksLayer7TopIndustryRequestFormat
-007 AttacksLayer7TopIndustryRequestHttpMethodList
 007 HttpMethodAttackLayer7SummaryRequest
 007 HttpMethodAttackLayer7SummaryResponse
 007 HttpMethodAttackLayer7TimeseriesGroupRequest
@@ -3326,6 +3325,9 @@ local SHAPES = [[
 007 IndustryAttackLayer7TimeseriesGroupRequest
 007 IndustryAttackLayer7TimeseriesGroupResponse
 007 IndustryAttackLayer7TopRequest
+007 QualitySpeedHistogramResponseMetaDateRangeItem
+007 QualitySpeedHistogramResponseMetaNormalization
+007 QualitySpeedHistogramResponseMetaTotalTestsList
 007 QualitySpeedHistogramResponseMetaUnitsItem
 007 QualitySpeedHistogramResponseMetaUnitsList
 008 As112SummaryIpVersionRequestContinentList
@@ -3518,7 +3520,9 @@ local SHAPES = [[
 008 AttacksLayer7TimeseriesGroupsIpVersionResponseSerie0IPv4List
 008 AttacksLayer7TimeseriesGroupsIpVersionResponseSerie0IPv6List
 008 AttacksLayer7TimeseriesGroupsIpVersionResponseSerie0TimestampsList
+008 AttacksLayer7TopIndustryRequestFormat
 008 AttacksLayer7TopIndustryRequestHttpMethod
+008 AttacksLayer7TopIndustryRequestHttpMethodList
 008 AttacksLayer7TopIndustryRequestHttpVersion
 008 AttacksLayer7TopIndustryRequestHttpVersionList
 008 AttacksLayer7TopIndustryRequestIpVersion
@@ -7528,9 +7532,6 @@ local SHAPES = [[
 017 AiTimeseriesGroupsUserAgentResponseMetaUnitsList
 017 AiTimeseriesGroupsUserAgentResponseSerie0
 017 AiTimeseriesGroupsUserAgentResponseSerie0TimestampsList
-017 AiToMarkdownCreateRequestFilesList
-017 AiToMarkdownCreateResultItem
-017 AiToMarkdownCreateResultList
 017 AttacksLayer3SummaryVectorRequestContinentList
 017 AttacksLayer3SummaryVectorRequestDateEndList
 017 AttacksLayer3SummaryVectorRequestDateRangeList
@@ -7858,7 +7859,6 @@ local SHAPES = [[
 017 TopRankingInternetServiceResponse
 017 TopRankingRequest
 017 TopRankingResponse
-017 TransformToMarkdownRequest
 017 UserAgentAiBotSummaryRequest
 017 UserAgentAiBotSummaryResponse
 017 UserAgentAiTimeseriesGroupRequest

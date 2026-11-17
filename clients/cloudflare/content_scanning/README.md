@@ -31,7 +31,7 @@ local client = CloudflareContentScanning.new({
 Every method returns `value` or `nil, err`; `err.tag` is one of the operation's errors,
 a built-in tag, `UnknownCloudflareError` (nothing matched) or `CloudflareParseError` (an unparseable body).
 
-## Operations (10)
+## Operations (12)
 
 | Method | HTTP | Summary |
 | --- | --- | --- |
@@ -41,8 +41,10 @@ a built-in tag, `UnknownCloudflareError` (nothing matched) or `CloudflareParseEr
 | `disable_content_scanning` | `POST /zones/{zone_id}/content-upload-scan/disable` | Disable Content Scanning for a zone. The `cf.waf.content_scan.*` fields are no longer populated, so rules that reference them stop matching. |
 | `enable_content_scanning` | `POST /zones/{zone_id}/content-upload-scan/enable` | Enable Content Scanning for a zone, so that Cloudflare inspects content objects uploaded to the zone and checks them for malware. Scan results populate the `cf.waf.content_scan.*` fields, which you can reference in custom rules and rate limiting rules. |
 | `get_content_scanning` | `GET /zones/{zone_id}/content-upload-scan/settings` | Get the current Content Scanning status for the zone, together with the date the status was last modified. |
+| `get_setting` | `GET /zones/{zone_id}/content-upload-scan/settings` | Alias of `get_content_scanning` (same route, alternate export name upstream). Get the current Content Scanning status for the zone, together with the date the status was last modified. |
 | `get_settings` | `GET /zones/{zone_id}/content-upload-scan/settings` | Get the current Content Scanning status for the zone, together with the date the status was last modified. |
 | `list_payloads` (+ `_pages`, `_items`) | `GET /zones/{zone_id}/content-upload-scan/payloads` | List the Content Scanning custom expressions configured for the zone, each with its own identifier. A custom expression tells the scanner how to reach content objects in a request it cannot parse on its own, such as files Base64-encoded inside a JSON body. |
+| `put_content_scanning` | `PUT /zones/{zone_id}/content-upload-scan/settings` | Alias of `create_content_scanning` (same route, alternate export name upstream). Update the Content Scanning status by setting the status value to `enabled` or `disabled`. This is equivalent to calling the dedicated enable and disable endpoints. |
 | `update` | `PUT /zones/{zone_id}/content-upload-scan/settings` | Update the Content Scanning status by setting the status value to `enabled` or `disabled`. This is equivalent to calling the dedicated enable and disable endpoints. |
 | `update_payload` | `PATCH /zones/{zone_id}/content-upload-scan/payloads/{expression_id}` | Update the Content Scanning custom expression with the given identifier and return the updated list of expressions. |
 

@@ -477,6 +477,14 @@ function Client:with(options) end
 ---Flush spans and release what the client holds.
 function Client:close() end
 
+---Alias of `transform_to_markdown` (same route, alternate export name upstream). Converts files uploaded as multipart form data into Markdown using Workers AI. Returns a conversion result for each file. Use the supported-formats endpoint to check accepted file types.
+---
+---`POST /accounts/{account_id}/ai/tomarkdown`
+---@param input cloudflare.ai.TransformToMarkdownRequest
+---@return cloudflare.ai.ToMarkdownTransformResultList? value
+---@return distilled.Error? err
+function Client:create_ai_to_markdown(input) end
+
 ---Creates a new fine-tuning job for a Workers AI model using custom training data.
 ---
 ---`POST /accounts/{account_id}/ai/finetunes`

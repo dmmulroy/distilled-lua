@@ -384,6 +384,15 @@ function Client:with(options) end
 ---Flush spans and release what the client holds.
 function Client:close() end
 
+---Alias of `bulk_delete_namespaces` (same route, alternate export name upstream). Deletes up to 10,000 key-value pairs from the specified Workers KV namespace. Send a JSON array of the key names to delete. The result reports the number of successful deletions and any keys that failed and should be retried.
+---
+---`POST /accounts/{account_id}/storage/kv/namespaces/{namespace_id}/bulk/delete`
+---Errors: NamespaceNotFound, InvalidRequestBody, InvalidObjectIdentifier.
+---@param input cloudflare.kv.BulkDeleteNamespacesRequest
+---@return cloudflare.kv.BulkDeleteNamespacesResponse? value
+---@return distilled.Error? err
+function Client:bulk_delete_namespace_keys(input) end
+
 ---Deletes up to 10,000 key-value pairs from the specified Workers KV namespace. Send a JSON array of the key names to delete. The result reports the number of successful deletions and any keys that failed and should be retried.
 ---
 ---`POST /accounts/{account_id}/storage/kv/namespaces/{namespace_id}/bulk/delete`
@@ -393,6 +402,15 @@ function Client:close() end
 ---@return distilled.Error? err
 function Client:bulk_delete_namespaces(input) end
 
+---Alias of `bulk_get_namespaces` (same route, alternate export name upstream). Retrieves the text-based values of up to 100 keys from the specified Workers KV namespace. The result maps each requested key to its value. Set `type` to `json` to parse JSON values instead of returning strings, and set `withMetadata` to `true` to include metadata with each value. Binary values are not supported by this operation.
+---
+---`POST /accounts/{account_id}/storage/kv/namespaces/{namespace_id}/bulk/get`
+---Errors: InvalidRequestBody, MinimumKeysRequired, NamespaceNotFound, InvalidObjectIdentifier.
+---@param input cloudflare.kv.BulkGetNamespacesRequest
+---@return cloudflare.kv.NamespacesBulkGetResult? value
+---@return distilled.Error? err
+function Client:bulk_get_namespace_keys(input) end
+
 ---Retrieves the text-based values of up to 100 keys from the specified Workers KV namespace. The result maps each requested key to its value. Set `type` to `json` to parse JSON values instead of returning strings, and set `withMetadata` to `true` to include metadata with each value. Binary values are not supported by this operation.
 ---
 ---`POST /accounts/{account_id}/storage/kv/namespaces/{namespace_id}/bulk/get`
@@ -401,6 +419,15 @@ function Client:bulk_delete_namespaces(input) end
 ---@return cloudflare.kv.NamespacesBulkGetResult? value
 ---@return distilled.Error? err
 function Client:bulk_get_namespaces(input) end
+
+---Alias of `bulk_put_namespaces` (same route, alternate export name upstream). Writes up to 10,000 key-value pairs to the specified Workers KV namespace from a JSON array, with optional metadata and expiration settings for each pair. Existing values and expirations are overwritten. If neither `expiration` nor `expiration_ttl` is specified, the key-value pair will not expire. If both are set, `expiration_ttl` takes precedence. The entire request must be 100 megabytes or less. The result reports the number of successful writes and any keys that failed and should be retried.
+---
+---`PUT /accounts/{account_id}/storage/kv/namespaces/{namespace_id}/bulk`
+---Errors: InvalidRequestBody, NamespaceNotFound, InvalidObjectIdentifier.
+---@param input cloudflare.kv.BulkPutNamespacesRequest
+---@return cloudflare.kv.BulkPutNamespacesResponse? value
+---@return distilled.Error? err
+function Client:bulk_put_namespace_keys(input) end
 
 ---Writes up to 10,000 key-value pairs to the specified Workers KV namespace from a JSON array, with optional metadata and expiration settings for each pair. Existing values and expirations are overwritten. If neither `expiration` nor `expiration_ttl` is specified, the key-value pair will not expire. If both are set, `expiration_ttl` takes precedence. The entire request must be 100 megabytes or less. The result reports the number of successful writes and any keys that failed and should be retried.
 ---

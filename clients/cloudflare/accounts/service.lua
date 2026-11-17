@@ -5239,6 +5239,17 @@ ops.list_roles = {
   },
   span = "ListRoles",
 }
+ops.list_token_permission_groups = {
+  name = "GetTokenPermissionGroup",
+  method = "GET",
+  uri = "/accounts/{account_id}/tokens/permission_groups",
+  code = 200,
+  input = S.ref("GetTokenPermissionGroupRequest"),
+  output = S.ref("TokensPermissionGroupsGetResultList"),
+  output_raw = true,
+  errors = { "InvalidRoute" },
+  span = "GetTokenPermissionGroup",
+}
 ops.list_tokens = {
   name = "ListTokens",
   method = "GET",

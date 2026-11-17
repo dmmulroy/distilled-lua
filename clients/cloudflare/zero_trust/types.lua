@@ -83521,6 +83521,14 @@ function Client:create_dlp_email_rule(input) end
 ---@return distilled.Error? err
 function Client:create_dlp_entry(input) end
 
+---Alias of `create_dlp_entry` (same route, alternate export name upstream). Creates a DLP custom entry.
+---
+---`POST /accounts/{account_id}/dlp/entries`
+---@param input cloudflare.zero_trust.CreateDlpEntryRequest
+---@return cloudflare.zero_trust.CreateDlpEntryResponse? value
+---@return distilled.Error? err
+function Client:create_dlp_entry_custom(input) end
+
 ---Integration entries can't be created, this will update an existing integration entry. This is needed for our generated terraform API.
 ---
 ---`POST /accounts/{account_id}/dlp/entries/integration`
@@ -84311,6 +84319,15 @@ function Client:delete_dlp_email_rule(input) end
 ---@return any? value
 ---@return distilled.Error? err
 function Client:delete_dlp_entry(input) end
+
+---Alias of `delete_dlp_entry` (same route, alternate export name upstream). Deletes a DLP custom entry.
+---
+---`DELETE /accounts/{account_id}/dlp/entries/{entry_id}`
+---Errors: DlpEntryNotFound.
+---@param input cloudflare.zero_trust.DeleteDlpEntryRequest
+---@return any? value
+---@return distilled.Error? err
+function Client:delete_dlp_entry_custom(input) end
 
 ---This is a no-op as integration entires can't be deleted but is needed for our generated terraform API.
 ---
@@ -85495,6 +85512,33 @@ function Client:get_dlp_entries_predefined(input) end
 ---@return cloudflare.zero_trust.DlpEntriesGetResult? value
 ---@return distilled.Error? err
 function Client:get_dlp_entry(input) end
+
+---Alias of `get_dlp_entry` (same route, alternate export name upstream). Fetches a DLP entry by ID.
+---
+---`GET /accounts/{account_id}/dlp/entries/{entry_id}`
+---Errors: DlpEntryNotFound.
+---@param input cloudflare.zero_trust.GetDlpEntryRequest
+---@return cloudflare.zero_trust.DlpEntriesGetResult? value
+---@return distilled.Error? err
+function Client:get_dlp_entry_custom(input) end
+
+---Alias of `get_dlp_entry` (same route, alternate export name upstream). Fetches a DLP entry by ID.
+---
+---`GET /accounts/{account_id}/dlp/entries/{entry_id}`
+---Errors: DlpEntryNotFound.
+---@param input cloudflare.zero_trust.GetDlpEntryRequest
+---@return cloudflare.zero_trust.DlpEntriesGetResult? value
+---@return distilled.Error? err
+function Client:get_dlp_entry_integration(input) end
+
+---Alias of `get_dlp_entry` (same route, alternate export name upstream). Fetches a DLP entry by ID.
+---
+---`GET /accounts/{account_id}/dlp/entries/{entry_id}`
+---Errors: DlpEntryNotFound.
+---@param input cloudflare.zero_trust.GetDlpEntryRequest
+---@return cloudflare.zero_trust.DlpEntriesGetResult? value
+---@return distilled.Error? err
+function Client:get_dlp_entry_predefined(input) end
 
 ---Gets the current payload logging configuration for DLP, showing whether matched content is being logged.
 ---
@@ -87528,6 +87572,84 @@ function Client:list_dlp_entries_predefined_pages(input) end
 ---@param input cloudflare.zero_trust.ListDlpEntriesPredefinedRequest
 ---@return distilled.Iterator<cloudflare.zero_trust.ListDlpEntriesPredefinedResultItem>
 function Client:list_dlp_entries_predefined_items(input) end
+
+---Alias of `list_dlp_entries` (same route, alternate export name upstream). Lists all DLP entries in an account.
+---
+---`GET /accounts/{account_id}/dlp/entries`
+---@param input cloudflare.zero_trust.ListDlpEntriesRequest
+---@return cloudflare.zero_trust.ListDlpEntriesResponse? value
+---@return distilled.Error? err
+function Client:list_dlp_entry_customs(input) end
+
+---Alias of `list_dlp_entries` (same route, alternate export name upstream). Lists all DLP entries in an account.
+---
+---Every page, fetched as the loop asks for it.
+---
+---`GET /accounts/{account_id}/dlp/entries`
+---@param input cloudflare.zero_trust.ListDlpEntriesRequest
+---@return distilled.Iterator<cloudflare.zero_trust.ListDlpEntriesResponse>
+function Client:list_dlp_entry_customs_pages(input) end
+
+---Alias of `list_dlp_entries` (same route, alternate export name upstream). Lists all DLP entries in an account.
+---
+---Every item of every page (`result`).
+---
+---`GET /accounts/{account_id}/dlp/entries`
+---@param input cloudflare.zero_trust.ListDlpEntriesRequest
+---@return distilled.Iterator<cloudflare.zero_trust.DlpEntriesListResultItem>
+function Client:list_dlp_entry_customs_items(input) end
+
+---Alias of `list_dlp_entries` (same route, alternate export name upstream). Lists all DLP entries in an account.
+---
+---`GET /accounts/{account_id}/dlp/entries`
+---@param input cloudflare.zero_trust.ListDlpEntriesRequest
+---@return cloudflare.zero_trust.ListDlpEntriesResponse? value
+---@return distilled.Error? err
+function Client:list_dlp_entry_integrations(input) end
+
+---Alias of `list_dlp_entries` (same route, alternate export name upstream). Lists all DLP entries in an account.
+---
+---Every page, fetched as the loop asks for it.
+---
+---`GET /accounts/{account_id}/dlp/entries`
+---@param input cloudflare.zero_trust.ListDlpEntriesRequest
+---@return distilled.Iterator<cloudflare.zero_trust.ListDlpEntriesResponse>
+function Client:list_dlp_entry_integrations_pages(input) end
+
+---Alias of `list_dlp_entries` (same route, alternate export name upstream). Lists all DLP entries in an account.
+---
+---Every item of every page (`result`).
+---
+---`GET /accounts/{account_id}/dlp/entries`
+---@param input cloudflare.zero_trust.ListDlpEntriesRequest
+---@return distilled.Iterator<cloudflare.zero_trust.DlpEntriesListResultItem>
+function Client:list_dlp_entry_integrations_items(input) end
+
+---Alias of `list_dlp_entries` (same route, alternate export name upstream). Lists all DLP entries in an account.
+---
+---`GET /accounts/{account_id}/dlp/entries`
+---@param input cloudflare.zero_trust.ListDlpEntriesRequest
+---@return cloudflare.zero_trust.ListDlpEntriesResponse? value
+---@return distilled.Error? err
+function Client:list_dlp_entry_predefineds(input) end
+
+---Alias of `list_dlp_entries` (same route, alternate export name upstream). Lists all DLP entries in an account.
+---
+---Every page, fetched as the loop asks for it.
+---
+---`GET /accounts/{account_id}/dlp/entries`
+---@param input cloudflare.zero_trust.ListDlpEntriesRequest
+---@return distilled.Iterator<cloudflare.zero_trust.ListDlpEntriesResponse>
+function Client:list_dlp_entry_predefineds_pages(input) end
+
+---Alias of `list_dlp_entries` (same route, alternate export name upstream). Lists all DLP entries in an account.
+---
+---Every item of every page (`result`).
+---
+---`GET /accounts/{account_id}/dlp/entries`
+---@param input cloudflare.zero_trust.ListDlpEntriesRequest
+---@return distilled.Iterator<cloudflare.zero_trust.DlpEntriesListResultItem>
+function Client:list_dlp_entry_predefineds_items(input) end
 
 ---Retrieves current DLP usage limits and quotas for the account, including maximum allowed counts and current usage for custom entries, dataset cells, and document fingerprints.
 ---

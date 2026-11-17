@@ -621,6 +621,16 @@ classes.TitleRequired = errors.define({
 
 local ops = {}
 
+ops.bulk_delete_namespace_keys = {
+  name = "BulkDeleteNamespaces",
+  method = "POST",
+  uri = "/accounts/{account_id}/storage/kv/namespaces/{namespace_id}/bulk/delete",
+  code = 200,
+  input = S.ref("BulkDeleteNamespacesRequest"),
+  output = S.ref("BulkDeleteNamespacesResponse"),
+  errors = { "NamespaceNotFound", "InvalidRequestBody", "InvalidObjectIdentifier" },
+  span = "BulkDeleteNamespaces",
+}
 ops.bulk_delete_namespaces = {
   name = "BulkDeleteNamespaces",
   method = "POST",
@@ -630,6 +640,22 @@ ops.bulk_delete_namespaces = {
   output = S.ref("BulkDeleteNamespacesResponse"),
   errors = { "NamespaceNotFound", "InvalidRequestBody", "InvalidObjectIdentifier" },
   span = "BulkDeleteNamespaces",
+}
+ops.bulk_get_namespace_keys = {
+  name = "BulkGetNamespaces",
+  method = "POST",
+  uri = "/accounts/{account_id}/storage/kv/namespaces/{namespace_id}/bulk/get",
+  code = 200,
+  input = S.ref("BulkGetNamespacesRequest"),
+  output = S.ref("NamespacesBulkGetResult"),
+  output_raw = true,
+  errors = {
+    "InvalidRequestBody",
+    "MinimumKeysRequired",
+    "NamespaceNotFound",
+    "InvalidObjectIdentifier",
+  },
+  span = "BulkGetNamespaces",
 }
 ops.bulk_get_namespaces = {
   name = "BulkGetNamespaces",
@@ -646,6 +672,16 @@ ops.bulk_get_namespaces = {
     "InvalidObjectIdentifier",
   },
   span = "BulkGetNamespaces",
+}
+ops.bulk_put_namespace_keys = {
+  name = "BulkPutNamespaces",
+  method = "PUT",
+  uri = "/accounts/{account_id}/storage/kv/namespaces/{namespace_id}/bulk",
+  code = 200,
+  input = S.ref("BulkPutNamespacesRequest"),
+  output = S.ref("BulkPutNamespacesResponse"),
+  errors = { "InvalidRequestBody", "NamespaceNotFound", "InvalidObjectIdentifier" },
+  span = "BulkPutNamespaces",
 }
 ops.bulk_put_namespaces = {
   name = "BulkPutNamespaces",

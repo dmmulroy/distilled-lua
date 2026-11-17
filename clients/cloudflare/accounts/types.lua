@@ -2895,6 +2895,15 @@ function Client:list_roles_pages(input) end
 ---@return distilled.Iterator<cloudflare.accounts.RolesListResultItem>
 function Client:list_roles_items(input) end
 
+---Alias of `get_token_permission_group` (same route, alternate export name upstream). Find all available permission groups for Account Owned API Tokens. Each permission group indicates whether the caller can select it when creating a token. Token creation performs the authoritative permission check.
+---
+---`GET /accounts/{account_id}/tokens/permission_groups`
+---Errors: InvalidRoute.
+---@param input cloudflare.accounts.GetTokenPermissionGroupRequest
+---@return cloudflare.accounts.TokensPermissionGroupsGetResultList? value
+---@return distilled.Error? err
+function Client:list_token_permission_groups(input) end
+
 ---List Account Owned API tokens created for this account. Callers with `com.cloudflare.api.account.token.list_self` permission only receive tokens they created. Results include active, disabled, and recently-expired tokens when `include_expired` is set to true.
 ---
 ---`GET /accounts/{account_id}/tokens`

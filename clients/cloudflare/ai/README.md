@@ -31,10 +31,11 @@ local client = CloudflareAi.new({
 Every method returns `value` or `nil, err`; `err.tag` is one of the operation's errors,
 a built-in tag, `UnknownCloudflareError` (nothing matched) or `CloudflareParseError` (an unparseable body).
 
-## Operations (11)
+## Operations (12)
 
 | Method | HTTP | Summary |
 | --- | --- | --- |
+| `create_ai_to_markdown` | `POST /accounts/{account_id}/ai/tomarkdown` | Alias of `transform_to_markdown` (same route, alternate export name upstream). Converts files uploaded as multipart form data into Markdown using Workers AI. Returns a conversion result for each file. Use the supported-formats endpoint to check accepted file types. |
 | `create_finetune` | `POST /accounts/{account_id}/ai/finetunes` | Creates a new fine-tuning job for a Workers AI model using custom training data. |
 | `create_finetune_asset` | `POST /accounts/{account_id}/ai/finetunes/{finetune_id}/finetune-assets` | Uploads training data assets for a Workers AI fine-tuning job. |
 | `get_model_schema` | `GET /accounts/{account_id}/ai/models/schema` | Retrieves the input and output JSON Schema definitions for an AI model. Use these definitions to determine the model-specific request fields and response format. |

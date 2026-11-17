@@ -308,6 +308,16 @@ ops.get_content_scanning = {
   errors = { "Forbidden" },
   span = "GetContentScanning",
 }
+ops.get_setting = {
+  name = "GetContentScanning",
+  method = "GET",
+  uri = "/zones/{zone_id}/content-upload-scan/settings",
+  code = 200,
+  input = S.ref("GetContentScanningRequest"),
+  output = S.ref("GetContentScanningResponse"),
+  errors = { "Forbidden" },
+  span = "GetContentScanning",
+}
 ops.get_settings = {
   name = "GetSettings",
   method = "GET",
@@ -328,6 +338,16 @@ ops.list_payloads = {
   errors = { "ContentScanningNotEnabled", "Forbidden" },
   pagination = { mode = "single", items = "result", strategy = "cloudflare" },
   span = "ListPayloads",
+}
+ops.put_content_scanning = {
+  name = "CreateContentScanning",
+  method = "PUT",
+  uri = "/zones/{zone_id}/content-upload-scan/settings",
+  code = 200,
+  input = S.ref("CreateContentScanningRequest"),
+  output = S.ref("CreateContentScanningResponse"),
+  errors = { "ContentScanningNotEntitled", "Forbidden" },
+  span = "CreateContentScanning",
 }
 ops.update = {
   name = "Update",

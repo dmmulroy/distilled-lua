@@ -31,7 +31,7 @@ local client = CloudflareRealtimeKit.new({
 Every method returns `value` or `nil, err`; `err.tag` is one of the operation's errors,
 a built-in tag, `UnknownCloudflareError` (nothing matched) or `CloudflareParseError` (an unparseable body).
 
-## Operations (65)
+## Operations (66)
 
 | Method | HTTP | Summary |
 | --- | --- | --- |
@@ -68,6 +68,7 @@ a built-in tag, `UnknownCloudflareError` (nothing matched) or `CloudflareParseEr
 | `get_meeting_participants_meeting` | `GET /accounts/{account_id}/realtime/kit/{app_id}/meetings/{meeting_id}/participants` | Returns all participants detail for the given meeting ID. |
 | `get_one_recording_recording` | `GET /accounts/{account_id}/realtime/kit/{app_id}/recordings/{recording_id}` | Returns details of a recording for the given recording ID. |
 | `get_org_analytics_analytic` | `GET /accounts/{account_id}/realtime/kit/{app_id}/analytics/daywise` | Returns day-wise session and recording analytics data of an App for the specified time range start_date to end_date. If start_date and end_date are not provided, the default time range is set from 30 days ago to the current date. |
+| `get_org_analytics_livestream` | `GET /accounts/{account_id}/realtime/kit/{app_id}/analytics/daywise` | Alias of `get_org_analytics_analytic` (same route, alternate export name upstream). Returns day-wise session and recording analytics data of an App for the specified time range start_date to end_date. If start_date and end_date are not provided, the default time range is set from 30 days ago to the current date. |
 | `get_participant_data_from_peer_id_session` | `GET /accounts/{account_id}/realtime/kit/{app_id}/sessions/peer-report/{peer_id}` | Returns participant details for the given peer ID along with call statistics. |
 | `get_preset` | `GET /accounts/{account_id}/realtime/kit/{app_id}/presets` | Fetches all the presets belonging to an App. |
 | `get_preset_by_id_preset` | `GET /accounts/{account_id}/realtime/kit/{app_id}/presets/{preset_id}` | Fetches details of a preset using the provided preset ID |

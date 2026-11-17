@@ -1707,6 +1707,15 @@ function Client:delete_bucket_object(input) end
 ---@return distilled.Error? err
 function Client:delete_bucket_sippy(input) end
 
+---Alias of `delete_bucket_object` (same route, alternate export name upstream). Deletes an object from an R2 bucket. For most workloads, we recommend using R2's [S3-compatible API](https://developers.cloudflare.com/r2/api/s3/api/) or a [Worker with an R2 binding](https://developers.cloudflare.com/r2/api/workers/workers-api-reference/) instead.
+---
+---`DELETE /accounts/{account_id}/r2/buckets/{bucket_name}/objects/{object_name}`
+---Errors: NoSuchBucket, NoSuchKey.
+---@param input cloudflare.r2.DeleteBucketObjectRequest
+---@return cloudflare.r2.DeleteBucketObjectResponse? value
+---@return distilled.Error? err
+function Client:delete_object(input) end
+
 ---
 ---`DELETE /accounts/{account_id}/r2/buckets/{bucket_name}/objects`
 ---Errors: NoSuchBucket, InvalidRoute, NoRoute.
@@ -1804,6 +1813,15 @@ function Client:get_bucket_sippy(input) end
 ---@return distilled.Error? err
 function Client:get_buckets_job(input) end
 
+---Alias of `get_bucket_object` (same route, alternate export name upstream). Retrieves an object from an R2 bucket. Returns the object body along with metadata headers. For most workloads, we recommend using R2's [S3-compatible API](https://developers.cloudflare.com/r2/api/s3/api/) or a [Worker with an R2 binding](https://developers.cloudflare.com/r2/api/workers/workers-api-reference/) instead.
+---
+---`GET /accounts/{account_id}/r2/buckets/{bucket_name}/objects/{object_name}`
+---Errors: NoSuchBucket, InvalidRoute, NoSuchKey.
+---@param input cloudflare.r2.GetBucketObjectRequest
+---@return cloudflare.r2.GetBucketObjectResponse? value
+---@return distilled.Error? err
+function Client:get_object(input) end
+
 ---Retrieves detailed status and configuration for a specific R2 Super Slurper migration job.
 ---
 ---`GET /accounts/{account_id}/slurper/jobs/{job_id}`
@@ -1894,6 +1912,35 @@ function Client:list_buckets(input) end
 ---@return cloudflare.r2.ListBucketsJobsResponse? value
 ---@return distilled.Error? err
 function Client:list_buckets_jobs(input) end
+
+---Alias of `list_bucket_objects` (same route, alternate export name upstream). Lists objects in an R2 bucket. Returns object metadata including key, size, etag, last modified date, HTTP metadata, and custom metadata. For most workloads, we recommend using R2's [S3-compatible API](https://developers.cloudflare.com/r2/api/s3/api/) or a [Worker with an R2 binding](https://developers.cloudflare.com/r2/api/workers/workers-api-reference/) instead.
+---
+---`GET /accounts/{account_id}/r2/buckets/{bucket_name}/objects`
+---Errors: NoSuchBucket.
+---@param input cloudflare.r2.ListBucketObjectsRequest
+---@return cloudflare.r2.ListBucketObjectsResponse? value
+---@return distilled.Error? err
+function Client:list_objects(input) end
+
+---Alias of `list_bucket_objects` (same route, alternate export name upstream). Lists objects in an R2 bucket. Returns object metadata including key, size, etag, last modified date, HTTP metadata, and custom metadata. For most workloads, we recommend using R2's [S3-compatible API](https://developers.cloudflare.com/r2/api/s3/api/) or a [Worker with an R2 binding](https://developers.cloudflare.com/r2/api/workers/workers-api-reference/) instead.
+---
+---Every page, fetched as the loop asks for it.
+---
+---`GET /accounts/{account_id}/r2/buckets/{bucket_name}/objects`
+---Errors: NoSuchBucket.
+---@param input cloudflare.r2.ListBucketObjectsRequest
+---@return distilled.Iterator<cloudflare.r2.ListBucketObjectsResponse>
+function Client:list_objects_pages(input) end
+
+---Alias of `list_bucket_objects` (same route, alternate export name upstream). Lists objects in an R2 bucket. Returns object metadata including key, size, etag, last modified date, HTTP metadata, and custom metadata. For most workloads, we recommend using R2's [S3-compatible API](https://developers.cloudflare.com/r2/api/s3/api/) or a [Worker with an R2 binding](https://developers.cloudflare.com/r2/api/workers/workers-api-reference/) instead.
+---
+---Every item of every page (`result`).
+---
+---`GET /accounts/{account_id}/r2/buckets/{bucket_name}/objects`
+---Errors: NoSuchBucket.
+---@param input cloudflare.r2.ListBucketObjectsRequest
+---@return distilled.Iterator<cloudflare.r2.BucketsObjectsListResultItem>
+function Client:list_objects_items(input) end
 
 ---Gets log entries for an R2 Super Slurper migration job, showing migration status changes, errors, etc.
 ---
@@ -2035,6 +2082,15 @@ function Client:put_bucket_lock(input) end
 ---@return cloudflare.r2.PutBucketSippyResponse? value
 ---@return distilled.Error? err
 function Client:put_bucket_sippy(input) end
+
+---Alias of `upload_bucket_object` (same route, alternate export name upstream). Uploads an object to an R2 bucket. The object body is provided as the request body. Returns metadata about the uploaded object. The maximum upload size for this endpoint is 300 MB. For most workloads, we recommend using R2's [S3-compatible API](https://developers.cloudflare.com/r2/api/s3/api/) or a [Worker with an R2 binding](https://developers.cloudflare.com/r2/api/workers/workers-api-reference/) instead.
+---
+---`PUT /accounts/{account_id}/r2/buckets/{bucket_name}/objects/{object_name}`
+---Errors: NoSuchBucket.
+---@param input cloudflare.r2.UploadBucketObjectRequest
+---@return cloudflare.r2.UploadBucketObjectResponse? value
+---@return distilled.Error? err
+function Client:put_object(input) end
 
 ---Resumes a paused R2 Super Slurper migration job, continuing the transfer from where it stopped.
 ---

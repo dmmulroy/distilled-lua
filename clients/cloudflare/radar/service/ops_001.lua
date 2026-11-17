@@ -358,6 +358,17 @@ ops.compromised_leaked_credential_timeseries_group = {
   errors = {},
   span = "CompromisedLeakedCredentialTimeseriesGroup",
 }
+ops.create_ai_to_markdown = {
+  name = "TransformToMarkdown",
+  method = "POST",
+  uri = "/accounts/{account_id}/ai/tomarkdown",
+  code = 200,
+  input = S.ref("TransformToMarkdownRequest"),
+  output = S.ref("AiToMarkdownCreateResultList"),
+  output_raw = true,
+  errors = {},
+  span = "TransformToMarkdown",
+}
 ops.device_type_http_summary = {
   name = "DeviceTypeHttpSummary",
   method = "GET",
@@ -2130,6 +2141,16 @@ ops.summary_tcp_resets_timeout = {
   errors = {},
   span = "SummaryTcpResetsTimeout",
 }
+ops.summary_v2_ai_bot = {
+  name = "SummaryAiTimeseriesGroup",
+  method = "GET",
+  uri = "/radar/ai/bots/summary/{dimension}",
+  code = 200,
+  input = S.ref("SummaryAiTimeseriesGroupRequest"),
+  output = S.ref("SummaryAiTimeseriesGroupResponse"),
+  errors = {},
+  span = "SummaryAiTimeseriesGroup",
+}
 ops.summary_v2_ai_inference = {
   name = "SummaryV2AiInference",
   method = "GET",
@@ -2320,6 +2341,16 @@ ops.timeseries_ai_markdown_for_agent = {
   errors = {},
   span = "TimeseriesAiMarkdownForAgent",
 }
+ops.timeseries_ai_timeseries_group = {
+  name = "TimeseriesAiBot",
+  method = "GET",
+  uri = "/radar/ai/bots/timeseries",
+  code = 200,
+  input = S.ref("TimeseriesAiBotRequest"),
+  output = S.ref("TimeseriesAiBotResponse"),
+  errors = {},
+  span = "TimeseriesAiBot",
+}
 ops.timeseries_as112 = {
   name = "TimeseriesAs112",
   method = "GET",
@@ -2421,6 +2452,16 @@ ops.timeseries_dns = {
   span = "TimeseriesDns",
 }
 ops.timeseries_groups_ai_bot = {
+  name = "TimeseriesGroupsAiBot",
+  method = "GET",
+  uri = "/radar/ai/bots/timeseries_groups/{dimension}",
+  code = 200,
+  input = S.ref("TimeseriesGroupsAiBotRequest"),
+  output = S.ref("TimeseriesGroupsAiBotResponse"),
+  errors = {},
+  span = "TimeseriesGroupsAiBot",
+}
+ops.timeseries_groups_ai_timeseries_group = {
   name = "TimeseriesGroupsAiBot",
   method = "GET",
   uri = "/radar/ai/bots/timeseries_groups/{dimension}",

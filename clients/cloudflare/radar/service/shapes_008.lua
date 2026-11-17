@@ -1786,6 +1786,11 @@ shapes.AttacksLayer7TimeseriesGroupsIpVersionResponseSerie0TimestampsList = {
   t = "list",
   item = S.string,
 }
+shapes.AttacksLayer7TopIndustryRequestFormat = {
+  t = "enum",
+  base = "string",
+  values = { "JSON", "CSV" },
+}
 shapes.AttacksLayer7TopIndustryRequestHttpMethod = {
   t = "enum",
   base = "string",
@@ -1837,6 +1842,10 @@ shapes.AttacksLayer7TopIndustryRequestHttpMethod = {
     "COOK",
     "TRACK",
   },
+}
+shapes.AttacksLayer7TopIndustryRequestHttpMethodList = {
+  t = "list",
+  item = S.ref("AttacksLayer7TopIndustryRequestHttpMethod"),
 }
 shapes.AttacksLayer7TopIndustryRequestHttpVersion = {
   t = "enum",

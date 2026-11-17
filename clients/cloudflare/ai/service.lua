@@ -718,6 +718,17 @@ classes.ModelSchemaNotFound = errors.define({
 
 local ops = {}
 
+ops.create_ai_to_markdown = {
+  name = "TransformToMarkdown",
+  method = "POST",
+  uri = "/accounts/{account_id}/ai/tomarkdown",
+  code = 200,
+  input = S.ref("TransformToMarkdownRequest"),
+  output = S.ref("ToMarkdownTransformResultList"),
+  output_raw = true,
+  errors = {},
+  span = "TransformToMarkdown",
+}
 ops.create_finetune = {
   name = "CreateFinetune",
   method = "POST",

@@ -287,6 +287,15 @@ function Client:enable_content_scanning(input) end
 ---@return distilled.Error? err
 function Client:get_content_scanning(input) end
 
+---Alias of `get_content_scanning` (same route, alternate export name upstream). Get the current Content Scanning status for the zone, together with the date the status was last modified.
+---
+---`GET /zones/{zone_id}/content-upload-scan/settings`
+---Errors: Forbidden.
+---@param input cloudflare.content_scanning.GetContentScanningRequest
+---@return cloudflare.content_scanning.GetContentScanningResponse? value
+---@return distilled.Error? err
+function Client:get_setting(input) end
+
 ---Get the current Content Scanning status for the zone, together with the date the status was last modified.
 ---
 ---`GET /zones/{zone_id}/content-upload-scan/settings`
@@ -324,6 +333,15 @@ function Client:list_payloads_pages(input) end
 ---@param input cloudflare.content_scanning.ListPayloadsRequest
 ---@return distilled.Iterator<cloudflare.content_scanning.PayloadsListResultItem>
 function Client:list_payloads_items(input) end
+
+---Alias of `create_content_scanning` (same route, alternate export name upstream). Update the Content Scanning status by setting the status value to `enabled` or `disabled`. This is equivalent to calling the dedicated enable and disable endpoints.
+---
+---`PUT /zones/{zone_id}/content-upload-scan/settings`
+---Errors: ContentScanningNotEntitled, Forbidden.
+---@param input cloudflare.content_scanning.CreateContentScanningRequest
+---@return cloudflare.content_scanning.CreateContentScanningResponse? value
+---@return distilled.Error? err
+function Client:put_content_scanning(input) end
 
 ---Update the Content Scanning status by setting the status value to `enabled` or `disabled`. This is equivalent to calling the dedicated enable and disable endpoints.
 ---

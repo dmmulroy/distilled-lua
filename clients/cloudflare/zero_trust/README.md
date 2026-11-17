@@ -31,7 +31,7 @@ local client = CloudflareZeroTrust.new({
 Every method returns `value` or `nil, err`; `err.tag` is one of the operation's errors,
 a built-in tag, `UnknownCloudflareError` (nothing matched) or `CloudflareParseError` (an unparseable body).
 
-## Operations (605)
+## Operations (613)
 
 | Method | HTTP | Summary |
 | --- | --- | --- |
@@ -114,6 +114,7 @@ a built-in tag, `UnknownCloudflareError` (nothing matched) or `CloudflareParseEr
 | `create_dlp_email_account_mapping` | `POST /accounts/{account_id}/dlp/email/account_mapping` | Creates a mapping between a Cloudflare account and an email provider for DLP email scanning integration. |
 | `create_dlp_email_rule` | `POST /accounts/{account_id}/dlp/email/rules` | Creates a new DLP email scanning rule that defines what content patterns to detect in email messages and what actions to take. |
 | `create_dlp_entry` | `POST /accounts/{account_id}/dlp/entries` | Creates a DLP custom entry. |
+| `create_dlp_entry_custom` | `POST /accounts/{account_id}/dlp/entries` | Alias of `create_dlp_entry` (same route, alternate export name upstream). Creates a DLP custom entry. |
 | `create_dlp_entry_integration` | `POST /accounts/{account_id}/dlp/entries/integration` | Integration entries can't be created, this will update an existing integration entry. This is needed for our generated terraform API. |
 | `create_dlp_entry_predefined` | `POST /accounts/{account_id}/dlp/entries/predefined` | Predefined entries can't be created, this will update an existing predefined entry. This is needed for our generated terraform API. |
 | `create_dlp_profile_custom` | `POST /accounts/{account_id}/dlp/profiles/custom` | Creates a DLP custom profile. |
@@ -204,6 +205,7 @@ a built-in tag, `UnknownCloudflareError` (nothing matched) or `CloudflareParseEr
 | `delete_dlp_dataset` | `DELETE /accounts/{account_id}/dlp/datasets/{dataset_id}` | This deletes all versions of the dataset. |
 | `delete_dlp_email_rule` | `DELETE /accounts/{account_id}/dlp/email/rules/{rule_id}` | Removes a DLP email scanning rule. The rule will no longer be applied to email messages. |
 | `delete_dlp_entry` | `DELETE /accounts/{account_id}/dlp/entries/{entry_id}` | Deletes a DLP custom entry. |
+| `delete_dlp_entry_custom` | `DELETE /accounts/{account_id}/dlp/entries/{entry_id}` | Alias of `delete_dlp_entry` (same route, alternate export name upstream). Deletes a DLP custom entry. |
 | `delete_dlp_entry_integration` | `DELETE /accounts/{account_id}/dlp/entries/integration/{entry_id}` | This is a no-op as integration entires can't be deleted but is needed for our generated terraform API. |
 | `delete_dlp_entry_predefined` | `DELETE /accounts/{account_id}/dlp/entries/predefined/{entry_id}` | This is a no-op as predefined entires can't be deleted but is needed for our generated terraform API. |
 | `delete_dlp_profile_custom` | `DELETE /accounts/{account_id}/dlp/profiles/custom/{profile_id}` | Deletes a DLP custom profile. |
@@ -329,6 +331,9 @@ a built-in tag, `UnknownCloudflareError` (nothing matched) or `CloudflareParseEr
 | `get_dlp_entries_integration` | `GET /accounts/{account_id}/dlp/entries/{entry_id}` | Fetches a DLP entry by ID. |
 | `get_dlp_entries_predefined` | `GET /accounts/{account_id}/dlp/entries/{entry_id}` | Fetches a DLP entry by ID. |
 | `get_dlp_entry` | `GET /accounts/{account_id}/dlp/entries/{entry_id}` | Fetches a DLP entry by ID. |
+| `get_dlp_entry_custom` | `GET /accounts/{account_id}/dlp/entries/{entry_id}` | Alias of `get_dlp_entry` (same route, alternate export name upstream). Fetches a DLP entry by ID. |
+| `get_dlp_entry_integration` | `GET /accounts/{account_id}/dlp/entries/{entry_id}` | Alias of `get_dlp_entry` (same route, alternate export name upstream). Fetches a DLP entry by ID. |
+| `get_dlp_entry_predefined` | `GET /accounts/{account_id}/dlp/entries/{entry_id}` | Alias of `get_dlp_entry` (same route, alternate export name upstream). Fetches a DLP entry by ID. |
 | `get_dlp_payload_log` | `GET /accounts/{account_id}/dlp/payload_log` | Gets the current payload logging configuration for DLP, showing whether matched content is being logged. |
 | `get_dlp_profile` | `GET /accounts/{account_id}/dlp/profiles/{profile_id}` | Fetches a DLP profile by ID. |
 | `get_dlp_profile_custom` | `GET /accounts/{account_id}/dlp/profiles/custom/{profile_id}` | Fetches a custom DLP profile by id. |
@@ -467,6 +472,9 @@ a built-in tag, `UnknownCloudflareError` (nothing matched) or `CloudflareParseEr
 | `list_dlp_entries` (+ `_pages`, `_items`) | `GET /accounts/{account_id}/dlp/entries` | Lists all DLP entries in an account. |
 | `list_dlp_entries_integration` (+ `_pages`, `_items`) | `GET /accounts/{account_id}/dlp/entries` | Lists all DLP entries in an account. |
 | `list_dlp_entries_predefined` (+ `_pages`, `_items`) | `GET /accounts/{account_id}/dlp/entries` | Lists all DLP entries in an account. |
+| `list_dlp_entry_customs` (+ `_pages`, `_items`) | `GET /accounts/{account_id}/dlp/entries` | Alias of `list_dlp_entries` (same route, alternate export name upstream). Lists all DLP entries in an account. |
+| `list_dlp_entry_integrations` (+ `_pages`, `_items`) | `GET /accounts/{account_id}/dlp/entries` | Alias of `list_dlp_entries` (same route, alternate export name upstream). Lists all DLP entries in an account. |
+| `list_dlp_entry_predefineds` (+ `_pages`, `_items`) | `GET /accounts/{account_id}/dlp/entries` | Alias of `list_dlp_entries` (same route, alternate export name upstream). Lists all DLP entries in an account. |
 | `list_dlp_limits` | `GET /accounts/{account_id}/dlp/limits` | Retrieves current DLP usage limits and quotas for the account, including maximum allowed counts and current usage for custom entries, dataset cells, and document fingerprints. |
 | `list_dlp_profiles` (+ `_pages`, `_items`) | `GET /accounts/{account_id}/dlp/profiles` | Lists all DLP profiles in an account. |
 | `list_dlp_sensitivity_group_levels` (+ `_pages`, `_items`) | `GET /accounts/{account_id}/dlp/sensitivity_groups/{sensitivity_group_id}/levels` | Lists sensitivity levels in a sensitivity group. |

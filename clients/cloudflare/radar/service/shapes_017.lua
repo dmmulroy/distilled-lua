@@ -359,19 +359,6 @@ shapes.AiTimeseriesGroupsUserAgentResponseSerie0 = {
   },
 }
 shapes.AiTimeseriesGroupsUserAgentResponseSerie0TimestampsList = { t = "list", item = S.string }
-shapes.AiToMarkdownCreateRequestFilesList = { t = "list", item = S.string }
-shapes.AiToMarkdownCreateResultItem = {
-  t = "struct",
-  name = "AiToMarkdownCreateResultItem",
-  members = {
-    { name = "data", schema = S.string, required = true },
-    { name = "format", schema = S.string, required = true },
-    { name = "mimeType", schema = S.string, required = true },
-    { name = "name", schema = S.string, required = true },
-    { name = "tokens", schema = S.string, required = true },
-  },
-}
-shapes.AiToMarkdownCreateResultList = { t = "list", item = S.ref("AiToMarkdownCreateResultItem") }
 shapes.AttacksLayer3SummaryVectorRequestContinentList = { t = "list", item = S.string }
 shapes.AttacksLayer3SummaryVectorRequestDateEndList = { t = "list", item = S.string }
 shapes.AttacksLayer3SummaryVectorRequestDateRangeList = { t = "list", item = S.string }
@@ -3117,14 +3104,6 @@ shapes.TopRankingResponse = {
   members = {
     { name = "meta", schema = S.ref("RankingTopResponseMeta"), required = true },
     { name = "top_0", schema = S.ref("RankingTopResponseTop0List"), required = true },
-  },
-}
-shapes.TransformToMarkdownRequest = {
-  t = "struct",
-  name = "TransformToMarkdownRequest",
-  members = {
-    { name = "account_id", bind = "label", schema = S.string, required = true },
-    { name = "files", schema = S.ref("AiToMarkdownCreateRequestFilesList"), required = true },
   },
 }
 shapes.UserAgentAiBotSummaryRequest = {

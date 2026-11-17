@@ -31,7 +31,7 @@ local client = CloudflareAccounts.new({
 Every method returns `value` or `nil, err`; `err.tag` is one of the operation's errors,
 a built-in tag, `UnknownCloudflareError` (nothing matched) or `CloudflareParseError` (an unparseable body).
 
-## Operations (50)
+## Operations (51)
 
 | Method | HTTP | Summary |
 | --- | --- | --- |
@@ -65,6 +65,7 @@ a built-in tag, `UnknownCloudflareError` (nothing matched) or `CloudflareParseEr
 | `list_members` (+ `_pages`, `_items`) | `GET /accounts/{account_id}/members` | List all members of an account. |
 | `list_payment_methods` | `GET /accounts/{account_id}/payment-methods` | Lists all payment methods for an account. |
 | `list_roles` (+ `_pages`, `_items`) | `GET /accounts/{account_id}/roles` | Get all available roles for an account. |
+| `list_token_permission_groups` | `GET /accounts/{account_id}/tokens/permission_groups` | Alias of `get_token_permission_group` (same route, alternate export name upstream). Find all available permission groups for Account Owned API Tokens. Each permission group indicates whether the caller can select it when creating a token. Token creation performs the authoritative permission check. |
 | `list_tokens` (+ `_pages`, `_items`) | `GET /accounts/{account_id}/tokens` | List Account Owned API tokens created for this account. Callers with `com.cloudflare.api.account.token.list_self` permission only receive tokens they created. Results include active, disabled, and recently-expired tokens when `include_expired` is set to true. |
 | `list_tokens_permission_groups` | `GET /accounts/{account_id}/tokens/permission_groups` | Find all available permission groups for Account Owned API Tokens. Each permission group indicates whether the caller can select it when creating a token. Token creation performs the authoritative permission check. |
 | `logs_audit_history` | `GET /accounts/{account_id}/logs/audit/{id}/history` | Returns the chronological change history for the resource identified by the given audit log entry. The endpoint first locates the source audit log entry by `id` (using `action_time` to narrow the lookup window), derives identifying filters from that entry, and then returns matching audit logs within the `since`/`before` window. The `result_info.history_status` field indicates the quality of the resource identification used: - `exact`: Resource was identified by the resource URI. - `approximate`: Resource was identified without the resource URI. - `unavailable`: The source audit log entry did not contain enough information to identify the resource; an empty result is returned. |

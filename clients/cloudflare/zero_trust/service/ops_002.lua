@@ -7,6 +7,53 @@ local S = require("distilled.schema")
 
 local ops = {}
 
+ops.list_access_infrastructure_targets = {
+  name = "ListAccessInfrastructureTargets",
+  method = "GET",
+  uri = "/accounts/{account_id}/infrastructure/targets",
+  code = 200,
+  input = S.ref("ListAccessInfrastructureTargetsRequest"),
+  output = S.ref("ListAccessInfrastructureTargetsResponse"),
+  errors = { "Forbidden" },
+  pagination = {
+    mode = "page",
+    input_token = "page",
+    output_token = "result_info.page",
+    items = "result",
+    page_size = "per_page",
+    strategy = "cloudflare",
+  },
+  span = "ListAccessInfrastructureTargets",
+}
+ops.list_access_log_access_requests = {
+  name = "ListAccessLogAccessRequests",
+  method = "GET",
+  uri = "/accounts/{account_id}/access/logs/access_requests",
+  code = 200,
+  input = S.ref("ListAccessLogAccessRequestsRequest"),
+  output = S.ref("AccessLogsAccessRequestsListResultList"),
+  output_raw = true,
+  errors = {},
+  span = "ListAccessLogAccessRequests",
+}
+ops.list_access_log_scim_updates = {
+  name = "ListAccessLogScimUpdates",
+  method = "GET",
+  uri = "/accounts/{account_id}/access/logs/scim/updates",
+  code = 200,
+  input = S.ref("ListAccessLogScimUpdatesRequest"),
+  output = S.ref("ListAccessLogScimUpdatesResponse"),
+  errors = {},
+  pagination = {
+    mode = "page",
+    input_token = "page",
+    output_token = "result_info.page",
+    items = "result",
+    page_size = "per_page",
+    strategy = "cloudflare",
+  },
+  span = "ListAccessLogScimUpdates",
+}
 ops.list_access_logs_jit_requests = {
   name = "ListAccessLogsJitRequests",
   method = "GET",
@@ -806,6 +853,39 @@ ops.list_dlp_entries_predefined = {
   errors = {},
   pagination = { mode = "single", items = "result", strategy = "cloudflare" },
   span = "ListDlpEntriesPredefined",
+}
+ops.list_dlp_entry_customs = {
+  name = "ListDlpEntries",
+  method = "GET",
+  uri = "/accounts/{account_id}/dlp/entries",
+  code = 200,
+  input = S.ref("ListDlpEntriesRequest"),
+  output = S.ref("ListDlpEntriesResponse"),
+  errors = {},
+  pagination = { mode = "single", items = "result", strategy = "cloudflare" },
+  span = "ListDlpEntries",
+}
+ops.list_dlp_entry_integrations = {
+  name = "ListDlpEntries",
+  method = "GET",
+  uri = "/accounts/{account_id}/dlp/entries",
+  code = 200,
+  input = S.ref("ListDlpEntriesRequest"),
+  output = S.ref("ListDlpEntriesResponse"),
+  errors = {},
+  pagination = { mode = "single", items = "result", strategy = "cloudflare" },
+  span = "ListDlpEntries",
+}
+ops.list_dlp_entry_predefineds = {
+  name = "ListDlpEntries",
+  method = "GET",
+  uri = "/accounts/{account_id}/dlp/entries",
+  code = 200,
+  input = S.ref("ListDlpEntriesRequest"),
+  output = S.ref("ListDlpEntriesResponse"),
+  errors = {},
+  pagination = { mode = "single", items = "result", strategy = "cloudflare" },
+  span = "ListDlpEntries",
 }
 ops.list_dlp_limits = {
   name = "ListDlpLimits",

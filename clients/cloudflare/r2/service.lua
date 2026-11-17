@@ -3845,6 +3845,23 @@ ops.delete_bucket_sippy = {
   },
   jurisdiction = true,
 }
+ops.delete_object = {
+  name = "DeleteBucketObject",
+  method = "DELETE",
+  uri = "/accounts/{account_id}/r2/buckets/{bucket_name}/objects/{object_name}",
+  code = 200,
+  input = S.ref("DeleteBucketObjectRequest"),
+  output = S.ref("DeleteBucketObjectResponse"),
+  errors = { "NoSuchBucket", "NoSuchKey" },
+  span = {
+    op = "DeleteBucketObject",
+    input = {
+      bucket_name = { { name = "cloudflare.bucket_name" }, { name = "cloudflare.r2.bucket" } },
+      object_name = { { name = "cloudflare.object_name" }, { name = "cloudflare.r2.object_key" } },
+    },
+  },
+  jurisdiction = true,
+}
 ops.delete_objects = {
   name = "DeleteObjects",
   method = "DELETE",
@@ -4031,6 +4048,23 @@ ops.get_buckets_job = {
   },
   jurisdiction = true,
 }
+ops.get_object = {
+  name = "GetBucketObject",
+  method = "GET",
+  uri = "/accounts/{account_id}/r2/buckets/{bucket_name}/objects/{object_name}",
+  code = 200,
+  input = S.ref("GetBucketObjectRequest"),
+  output = S.ref("GetBucketObjectResponse"),
+  errors = { "NoSuchBucket", "InvalidRoute", "NoSuchKey" },
+  span = {
+    op = "GetBucketObject",
+    input = {
+      bucket_name = { { name = "cloudflare.bucket_name" }, { name = "cloudflare.r2.bucket" } },
+      object_name = { { name = "cloudflare.object_name" }, { name = "cloudflare.r2.object_key" } },
+    },
+  },
+  jurisdiction = true,
+}
 ops.get_super_slurper_job = {
   name = "GetSuperSlurperJob",
   method = "GET",
@@ -4144,6 +4178,30 @@ ops.list_buckets_jobs = {
   errors = {},
   span = {
     op = "ListBucketsJobs",
+    input = {
+      bucket_name = { { name = "cloudflare.bucket_name" }, { name = "cloudflare.r2.bucket" } },
+    },
+  },
+  jurisdiction = true,
+}
+ops.list_objects = {
+  name = "ListBucketObjects",
+  method = "GET",
+  uri = "/accounts/{account_id}/r2/buckets/{bucket_name}/objects",
+  code = 200,
+  input = S.ref("ListBucketObjectsRequest"),
+  output = S.ref("ListBucketObjectsResponse"),
+  errors = { "NoSuchBucket" },
+  pagination = {
+    mode = "cursor",
+    input_token = "cursor",
+    output_token = "result_info.cursor",
+    items = "result",
+    page_size = "per_page",
+    strategy = "cloudflare",
+  },
+  span = {
+    op = "ListBucketObjects",
     input = {
       bucket_name = { { name = "cloudflare.bucket_name" }, { name = "cloudflare.r2.bucket" } },
     },
@@ -4326,6 +4384,24 @@ ops.put_bucket_sippy = {
     op = "PutBucketSippy",
     input = {
       bucket_name = { { name = "cloudflare.bucket_name" }, { name = "cloudflare.r2.bucket" } },
+    },
+  },
+  jurisdiction = true,
+}
+ops.put_object = {
+  name = "UploadBucketObject",
+  method = "PUT",
+  uri = "/accounts/{account_id}/r2/buckets/{bucket_name}/objects/{object_name}",
+  code = 200,
+  body_media_type = "application/octet-stream",
+  input = S.ref("UploadBucketObjectRequest"),
+  output = S.ref("UploadBucketObjectResponse"),
+  errors = { "NoSuchBucket" },
+  span = {
+    op = "UploadBucketObject",
+    input = {
+      bucket_name = { { name = "cloudflare.bucket_name" }, { name = "cloudflare.r2.bucket" } },
+      object_name = { { name = "cloudflare.object_name" }, { name = "cloudflare.r2.object_key" } },
     },
   },
   jurisdiction = true,

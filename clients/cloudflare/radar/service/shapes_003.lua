@@ -7,6 +7,19 @@ local S = require("distilled.schema")
 
 local shapes = {}
 
+shapes.AiToMarkdownCreateRequestFilesList = { t = "list", item = S.string }
+shapes.AiToMarkdownCreateResultItem = {
+  t = "struct",
+  name = "AiToMarkdownCreateResultItem",
+  members = {
+    { name = "data", schema = S.string, required = true },
+    { name = "format", schema = S.string, required = true },
+    { name = "mimeType", schema = S.string, required = true },
+    { name = "name", schema = S.string, required = true },
+    { name = "tokens", schema = S.string, required = true },
+  },
+}
+shapes.AiToMarkdownCreateResultList = { t = "list", item = S.ref("AiToMarkdownCreateResultItem") }
 shapes.As112SummaryDnssecRequestContinentList = { t = "list", item = S.string }
 shapes.As112SummaryDnssecRequestDateEndList = { t = "list", item = S.string }
 shapes.As112SummaryDnssecRequestDateRangeList = { t = "list", item = S.string }
@@ -1533,100 +1546,6 @@ shapes.DnsSummaryDnssecAwareRequestProtocol = {
 shapes.DnsSummaryDnssecAwareRequestProtocolList = {
   t = "list",
   item = S.ref("DnsSummaryDnssecAwareRequestProtocol"),
-}
-shapes.DnsSummaryDnssecAwareRequestQueryType = {
-  t = "enum",
-  base = "string",
-  values = {
-    "A",
-    "AAAA",
-    "A6",
-    "AFSDB",
-    "ANY",
-    "APL",
-    "ATMA",
-    "AXFR",
-    "CAA",
-    "CDNSKEY",
-    "CDS",
-    "CERT",
-    "CNAME",
-    "CSYNC",
-    "DHCID",
-    "DLV",
-    "DNAME",
-    "DNSKEY",
-    "DOA",
-    "DS",
-    "EID",
-    "EUI48",
-    "EUI64",
-    "GPOS",
-    "GID",
-    "HINFO",
-    "HIP",
-    "HTTPS",
-    "IPSECKEY",
-    "ISDN",
-    "IXFR",
-    "KEY",
-    "KX",
-    "L32",
-    "L64",
-    "LOC",
-    "LP",
-    "MAILA",
-    "MAILB",
-    "MB",
-    "MD",
-    "MF",
-    "MG",
-    "MINFO",
-    "MR",
-    "MX",
-    "NAPTR",
-    "NB",
-    "NBSTAT",
-    "NID",
-    "NIMLOC",
-    "NINFO",
-    "NS",
-    "NSAP",
-    "NSEC",
-    "NSEC3",
-    "NSEC3PARAM",
-    "NULL",
-    "NXT",
-    "OPENPGPKEY",
-    "OPT",
-    "PTR",
-    "PX",
-    "RKEY",
-    "RP",
-    "RRSIG",
-    "RT",
-    "SIG",
-    "SINK",
-    "SMIMEA",
-    "SOA",
-    "SPF",
-    "SRV",
-    "SSHFP",
-    "SVCB",
-    "TA",
-    "TALINK",
-    "TKEY",
-    "TLSA",
-    "TSIG",
-    "TXT",
-    "UINFO",
-    "UID",
-    "UNSPEC",
-    "URI",
-    "WKS",
-    "X25",
-    "ZONEMD",
-  },
 }
 shapes.DnsSummaryDnssecAwareRequestQueryTypeList = {
   t = "list",
@@ -4439,6 +4358,14 @@ shapes.RobotsTxtTopUserAgentsDirectiveResponseTop0Item = {
 shapes.RobotsTxtTopUserAgentsDirectiveResponseTop0List = {
   t = "list",
   item = S.ref("RobotsTxtTopUserAgentsDirectiveResponseTop0Item"),
+}
+shapes.TransformToMarkdownRequest = {
+  t = "struct",
+  name = "TransformToMarkdownRequest",
+  members = {
+    { name = "account_id", bind = "label", schema = S.string, required = true },
+    { name = "files", schema = S.ref("AiToMarkdownCreateRequestFilesList"), required = true },
+  },
 }
 
 return shapes

@@ -2182,15 +2182,6 @@ shapes.AttacksLayer7TopIndustryRequestContinentList = { t = "list", item = S.str
 shapes.AttacksLayer7TopIndustryRequestDateEndList = { t = "list", item = S.string }
 shapes.AttacksLayer7TopIndustryRequestDateRangeList = { t = "list", item = S.string }
 shapes.AttacksLayer7TopIndustryRequestDateStartList = { t = "list", item = S.string }
-shapes.AttacksLayer7TopIndustryRequestFormat = {
-  t = "enum",
-  base = "string",
-  values = { "JSON", "CSV" },
-}
-shapes.AttacksLayer7TopIndustryRequestHttpMethodList = {
-  t = "list",
-  item = S.ref("AttacksLayer7TopIndustryRequestHttpMethod"),
-}
 shapes.HttpMethodAttackLayer7SummaryRequest = {
   t = "struct",
   name = "HttpMethodAttackLayer7SummaryRequest",
@@ -4325,6 +4316,29 @@ shapes.IndustryAttackLayer7TopRequest = {
     { name = "name", bind = "query", schema = S.ref("AttacksLayer7TopIndustryRequestNameList") },
   },
 }
+shapes.QualitySpeedHistogramResponseMetaDateRangeItem = {
+  t = "struct",
+  name = "QualitySpeedHistogramResponseMetaDateRangeItem",
+  members = {
+    { name = "endTime", schema = S.string, required = true },
+    { name = "startTime", schema = S.string, required = true },
+  },
+}
+shapes.QualitySpeedHistogramResponseMetaNormalization = {
+  t = "enum",
+  base = "string",
+  values = {
+    "PERCENTAGE",
+    "MIN0_MAX",
+    "MIN_MAX",
+    "RAW_VALUES",
+    "PERCENTAGE_CHANGE",
+    "ROLLING_AVERAGE",
+    "OVERLAPPED_PERCENTAGE",
+    "RATIO",
+  },
+}
+shapes.QualitySpeedHistogramResponseMetaTotalTestsList = { t = "list", item = S.number }
 shapes.QualitySpeedHistogramResponseMetaUnitsItem = {
   t = "struct",
   name = "QualitySpeedHistogramResponseMetaUnitsItem",

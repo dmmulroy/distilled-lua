@@ -338,6 +338,22 @@ ops.delete_custom_trust_store = {
   },
   span = "DeleteCustomTrustStore",
 }
+ops.edit_total_tl = {
+  name = "UpdateTotalTl",
+  method = "POST",
+  uri = "/zones/{zone_id}/acm/total_tls",
+  code = 200,
+  input = S.ref("UpdateTotalTlRequest"),
+  output = S.ref("UpdateTotalTlResponse"),
+  errors = {
+    "InvalidObjectIdentifier",
+    "AdvancedCertificateManagerRequired",
+    "NoStateChange",
+    "PreviousJobInProgress",
+    "Forbidden",
+  },
+  span = "UpdateTotalTl",
+}
 ops.get_custom_trust_store = {
   name = "GetCustomTrustStore",
   method = "GET",

@@ -13164,6 +13164,16 @@ ops.get_org_analytics_analytic = {
   errors = {},
   span = "GetOrgAnalyticsAnalytic",
 }
+ops.get_org_analytics_livestream = {
+  name = "GetOrgAnalyticsAnalytic",
+  method = "GET",
+  uri = "/accounts/{account_id}/realtime/kit/{app_id}/analytics/daywise",
+  code = 200,
+  input = S.ref("GetOrgAnalyticsAnalyticRequest"),
+  output = S.ref("GetOrgAnalyticsAnalyticResponse"),
+  errors = {},
+  span = "GetOrgAnalyticsAnalytic",
+}
 ops.get_participant_data_from_peer_id_session = {
   name = "GetParticipantDataFromPeerIdSession",
   method = "GET",

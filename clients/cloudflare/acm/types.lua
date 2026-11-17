@@ -235,6 +235,15 @@ function Client:create_custom_trust_store(input) end
 ---@return distilled.Error? err
 function Client:delete_custom_trust_store(input) end
 
+---Alias of `update_total_tl` (same route, alternate export name upstream). Set Total TLS Settings or disable the feature for a Zone.
+---
+---`POST /zones/{zone_id}/acm/total_tls`
+---Errors: InvalidObjectIdentifier, AdvancedCertificateManagerRequired, NoStateChange, PreviousJobInProgress, Forbidden.
+---@param input cloudflare.acm.UpdateTotalTlRequest
+---@return cloudflare.acm.UpdateTotalTlResponse? value
+---@return distilled.Error? err
+function Client:edit_total_tl(input) end
+
 ---Retrieves details about a specific root CA certificate in the custom origin trust store, including expiration and subject information.
 ---
 ---`GET /zones/{zone_id}/acm/custom_trust_store/{custom_origin_trust_store_id}`

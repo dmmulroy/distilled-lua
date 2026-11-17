@@ -1049,6 +1049,28 @@ shapes.HistogramQualitySpeedResponse = {
     { name = "meta", schema = S.ref("QualitySpeedHistogramResponseMeta"), required = true },
   },
 }
+shapes.HttpAsesIpVersionGetResponseMetaDateRangeItem = {
+  t = "struct",
+  name = "HttpAsesIpVersionGetResponseMetaDateRangeItem",
+  members = {
+    { name = "endTime", schema = S.string, required = true },
+    { name = "startTime", schema = S.string, required = true },
+  },
+}
+shapes.HttpAsesIpVersionGetResponseMetaNormalization = {
+  t = "enum",
+  base = "string",
+  values = {
+    "PERCENTAGE",
+    "MIN0_MAX",
+    "MIN_MAX",
+    "RAW_VALUES",
+    "PERCENTAGE_CHANGE",
+    "ROLLING_AVERAGE",
+    "OVERLAPPED_PERCENTAGE",
+    "RATIO",
+  },
+}
 shapes.HttpAsesIpVersionGetResponseMetaUnitsItem = {
   t = "struct",
   name = "HttpAsesIpVersionGetResponseMetaUnitsItem",
@@ -3878,33 +3900,10 @@ shapes.QualitySpeedHistogramResponseMetaConfidenceInfoAnnotationsList = {
   t = "list",
   item = S.ref("QualitySpeedHistogramResponseMetaConfidenceInfoAnnotationsItem"),
 }
-shapes.QualitySpeedHistogramResponseMetaDateRangeItem = {
-  t = "struct",
-  name = "QualitySpeedHistogramResponseMetaDateRangeItem",
-  members = {
-    { name = "endTime", schema = S.string, required = true },
-    { name = "startTime", schema = S.string, required = true },
-  },
-}
 shapes.QualitySpeedHistogramResponseMetaDateRangeList = {
   t = "list",
   item = S.ref("QualitySpeedHistogramResponseMetaDateRangeItem"),
 }
-shapes.QualitySpeedHistogramResponseMetaNormalization = {
-  t = "enum",
-  base = "string",
-  values = {
-    "PERCENTAGE",
-    "MIN0_MAX",
-    "MIN_MAX",
-    "RAW_VALUES",
-    "PERCENTAGE_CHANGE",
-    "ROLLING_AVERAGE",
-    "OVERLAPPED_PERCENTAGE",
-    "RATIO",
-  },
-}
-shapes.QualitySpeedHistogramResponseMetaTotalTestsList = { t = "list", item = S.number }
 shapes.RankingDomainGetRequestDateList = { t = "list", item = S.string }
 shapes.RankingDomainGetRequestFormat = { t = "enum", base = "string", values = { "JSON", "CSV" } }
 shapes.RankingDomainGetRequestNameList = { t = "list", item = S.string }

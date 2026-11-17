@@ -5928,6 +5928,14 @@ function Client:get_one_recording_recording(input) end
 ---@return distilled.Error? err
 function Client:get_org_analytics_analytic(input) end
 
+---Alias of `get_org_analytics_analytic` (same route, alternate export name upstream). Returns day-wise session and recording analytics data of an App for the specified time range start_date to end_date. If start_date and end_date are not provided, the default time range is set from 30 days ago to the current date.
+---
+---`GET /accounts/{account_id}/realtime/kit/{app_id}/analytics/daywise`
+---@param input cloudflare.realtime_kit.GetOrgAnalyticsAnalyticRequest
+---@return cloudflare.realtime_kit.GetOrgAnalyticsAnalyticResponse? value
+---@return distilled.Error? err
+function Client:get_org_analytics_livestream(input) end
+
 ---Returns participant details for the given peer ID along with call statistics.
 ---
 ---`GET /accounts/{account_id}/realtime/kit/{app_id}/sessions/peer-report/{peer_id}`

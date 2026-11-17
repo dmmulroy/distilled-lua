@@ -806,6 +806,16 @@ ops.create_dlp_entry = {
   errors = {},
   span = "CreateDlpEntry",
 }
+ops.create_dlp_entry_custom = {
+  name = "CreateDlpEntry",
+  method = "POST",
+  uri = "/accounts/{account_id}/dlp/entries",
+  code = 200,
+  input = S.ref("CreateDlpEntryRequest"),
+  output = S.ref("CreateDlpEntryResponse"),
+  errors = {},
+  span = "CreateDlpEntry",
+}
 ops.create_dlp_entry_integration = {
   name = "CreateDlpEntryIntegration",
   method = "POST",
@@ -1716,6 +1726,17 @@ ops.delete_dlp_email_rule = {
   span = "DeleteDlpEmailRule",
 }
 ops.delete_dlp_entry = {
+  name = "DeleteDlpEntry",
+  method = "DELETE",
+  uri = "/accounts/{account_id}/dlp/entries/{entry_id}",
+  code = 200,
+  input = S.ref("DeleteDlpEntryRequest"),
+  output = S.unknown,
+  output_raw = true,
+  errors = { "DlpEntryNotFound" },
+  span = "DeleteDlpEntry",
+}
+ops.delete_dlp_entry_custom = {
   name = "DeleteDlpEntry",
   method = "DELETE",
   uri = "/accounts/{account_id}/dlp/entries/{entry_id}",
@@ -3021,6 +3042,39 @@ ops.get_dlp_entry = {
   errors = { "DlpEntryNotFound" },
   span = "GetDlpEntry",
 }
+ops.get_dlp_entry_custom = {
+  name = "GetDlpEntry",
+  method = "GET",
+  uri = "/accounts/{account_id}/dlp/entries/{entry_id}",
+  code = 200,
+  input = S.ref("GetDlpEntryRequest"),
+  output = S.ref("DlpEntriesGetResult"),
+  output_raw = true,
+  errors = { "DlpEntryNotFound" },
+  span = "GetDlpEntry",
+}
+ops.get_dlp_entry_integration = {
+  name = "GetDlpEntry",
+  method = "GET",
+  uri = "/accounts/{account_id}/dlp/entries/{entry_id}",
+  code = 200,
+  input = S.ref("GetDlpEntryRequest"),
+  output = S.ref("DlpEntriesGetResult"),
+  output_raw = true,
+  errors = { "DlpEntryNotFound" },
+  span = "GetDlpEntry",
+}
+ops.get_dlp_entry_predefined = {
+  name = "GetDlpEntry",
+  method = "GET",
+  uri = "/accounts/{account_id}/dlp/entries/{entry_id}",
+  code = 200,
+  input = S.ref("GetDlpEntryRequest"),
+  output = S.ref("DlpEntriesGetResult"),
+  output_raw = true,
+  errors = { "DlpEntryNotFound" },
+  span = "GetDlpEntry",
+}
 ops.get_dlp_payload_log = {
   name = "GetDlpPayloadLog",
   method = "GET",
@@ -3835,53 +3889,6 @@ ops.list_access_idp_federation_grants = {
   output_raw = true,
   errors = {},
   span = "ListAccessIdpFederationGrants",
-}
-ops.list_access_infrastructure_targets = {
-  name = "ListAccessInfrastructureTargets",
-  method = "GET",
-  uri = "/accounts/{account_id}/infrastructure/targets",
-  code = 200,
-  input = S.ref("ListAccessInfrastructureTargetsRequest"),
-  output = S.ref("ListAccessInfrastructureTargetsResponse"),
-  errors = { "Forbidden" },
-  pagination = {
-    mode = "page",
-    input_token = "page",
-    output_token = "result_info.page",
-    items = "result",
-    page_size = "per_page",
-    strategy = "cloudflare",
-  },
-  span = "ListAccessInfrastructureTargets",
-}
-ops.list_access_log_access_requests = {
-  name = "ListAccessLogAccessRequests",
-  method = "GET",
-  uri = "/accounts/{account_id}/access/logs/access_requests",
-  code = 200,
-  input = S.ref("ListAccessLogAccessRequestsRequest"),
-  output = S.ref("AccessLogsAccessRequestsListResultList"),
-  output_raw = true,
-  errors = {},
-  span = "ListAccessLogAccessRequests",
-}
-ops.list_access_log_scim_updates = {
-  name = "ListAccessLogScimUpdates",
-  method = "GET",
-  uri = "/accounts/{account_id}/access/logs/scim/updates",
-  code = 200,
-  input = S.ref("ListAccessLogScimUpdatesRequest"),
-  output = S.ref("ListAccessLogScimUpdatesResponse"),
-  errors = {},
-  pagination = {
-    mode = "page",
-    input_token = "page",
-    output_token = "result_info.page",
-    items = "result",
-    page_size = "per_page",
-    strategy = "cloudflare",
-  },
-  span = "ListAccessLogScimUpdates",
 }
 
 return ops

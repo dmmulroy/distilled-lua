@@ -147,6 +147,10 @@ shapes.AnnotationsOutagesGetResponseAnnotationsItemOutage = {
   },
 }
 shapes.AnnotationsOutagesGetResponseAnnotationsItemTagsList = { t = "list", item = S.string }
+shapes.AnnotationsOutagesGetResponseAnnotationsList = {
+  t = "list",
+  item = S.ref("AnnotationsOutagesGetResponseAnnotationsItem"),
+}
 shapes.BgpTopAsesGetRequestAsnList = { t = "list", item = S.string }
 shapes.BgpTopAsesGetRequestDateEndList = { t = "list", item = S.string }
 shapes.BgpTopAsesGetRequestDateRangeList = { t = "list", item = S.string }
@@ -1553,6 +1557,17 @@ shapes.GeolocationsGetResponseGeolocationType = {
   t = "enum",
   base = "string",
   values = { "CONTINENT", "COUNTRY", "ADM1" },
+}
+shapes.GetAnnotationOutageResponse = {
+  t = "struct",
+  name = "GetAnnotationOutageResponse",
+  members = {
+    {
+      name = "annotations",
+      schema = S.ref("AnnotationsOutagesGetResponseAnnotationsList"),
+      required = true,
+    },
+  },
 }
 shapes.GetBgpTopAsRequest = {
   t = "struct",
@@ -4058,31 +4073,9 @@ shapes.HttpAsesIpVersionGetResponseMetaConfidenceInfoAnnotationsList = {
   t = "list",
   item = S.ref("HttpAsesIpVersionGetResponseMetaConfidenceInfoAnnotationsItem"),
 }
-shapes.HttpAsesIpVersionGetResponseMetaDateRangeItem = {
-  t = "struct",
-  name = "HttpAsesIpVersionGetResponseMetaDateRangeItem",
-  members = {
-    { name = "endTime", schema = S.string, required = true },
-    { name = "startTime", schema = S.string, required = true },
-  },
-}
 shapes.HttpAsesIpVersionGetResponseMetaDateRangeList = {
   t = "list",
   item = S.ref("HttpAsesIpVersionGetResponseMetaDateRangeItem"),
-}
-shapes.HttpAsesIpVersionGetResponseMetaNormalization = {
-  t = "enum",
-  base = "string",
-  values = {
-    "PERCENTAGE",
-    "MIN0_MAX",
-    "MIN_MAX",
-    "RAW_VALUES",
-    "PERCENTAGE_CHANGE",
-    "ROLLING_AVERAGE",
-    "OVERLAPPED_PERCENTAGE",
-    "RATIO",
-  },
 }
 
 return shapes
