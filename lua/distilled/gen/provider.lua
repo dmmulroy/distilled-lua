@@ -141,6 +141,7 @@ local TOP = {
   models = true,
   -- Google discovery models (gcp, google-workspace): gen/discovery.lua (task 21)
   discovery = true,
+  rpc = true, -- RPC models without http traits (gen/rpc.lua, task 22)
 }
 for k in pairs(ext.TOP) do
   TOP[k] = true
@@ -264,11 +265,15 @@ function provider.validate(spec, opts)
       and (string.upper(string.sub(spec.name, 1, 1)) .. string.sub(spec.name, 2))
     )
 
-  -- base_url (a discovery model has its own: gen/discovery.lua replaces this placeholder)
+  -- base_url (a discovery model has its own: gen/discovery.lua replaces this placeholder;
+  -- an rpc model's protocol finds its hosts itself: no base URL needed)
   if spec.discovery ~= nil and spec.base_url == nil then
     spec.base_url = "https://discovery.googleapis.invalid"
   end
-  local base = normalize_base_url("provider spec base_url", spec.base_url, p)
+  local base = {}
+  if spec.rpc == nil or spec.base_url ~= nil then
+    base = normalize_base_url("provider spec base_url", spec.base_url, p)
+  end
   out.base_url = { default = base.default, option = base.option or "base_url", env = base.env }
 
   -- auth
@@ -482,6 +487,10 @@ function provider.validate(spec, opts)
         end
       end
     end
+  end
+
+  if spec.rpc ~= nil then
+    out.rpc = require("distilled.gen.rpc").validate(spec.rpc, p)
   end
 
   out.allow_unsupported = {}
