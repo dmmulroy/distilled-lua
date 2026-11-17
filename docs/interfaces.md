@@ -440,6 +440,7 @@ local res, err = transport.stream(request)   -- request as today, plus (optional
 --                         (a body that ends inside the n bytes: err.eof = true, err.partial)
 -- reader:read_all()    -> rest of the body | nil, err
 -- reader:close()       -> stops the process / connection; idempotent
+-- reader:trailers()    -> HTTP trailers after EOF | nil (none)
 -- err: distilled.errors tables (TransportError, + TimeoutError category ...), never raised;
 -- a last line cut by a dropped connection is the TransportError, not a line
 local conn = transport.duplex(request)       -- request.body nil (AWS input event streams)
@@ -453,9 +454,12 @@ local conn = transport.duplex(request)       -- request.body nil (AWS input even
 `mktemp -d` directory) and `transport/exec_curl_duplex.lua` (stdout pieces buffered by
 the `stdout` callback, drained with `h:wait(0.05)`); the curl config is
 `transport/curl_duplex.lua` (no write-out, `no-buffer`). Secrets stay out of argv as for
-plain calls. HTTP trailers of a streamed reply are not exposed (curl writes them after the
-body on the same stream); `grpc.trailers_of` reads `res.trailers` / `reader.trailers` /
-`reader:trailers()` if a transport provides them.
+plain calls. curl's header dump has its own channel, fd 5 (`curl_duplex.HEADER_FD`: a
+FIFO in the private directory on popen, duplicated onto stderr in Rex), so the HTTP
+trailers of a streamed reply never mix with the body: `reader:trailers()` -> `{ [lowercase
+name] = value } | nil` once the body has ended (it waits for curl to exit), and
+`grpc.trailers_of` takes `grpc-status` / `grpc-message` from it (task 29b). Buffered
+calls keep `response.trailers` (task 23).
 
 ```lua
 -- op descriptor: op.stream = { framing = "ndjson" | "sse" | "grpc" | "aws_eventstream"

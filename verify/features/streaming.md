@@ -10,7 +10,7 @@ streams task 31 (`aws.md`). The contract is in `docs/interfaces.md`, section "St
   and `exec_curl(exec, opts)` when `exec.start` exists (`rex.exec.start`, stdout pieces
   drained with `h:wait(0.05)`, `transport/exec_curl_duplex.lua`). Readers: `read_line`,
   `read_exact` (`err.eof`/`err.partial` for a body cut inside a frame), `read_all`,
-  `close` (kills curl, removes the FIFO directory; idempotent). `transport.duplex` for AWS
+  `close` (kills curl, removes the FIFO directory; idempotent), `trailers()` (after EOF). `transport.duplex` for AWS
   input streams. Stream timeouts: `request.timeout` = connect, `max_time`, `idle_timeout`.
 - **Stream object** (`distilled.stream`): `next`, `iter` (`false, err` once), `collect`,
   `close`, `status`, `headers`, `output`, `err`, `send`/`close_input` (duplex).
@@ -53,8 +53,10 @@ end
   (`verify/lib/stream_conform.mjs` writes `spec/golden/stream/boat.json`).
 - `verify/dl test --http stream_http`: against `dl serve` on lua, luajit and Rex: the
   first item is in hand while the server has sent one chunk (NDJSON, SSE, gRPC-Web), a
-  drop mid-stream, a stall ending at `idle_timeout`, a 503 retried, a 409, close mid-way.
-- `dl serve` scripts: `{ chunks = {...}, chunk_delay, stall, drop_after, hang }`,
+  drop mid-stream, a stall ending at `idle_timeout`, a 503 retried, a 409, close mid-way;
+  chunked HTTP trailers through `reader:trailers()`, binary gRPC ending on trailer
+  `grpc-status` 0 (clean) and 5 (the mapped error), a refused connection.
+- `dl serve` scripts: `{ chunks = {...}, chunk_delay, stall, drop_after, hang, trailers }`,
   `GET /_dl/streams`.
 
 ## Gotchas
@@ -63,8 +65,8 @@ end
   stops. A stream whose first item takes long blocks the call that long.
 - Lua cannot see a `break`: call `stream:close()` when leaving a loop early, or curl keeps
   running until the process exits and the span stays open.
-- HTTP trailers of a streamed reply are not exposed (curl writes them after the body on
-  the same stream); a gRPC (HTTP/2) stream without a trailer status counts as OK, as with
-  fetch.
+- HTTP trailers of a streamed reply come from `reader:trailers()` after the body (curl's
+  header dump is on fd 5: a FIFO on popen, stderr in Rex, where curl's own messages
+  share the channel and are skipped). gRPC (Modal) reads its status there.
 - `request.timeout` bounds only the connection for streams; use `timeout` /
   `idle_timeout` for the transfer.

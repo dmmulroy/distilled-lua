@@ -1649,11 +1649,11 @@ clients/coinbase 178/178, clients/polymarket 223/223 (7 models), both `verify/dl
 
 ### Open / proposed
 
-- **Trailers of a streamed reply are not exposed** (no `reader:trailers()`). curl writes
-  them to the header dump after the body, on the same stream.
-  - A fix would point `dump-header` at its own fd or FIFO.
-  - Until then, a binary gRPC (HTTP/2) stream with no grpc-status reads as OK (fetch
-    behaves the same).
+- **Trailers: done (task 29b).** curl's header dump goes to fd 5 (`curl_duplex.HEADER_FD`).
+  On popen that is a FIFO `hdr` in the private directory, opened after `out`. In Rex it
+  is `5>&2`, so it shares stderr with curl's messages, which are skipped.
+  `reader:trailers()` works after EOF, and grpc reads `grpc-status` from it. Specs: `--http`
+  on all three runtimes.
 - **`verify/features/README.md`:** add a row "Streaming responses |
   [streaming.md](streaming.md) | task 29".
 
