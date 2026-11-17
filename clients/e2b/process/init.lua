@@ -41,7 +41,7 @@ local protocol = rest.new({
   unknown_tag = "UnknownE2BError",
 })
 
-return Client.define({
+local Class = Client.define({
   service = service,
   protocol = protocol,
   options = {
@@ -52,3 +52,13 @@ return Client.define({
     sandbox_id = { type = "string" },
   },
 })
+
+-- The glue's hand-written client methods (glue.methods).
+for name, fn in pairs(glue.methods(service)) do
+  if Class.methods[name] ~= nil then
+    error("glue method " .. name .. " collides with another method")
+  end
+  Class.methods[name] = fn
+end
+
+return Class

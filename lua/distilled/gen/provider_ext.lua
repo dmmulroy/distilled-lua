@@ -93,6 +93,8 @@ ext.HOOKS = {
   unknown_error = "fn(info) -> err: the error nothing else matched",
   sign = "fn(request, settings, { host, op, base_url }) -> request | nil, err: sign the built request",
   accept_failure = "fn{ status, headers, body, non_json, op } -> true: decode a >= 400 answer as success",
+  -- task 30: e2b's Connect server streams, hand-written in Distilled (connect.ts)
+  methods = "fn(service) -> { [name] = fn(client, input) }: extra client methods (not a rest hook)",
 }
 
 local CATEGORIES = {}

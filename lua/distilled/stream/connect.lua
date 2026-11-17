@@ -10,6 +10,7 @@
 --   local decoder = envelopes.new(reader)    -- reader:read_exact(n) (distilled.stream)
 --   local env, err = decoder:next()  -- { end_stream = bool, json = value } | nil, nil | nil, err
 --   envelopes.encode(value) -> bytes         -- one envelope (encodeEnvelope)
+--   envelopes.frame(bytes [, flags]) -> bytes -- one envelope around JSON text
 --
 -- As in connect.ts, a payload that is not JSON becomes `{ __invalidJson = text }` (the
 -- caller's item decoder then fails it) and the text is read as UTF-8 with bad bytes
@@ -38,13 +39,18 @@ local function be32(n)
   return char(b1, b2, b3, b4)
 end
 
+--- envelopes.frame(bytes [, flags]) -> one envelope around bytes
+function envelopes.frame(bytes, flags)
+  return char(flags or 0) .. be32(#bytes) .. bytes
+end
+
 --- envelopes.encode(value [, flags]) -> bytes | nil, err: value as one JSON envelope
 function envelopes.encode(value, flags)
   local text, err = json.encode(value)
   if not text then
     return nil, err
   end
-  return char(flags or 0) .. be32(#text) .. text
+  return envelopes.frame(text, flags)
 end
 
 --- envelopes.parse_json(bytes) -> value (connect.ts parseJson)
