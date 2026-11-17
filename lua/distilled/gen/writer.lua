@@ -591,39 +591,139 @@ function writer.client(plan)
   b:line('local service = require(MODULE .. ".service")')
   b:blank()
 
-  -- options
-  local options = {}
+  -- options and the protocol arguments. A spec with only the classic keys (bearer or
+  -- header auth, one base URL) gets client options that read the environment; one with
+  -- the provider keys of task 13 gets `provider` data that rest.new interprets
+  -- (gen/provider_ext.lua) and plain client options.
+  local options
   local auth = spec.auth
-  if auth.kind ~= "none" then
-    options[auth.from] = { secret = true, env = auth.env, required = true }
-  end
-  options[spec.base_url.option] = { default = spec.base_url.default, env = spec.base_url.env }
-  -- operations on their own host (smithy.api#http server / baseUrl, task 12): a
-  -- `<server>_base_url` option per server and an option per {variable} of a base URL
-  local route_hosts = writer.route_hosts(plan)
-  for _, name in ipairs(route_hosts.options) do
-    if options[name] == nil then
-      options[name] = {}
-    end
-  end
-
   local protocol_args = {
-    base_url = emit.raw("function(creds)\n    return creds." .. spec.base_url.option .. "\n  end"),
     unknown_tag = spec.unknown_tag,
     parse_tag = spec.parse_tag,
     error_fields_at = spec.error_fields_at,
   }
-  if auth.kind == "bearer" then
-    protocol_args.headers = emit.call("rest.bearer", auth.from)
-  elseif auth.kind == "header" then
-    protocol_args.headers = emit.call("rest.header", auth.header, auth.from)
+  -- operations on their own host (smithy.api#http server / baseUrl, task 12): a
+  -- `<server>_base_url` option per server and an option per {variable} of a base URL
+  local route_hosts = writer.route_hosts(plan)
+  if spec.runtime then
+    options = {}
+    for k, v in pairs(spec.client_options) do
+      options[k] = v
+    end
+    for _, name in ipairs(route_hosts.options) do
+      if options[name] == nil then
+        options[name] = { type = "string" }
+      end
+    end
+    protocol_args.provider = spec.runtime
+  else
+    options = {}
+    if auth.kind ~= "none" then
+      options[auth.from] = { secret = true, env = auth.env, required = true }
+    end
+    options[spec.base_url.option] = { default = spec.base_url.default, env = spec.base_url.env }
+    for _, name in ipairs(route_hosts.options) do
+      if options[name] == nil then
+        options[name] = {}
+      end
+    end
+    protocol_args.base_url =
+      emit.raw("function(creds)\n    return creds." .. spec.base_url.option .. "\n  end")
+    if auth.kind == "bearer" then
+      protocol_args.headers = emit.call("rest.bearer", auth.from)
+    elseif auth.kind == "header" then
+      protocol_args.headers = emit.call("rest.header", auth.header, auth.from)
+    end
   end
   if spec.classify_error then
     protocol_args.classify_error = emit.call("require", spec.classify_error)
   end
+  if spec.unknown_fields then
+    protocol_args.unknown_fields = spec.unknown_fields
+  end
+  if spec.query_style then
+    protocol_args.query_style = spec.query_style
+  end
+  if spec.empty_json_body then
+    protocol_args.empty_json_body = true
+  end
+  if spec.transform_response then
+    protocol_args.transform_response = emit.call("rest.transforms", spec.transform_response)
+  end
+  if spec.glue then
+    b:lines_of(
+      emit.comment("The provider's hand-written glue (provider spec glue), next to this file.")
+    )
+    b:line('local glue = require(MODULE .. ".glue")')
+    b:blank()
+    protocol_args.glue = emit.raw("glue")
+  end
 
-  if spec.error_envelope or spec.status_map then
+  -- error_classes the model does not declare itself (a model error of the same tag, in
+  -- some models of a package, is the class: status_map below prefers service.errors)
+  local provider_errors, provider_classes = {}, {}
+  for _, c in ipairs(spec.error_classes or {}) do
+    if not plan.error_tags_set[c.tag] then
+      provider_errors[c.tag] = true
+      provider_classes[#provider_classes + 1] = c
+    end
+  end
+  if spec.error_envelope or spec.status_map or next(provider_errors) then
     b:line('local errors = require("distilled.errors")')
+    b:blank()
+  end
+  if spec.error_envelope then
+    local env = spec.error_envelope
+    b:lines_of(
+      emit.comment(
+        "The provider's error envelope (provider spec error_envelope): the first pointer that "
+          .. "holds text or a number wins, like Distilled's default envelope."
+      )
+    )
+    b:line("local function text_at(body, pointers)")
+    b:line("  for _, pointer in ipairs(pointers) do")
+    b:line("    local v = errors.at_pointer(body, pointer)")
+    if env.non_empty then
+      b:line('    if (type(v) == "string" and v ~= "") or type(v) == "number" then')
+    else
+      b:line('    if type(v) == "string" or type(v) == "number" then')
+    end
+    b:line("      return v")
+    b:line("    end")
+    b:line("  end")
+    b:line("  return nil")
+    b:line("end")
+    b:blank()
+    b:line("local function error_envelope(body)")
+    b:line("  return {")
+    for _, k in ipairs({ "code", "message" }) do
+      if env[k] then
+        b:lines_of(
+          emit.value(emit.call("text_at", emit.raw("body"), env[k]), "    ", k .. " = ", ",")
+        )
+      end
+    end
+    b:line("  }")
+    b:line("end")
+    b:blank()
+    protocol_args.error_envelope = emit.raw("error_envelope")
+  end
+  if next(provider_errors) then
+    b:lines_of(
+      emit.comment("Error classes of the provider spec (statuses the shared map has no class for).")
+    )
+    b:line("local provider_errors = {}")
+    for _, c in ipairs(provider_classes) do
+      b:lines_of(emit.assign(
+        "provider_errors." .. c.tag,
+        emit.call("errors.define", {
+          tag = c.tag,
+          categories = #c.categories > 0 and c.categories or nil,
+          retryable = c.retryable,
+          fields = c.retryable and { "retry_after" } or nil,
+        })
+      ))
+    end
     b:blank()
   end
   if spec.status_map then
@@ -640,39 +740,13 @@ function writer.client(plan)
     table.sort(statuses)
     for _, status in ipairs(statuses) do
       local tag = spec.status_map[status]
-      local where = plan.error_tags_set[tag] and "service.errors" or "errors.classes"
+      local where = plan.error_tags_set[tag] and "service.errors"
+        or provider_errors[tag] and "provider_errors"
+        or "errors.classes"
       b:line("status_map[" .. status .. "] = " .. where .. "." .. tag)
     end
     b:blank()
     protocol_args.status_map = emit.raw("status_map")
-  end
-  if spec.error_envelope then
-    b:lines_of(
-      emit.comment(
-        "The provider's error envelope (provider spec error_envelope): text or numbers only, "
-          .. "like Distilled's default envelope."
-      )
-    )
-    b:line("local function text_at(body, pointer)")
-    b:line("  local v = errors.at_pointer(body, pointer)")
-    b:line('  if type(v) == "string" or type(v) == "number" then')
-    b:line("    return v")
-    b:line("  end")
-    b:line("  return nil")
-    b:line("end")
-    b:blank()
-    b:line("local function error_envelope(body)")
-    b:line("  return {")
-    if spec.error_envelope.code then
-      b:line("    code = text_at(body, " .. emit.string(spec.error_envelope.code) .. "),")
-    end
-    if spec.error_envelope.message then
-      b:line("    message = text_at(body, " .. emit.string(spec.error_envelope.message) .. "),")
-    end
-    b:line("  }")
-    b:line("end")
-    b:blank()
-    protocol_args.error_envelope = emit.raw("error_envelope")
   end
 
   if spec.protocol then
@@ -685,22 +759,24 @@ function writer.client(plan)
     b:line("  base_url_option = " .. emit.string(spec.base_url.option) .. ",")
     b:line("})")
   else
-    -- base_url is a function: emitted by hand so it is formatted as stylua would
     b:line("local protocol = rest.new({")
-    if route_hosts.any then
-      b:line(
-        "  base_url = rest.route_base_url("
-          .. emit.string(spec.base_url.option)
-          .. ", { default = "
-          .. emit.string(spec.base_url.default)
-          .. " }),"
-      )
-    else
-      b:line("  base_url = function(creds)")
-      b:line("    return creds." .. spec.base_url.option)
-      b:line("  end,")
+    if protocol_args.base_url then
+      if route_hosts.any then
+        b:line(
+          "  base_url = rest.route_base_url("
+            .. emit.string(spec.base_url.option)
+            .. ", { default = "
+            .. emit.string(spec.base_url.default)
+            .. " }),"
+        )
+      else
+        -- base_url is a function: emitted by hand so it is formatted as stylua would
+        b:line("  base_url = function(creds)")
+        b:line("    return creds." .. spec.base_url.option)
+        b:line("  end,")
+      end
+      protocol_args.base_url = nil
     end
-    protocol_args.base_url = nil
     for _, k in ipairs(emit.sorted_keys(protocol_args)) do
       b:lines_of(emit.value(protocol_args[k], "  ", emit.key(k), ","))
     end
@@ -749,6 +825,46 @@ local function md_escape(s)
   return (string.gsub(s, "|", "\\|"))
 end
 
+local function env_text(list)
+  local quoted = {}
+  for i, v in ipairs(list) do
+    quoted[i] = "`" .. v .. "`"
+  end
+  return compat.concat(quoted, " or ")
+end
+
+--- writer.option_rows(spec) -> README table rows for the provider options (task 13 specs)
+function writer.option_rows(spec)
+  local rows = {}
+  for _, d in ipairs(spec.option_docs or {}) do
+    local parts = {}
+    local what = d.base_url and "base URL" or (d.secret and "secret" or "text")
+    parts[#parts + 1] = (d.required and "required " or "") .. what
+    if d.secret then
+      parts[#parts] = parts[#parts] .. ": a string, a secret, or `fn(host) -> value, err`"
+    end
+    if #d.env > 0 then
+      parts[#parts + 1] = "from " .. env_text(d.env)
+    end
+    if d.default ~= nil and d.default ~= "" then
+      parts[#parts + 1] = "default `" .. d.default .. "`"
+    end
+    if d.choices then
+      local names = {}
+      for k, v in pairs(d.choices) do
+        names[#names + 1] = "`" .. (type(k) == "number" and v or k) .. "`"
+      end
+      table.sort(names)
+      parts[#parts + 1] = "one of " .. compat.concat(names, ", ")
+    end
+    if d.doc then
+      parts[#parts + 1] = d.doc
+    end
+    rows[#rows + 1] = "| `" .. d.name .. "` | " .. md_escape(compat.concat(parts, "; ")) .. " |"
+  end
+  return rows
+end
+
 --- writer.readme(plan) -> markdown
 function writer.readme(plan)
   local spec, m = plan.provider, plan.model
@@ -776,7 +892,10 @@ function writer.readme(plan)
   add()
   add("local " .. spec.title .. ' = require("' .. spec.name .. '")')
   add("local client = " .. spec.title .. ".new({")
-  if spec.auth.kind ~= "none" then
+  if spec.auth.kind == "basic" then
+    add("  " .. spec.auth.username .. " = user,")
+    add("  " .. spec.auth.password .. " = password,")
+  elseif spec.auth.kind ~= "none" then
     local env = spec.auth.env and (" -- default: $" .. spec.auth.env) or ""
     add("  " .. spec.auth.from .. " = key," .. env)
   end
@@ -786,7 +905,14 @@ function writer.readme(plan)
   add()
   add("| Option | Meaning |")
   add("| --- | --- |")
-  if spec.auth.kind ~= "none" then
+  if spec.runtime then
+    for _, line in ipairs(writer.option_rows(spec)) do
+      add(line)
+    end
+  end
+  if spec.runtime then
+    -- rows written above
+  elseif spec.auth.kind ~= "none" then
     add(
       "| `"
         .. spec.auth.from
@@ -795,15 +921,17 @@ function writer.readme(plan)
         .. " |"
     )
   end
-  add(
-    "| `"
-      .. spec.base_url.option
-      .. "` | base URL, default `"
-      .. spec.base_url.default
-      .. "`"
-      .. (spec.base_url.env and ("; or from `" .. spec.base_url.env .. "`") or "")
-      .. " |"
-  )
+  if not spec.runtime then
+    add(
+      "| `"
+        .. spec.base_url.option
+        .. "` | base URL, default `"
+        .. spec.base_url.default
+        .. "`"
+        .. (spec.base_url.env and ("; or from `" .. spec.base_url.env .. "`") or "")
+        .. " |"
+    )
+  end
   add("| `host`, `transport`, `sleep`, ... | the host seams (see distilled's docs/interfaces.md) |")
   add("| `retry`, `deadline_s`, `tracing`, `validation` | the common client options |")
   add()
