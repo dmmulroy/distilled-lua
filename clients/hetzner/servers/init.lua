@@ -16,20 +16,22 @@ local service = require(MODULE .. ".service")
 
 local errors = require("distilled.errors")
 
--- The provider's error envelope (provider spec error_envelope): text or numbers only, like
--- Distilled's default envelope.
-local function text_at(body, pointer)
-  local v = errors.at_pointer(body, pointer)
-  if type(v) == "string" or type(v) == "number" then
-    return v
+-- The provider's error envelope (provider spec error_envelope): the first pointer that holds text
+-- or a number wins, like Distilled's default envelope.
+local function text_at(body, pointers)
+  for _, pointer in ipairs(pointers) do
+    local v = errors.at_pointer(body, pointer)
+    if type(v) == "string" or type(v) == "number" then
+      return v
+    end
   end
   return nil
 end
 
 local function error_envelope(body)
   return {
-    code = text_at(body, "/error/code"),
-    message = text_at(body, "/error/message"),
+    code = text_at(body, { "/error/code" }),
+    message = text_at(body, { "/error/message" }),
   }
 end
 
