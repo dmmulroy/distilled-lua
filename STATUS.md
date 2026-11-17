@@ -1042,3 +1042,37 @@ models"). infisical's client now loads on luajit, and `require` takes 74 ms in R
   `docs/interfaces.md` could gain a section from the API list above.
 - Random bytes for key generation, Coinbase nonces and DPoP `jti` need a host field,
   as task 14 proposed. `ecdsa.private_key(curve, random32)` turns them into a key.
+
+## 26 clients
+
+**Done.** See `tasks/26-clients.done.md`. 89 REST packages generated and committed
+(953 models, 2 skipped as Distilled skips them: github/webhooks and resend/webhook_events
+have no operations); every one passes `verify/dl gen-diff`. `verify/features/parity.md`
+regenerated.
+
+### Fixes (each with a spec)
+
+- `gen/emit.lua`: code layout measures width in **bytes** (`emit.code_width`), as stylua
+  2.6 does (measured: `"é"` counts 2, `"🔥"` 4). huggingface/papers' emoji enum fitted in
+  100 characters but not 100 bytes and failed `stylua --check`. Comment wrapping still
+  counts characters (`emit.width`; stylua does not reflow comments). No other committed
+  client changed. Spec: `spec/gen_emit_spec.lua`.
+- `verify/lib/gen_input.lua` (not in my list; needed for gen-diff): a cycle through a
+  **required list** ends with an empty list instead of failing the synthesized input
+  (starburst-galaxy/live_table `update_live_table_schema`, nestedColumns). A cycle through
+  required struct members still fails. Spec: `spec/gen_input_spec.lua` (new).
+- `verify/lib/parity.lua` (not in my list; it undercounted): Lua ops are counted in
+  `service/ops_NNN.lua` of a split service (task 18) and when stylua hangs the assignment
+  (`ops.<very_long_name> =` then the table on the next line: doppler, workos, vercel).
+- No provider spec needed a change.
+
+### For others
+
+- infisical was skipped until task 18 landed; after `git merge main` it generates split
+  and passes gen-diff (Rex service load ~70 ms).
+- Packages below 100% parity are spec drift, not generator gaps: Distilled's committed
+  `src/services` were generated from older specs than the current `.generated-specs`
+  (whop 14 ops in companies/entries/recommended_actions/ad_reports, posthog 10 `loops`
+  ops, coinflow 3 subsidiary ops; coinflow has 9 embedded-account/withdrawal ops TS lacks).
+- `clients/` is 231 MB in 4,629 files without tencentcloud (275 MB with it); `types.lua`
+  files are 118 MB of the 231 (51%).
