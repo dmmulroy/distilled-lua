@@ -219,6 +219,112 @@ local function g_table(C)
   return C.G_table
 end
 
+-- madd-2007-bl: P (Jacobian) + Q (affine { x, y }, Montgomery form)
+local function add_affine(C, P, Q)
+  local F = C.F
+  if F:is_zero(P[3]) then
+    return { Q[1], Q[2], F.one }
+  end
+  local Z1Z1 = F:sqr(P[3])
+  local U2 = F:mul(Q[1], Z1Z1)
+  local S2 = F:mul(F:mul(Q[2], P[3]), Z1Z1)
+  local Hh = F:sub(U2, P[1])
+  local rr = F:sub(S2, P[2])
+  if F:is_zero(Hh) then
+    if F:is_zero(rr) then
+      return double(C, P)
+    end
+    return { F.zero, F.one, F.zero }
+  end
+  rr = F:add(rr, rr)
+  local HH = F:sqr(Hh)
+  local I = F:add(HH, HH)
+  I = F:add(I, I)
+  local J = F:mul(Hh, I)
+  local V = F:mul(P[1], I)
+  local X3 = F:sub(F:sub(F:sqr(rr), J), F:add(V, V))
+  local YJ = F:mul(P[2], J)
+  local Y3 = F:sub(F:mul(rr, F:sub(V, X3)), F:add(YJ, YJ))
+  local Z3 = F:sub(F:sub(F:sqr(F:add(P[3], Hh)), Z1Z1), HH)
+  return { X3, Y3, Z3 }
+end
+
+-- Fixed-base comb: comb[w][v] = v * 16^(w-1) * G in affine form, so k*G is one mixed
+-- addition per 4-bit window and no doublings (about 4x faster). Building it costs about
+-- as much as six scalar multiplications, so it is built on the COMB_AFTER-th use of G in
+-- the process, not the first: a script that signs once does not pay for it.
+local COMB_AFTER = 4
+ecdsa.COMB_AFTER = COMB_AFTER
+
+local function build_comb(C)
+  local F = C.F
+  local points = {}
+  local base = C.G
+  local windows = floor((bigint.bits(C.n) + 3) / 4)
+  for w = 1, windows do
+    local row = table_of(C, base)
+    for v = 1, 15 do
+      points[#points + 1] = row[v]
+    end
+    base = double(C, double(C, double(C, double(C, row[1]))))
+  end
+  -- batch inversion of every Z (Montgomery's trick): one field inversion in total
+  local n = #points
+  local prefix = {}
+  local acc = F.one
+  for i = 1, n do
+    prefix[i] = acc
+    acc = F:mul(acc, points[i][3])
+  end
+  local inv = F:inv(acc)
+  local affine_points = {}
+  for i = n, 1, -1 do
+    local P = points[i]
+    local zi = F:mul(inv, prefix[i])
+    inv = F:mul(inv, P[3])
+    local zi2 = F:sqr(zi)
+    affine_points[i] = { F:mul(P[1], zi2), F:mul(F:mul(P[2], zi2), zi) }
+  end
+  local comb = {}
+  for w = 1, windows do
+    local row = {}
+    for v = 1, 15 do
+      row[v] = affine_points[(w - 1) * 15 + v]
+    end
+    comb[w] = row
+  end
+  return comb
+end
+
+-- k * G
+local function base_mul(C, k)
+  if not C.comb then
+    C.g_uses = (C.g_uses or 0) + 1
+    if C.g_uses < COMB_AFTER then
+      return multi_mul(C, { k }, { g_table(C) })
+    end
+    C.comb = build_comb(C)
+  end
+  local F = C.F
+  local R = { F.zero, F.one, F.zero }
+  for w = 0, floor((bigint.bits(k) + 3) / 4) - 1 do
+    local v = nibble(k, w)
+    if v ~= 0 then
+      R = add_affine(C, R, C.comb[w + 1][v])
+    end
+  end
+  return R
+end
+
+-- u1 * G + u2 * P (P's window table given)
+local function double_mul(C, u1, u2, ptable)
+  if C.comb then
+    return add(C, base_mul(C, u1), multi_mul(C, { u2 }, { ptable }))
+  end
+  C.g_uses = (C.g_uses or 0) + 1
+  return multi_mul(C, { u1, u2 }, { g_table(C), ptable })
+end
+
 -- affine plain coordinates (bigints) of a Jacobian point, or nil at infinity
 local function affine(C, P)
   local F = C.F
@@ -339,7 +445,7 @@ function ecdsa.private_key(curve, d, point)
   if bigint.is_zero(d) or bigint.cmp(d, C.n) >= 0 then
     return invalid("the private scalar is out of range")
   end
-  local pub = make_public(C, multi_mul(C, { d }, { g_table(C) }))
+  local pub = make_public(C, base_mul(C, d))
   -- a public point stored with the scalar (SEC1, JWK) must be the one it derives
   if point ~= nil then
     local P = decode_point(C, point)
@@ -368,7 +474,8 @@ end
 -- signatures
 ---------------------------------------------------------------------------------------
 
-local HASH_BITS = { sha1 = 160, sha224 = 224, sha256 = 256, sha384 = 384, sha512 = 512, keccak256 = 256 }
+local HASH_BITS =
+  { sha1 = 160, sha224 = 224, sha256 = 256, sha384 = 384, sha512 = 512, keccak256 = 256 }
 
 -- bits2int (RFC 6979 2.3.2): the leftmost qlen bits of the digest
 local function bits2int(C, digest)
@@ -471,7 +578,7 @@ local function sign_digest(k, digest, hmac_hash, format, low_s)
   end
   for _ = 1, 64 do
     local kk = next_k()
-    local R = multi_mul(C, { kk }, { g_table(C) })
+    local R = base_mul(C, kk)
     local x, y = affine(C, R)
     local r = reduce_n(C, x)
     if not bigint.is_zero(r) then
@@ -545,7 +652,7 @@ local function verify_digest(k, digest, signature, format)
   if not cache.table then
     cache.table = table_of(C, point_of(C, k))
   end
-  local X = multi_mul(C, { u1, u2 }, { g_table(C), cache.table })
+  local X = double_mul(C, u1, u2, cache.table)
   local x = affine(C, X)
   if not x then
     return false
@@ -597,7 +704,7 @@ function ecdsa.recover(curve, digest, signature, recovery_id)
   local ri = N:inv(N:to(r))
   local u1 = N:from(N:mul(N:neg(N:to(e)), ri))
   local u2 = N:from(N:mul(N:to(s), ri))
-  local Q = multi_mul(C, { u1, u2 }, { g_table(C), table_of(C, R) })
+  local Q = double_mul(C, u1, u2, table_of(C, R))
   if is_infinity(C, Q) then
     return invalid("the signature recovers the point at infinity")
   end

@@ -631,8 +631,110 @@ function Mont:inv(a)
   return self:pow(a, self.m_minus_2)
 end
 
--- bigint.mont(m) -> ctx for the odd modulus m > 1
-function bigint.mont(m)
+---------------------------------------------------------------------------------------
+-- Generated Montgomery products
+--
+-- For moduli up to CODEGEN_LIMBS limbs (RSA-2048's CRT halves are 47, a 256-bit field
+-- 12) the product is generated as straight-line Lua for that one modulus: operand limbs
+-- in locals, the modulus limbs and -m^-1 as numeric constants, one statement per
+-- column. That removes the loop, index arithmetic and table reads of the generic
+-- version (about 3x faster in every runtime). 3k + 2 locals must stay under Lua's limit
+-- of 200, hence the bound. The source is kept on the context (ctx.source.mul / .sqr).
+---------------------------------------------------------------------------------------
+
+bigint.CODEGEN_LIMBS = 60
+
+local function generate(ctx, square)
+  local k, m = ctx.k, ctx.m
+  local L = {}
+  local function w(line)
+    L[#L + 1] = line
+  end
+  local function list(prefix, from, to)
+    local t = {}
+    for i = from, to do
+      t[#t + 1] = prefix .. i
+    end
+    return table.concat(t, ", ")
+  end
+  local function reads(prefix, var)
+    local t = {}
+    for i = 1, k do
+      t[i] = var .. "[" .. i .. "]"
+    end
+    return "local " .. list(prefix, 1, k) .. " = " .. table.concat(t, ", ")
+  end
+  w("local ge, sub_in_place, M = ...")
+  w("return function(self, a, " .. (square and "" or "b, ") .. "out)")
+  w("out = out or {}")
+  w(reads("a", "a"))
+  if not square then
+    w(reads("b", "b"))
+  end
+  w("local " .. list("q", 1, k))
+  w("local acc, lo = 0, 0")
+  -- terms of column c (1-based; pairs i + j = c + 1), q terms for j < c (or all in phase 2)
+  local function column(c)
+    local terms = {}
+    local lo_j = c - k + 1
+    if lo_j < 1 then
+      lo_j = 1
+    end
+    local hi_j = c < k and c or k
+    if square then
+      local cross = {}
+      for j = lo_j, hi_j do
+        local i = c + 1 - j
+        if j < i then
+          cross[#cross + 1] = "a" .. j .. " * a" .. i
+        end
+      end
+      if #cross > 0 then
+        terms[#terms + 1] = "2 * (" .. table.concat(cross, " + ") .. ")"
+      end
+      if c % 2 == 1 then
+        local h = (c + 1) / 2
+        terms[#terms + 1] = string.format("a%d * a%d", h, h)
+      end
+    else
+      for j = lo_j, hi_j do
+        terms[#terms + 1] = "a" .. j .. " * b" .. (c + 1 - j)
+      end
+    end
+    local q_hi = c <= k and c - 1 or k
+    for j = lo_j, q_hi do
+      local mi = m[c + 1 - j]
+      if mi ~= 0 then
+        terms[#terms + 1] = string.format("q%d * %d", j, mi)
+      end
+    end
+    if #terms > 0 then
+      w("acc = acc + " .. table.concat(terms, " + "))
+    end
+  end
+  for c = 1, k do
+    column(c)
+    w(string.format("q%d = ((acc %% %d) * %d) %% %d", c, B, ctx.minv, B))
+    w(string.format("acc = (acc + q%d * %d) / %d", c, m[1], B))
+  end
+  for c = k + 1, 2 * k - 1 do
+    column(c)
+    w(string.format("lo = acc %% %d", B))
+    w(string.format("out[%d] = lo", c - k))
+    w(string.format("acc = (acc - lo) / %d", B))
+  end
+  w(string.format("out[%d] = acc", k))
+  w(string.format("if ge(out, M, %d) then sub_in_place(out, M, %d) end", k, k))
+  w("return out")
+  w("end")
+  local source = table.concat(L, "\n")
+  local chunk = assert(compat.load(source, "=distilled.crypto.bigint.mont"))
+  return chunk(ge, sub_in_place, m), source
+end
+
+-- bigint.mont(m [, opts]) -> ctx for the odd modulus m > 1
+-- opts.generic = true keeps the loop versions of mul and sqr (for tests)
+function bigint.mont(m, opts)
   local k = len(m)
   if k == 0 or not bigint.is_odd(m) or (k == 1 and m[1] == 1) then
     compat.raise("bigint.mont: the modulus must be odd and greater than 1", 2)
@@ -690,6 +792,12 @@ function bigint.mont(m)
   end
   ctx.r2 = v
   ctx.m_minus_2 = bigint.sub(m, { 2 })
+  if k <= bigint.CODEGEN_LIMBS and not (opts and opts.generic) then
+    local mul, mul_source = generate(ctx, false)
+    local sqr, sqr_source = generate(ctx, true)
+    ctx.mul, ctx.sqr = mul, sqr
+    ctx.source = { mul = mul_source, sqr = sqr_source }
+  end
   return ctx
 end
 
