@@ -22,8 +22,12 @@ local client = NamespaceLabsExperimentalComputeReservation.new({
 
 | Option | Meaning |
 | --- | --- |
-| `token` | required secret: a string, a secret, or `fn(host) -> value, err`; default from `NSC_TOKEN` |
-| `global_base_url` | base URL, default `https://global.namespaceapis.com`; or from `NSC_GLOBAL_URL` |
+| `compute_base_url` | text; from `NSC_COMPUTE_URL` or `NSC_ENDPOINT` |
+| `global_base_url` | base URL; from `NSC_GLOBAL_URL`; default `https://global.namespaceapis.com` |
+| `private_api_base_url` | text; from `NSC_PRIVATE_API_URL`; default `https://private-api.global.namespaceapis.com` |
+| `region` | text; from `NSC_REGION`; default `us` |
+| `storage_base_url` | text; from `NSC_STORAGE_URL` |
+| `token` | required secret: a string, a secret, or `fn(host) -> value, err`; from `NSC_TOKEN` |
 | `host`, `transport`, `sleep`, ... | the host seams (see distilled's docs/interfaces.md) |
 | `retry`, `deadline_s`, `tracing`, `validation` | the common client options |
 
@@ -51,16 +55,3 @@ a built-in tag, `UnknownNamespaceLabsError` (nothing matched) or `NamespaceLabsP
 | `PermissionDenied` | AuthError | `{ { status = 403 } }` |
 | `ResourceExhausted` | ThrottlingError | `{ { status = 429 } }` |
 | `Unauthenticated` | AuthError | `{ { status = 401 } }` |
-
-## Wire and options
-
-Connect unary calls over JSON (`distilled.protocol.connect`).
-
-| Option | Meaning |
-| --- | --- |
-| `compute_base_url` | value; default `https://{region}.compute.namespaceapis.com`; or from `NSC_COMPUTE_URL`, then `NSC_ENDPOINT` |
-| `global_base_url` | value; default `https://global.namespaceapis.com`; or from `NSC_GLOBAL_URL` |
-| `private_api_base_url` | value; default `https://private-api.global.namespaceapis.com`; or from `NSC_PRIVATE_API_URL` |
-| `region` | value; default `us`; or from `NSC_REGION` |
-| `storage_base_url` | value; default `https://{region}.storage.namespaceapis.com`; or from `NSC_STORAGE_URL` |
-| `token` | required secret; or from `NSC_TOKEN` |

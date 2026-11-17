@@ -8,56 +8,72 @@
 -- local client = NamespaceLabsIamTenantMembership.new({ transport = ... })
 -- See README.md next to this file for the options and operations.
 local Client = require("distilled.client")
-local connect = require("distilled.protocol.connect")
-local rpc = require("distilled.protocol.rpc")
+local rest = require("distilled.protocol.rest")
 
 -- The module's own name, so the client loads under whatever directory it was vendored as.
 local MODULE = ... or "namespacelabs.iam_tenant_membership"
 local service = require(MODULE .. ".service")
 
--- The client's options (provider spec rpc.options): environment variables in order, then the
--- default, whose {name}s are other options.
-local settings = {
-  compute_base_url = {
-    default = "https://{region}.compute.namespaceapis.com",
-    env = { "NSC_COMPUTE_URL", "NSC_ENDPOINT" },
-  },
-  global_base_url = { default = "https://global.namespaceapis.com", env = { "NSC_GLOBAL_URL" } },
-  private_api_base_url = {
-    default = "https://private-api.global.namespaceapis.com",
-    env = { "NSC_PRIVATE_API_URL" },
-  },
-  region = { default = "us", env = { "NSC_REGION" } },
-  storage_base_url = {
-    default = "https://{region}.storage.namespaceapis.com",
-    env = { "NSC_STORAGE_URL" },
-  },
-  token = { required = true, secret = true, env = { "NSC_TOKEN" } },
-}
+-- The provider's hand-written glue (provider spec glue), next to this file.
+local glue = require(MODULE .. ".glue")
 
-local protocol = connect.new({
-  prepare = rpc.prepare(settings),
-  base_url = rpc.base_url({
-    default = "{global_base_url}",
-    by_prefix = {
-      { "/namespace.cloud.compute.", "{compute_base_url}" },
-      { "/namespace.cloud.builder.", "{compute_base_url}" },
-      { "/namespace.experimental.compute.", "{compute_base_url}" },
-      { "/namespace.cloud.storage.", "{storage_base_url}" },
-      { "/namespace.cloud.github.", "{private_api_base_url}" },
-      { "/namespace.private.", "{private_api_base_url}" },
-    },
-  }),
-  headers = rpc.headers({ { "authorization", "Bearer {token}" } }),
-  error_envelope = rpc.envelope({ code = "/code", message = "/message" }),
-  unknown_error = rpc.unknown_error("UnknownNamespaceLabsError", { details = "/details" }),
+local errors = require("distilled.errors")
+
+-- The provider's error envelope (provider spec error_envelope): the first pointer that holds text
+-- or a number wins, like Distilled's default envelope.
+local function text_at(body, pointers)
+  for _, pointer in ipairs(pointers) do
+    local v = errors.at_pointer(body, pointer)
+    if type(v) == "string" or type(v) == "number" then
+      return v
+    end
+  end
+  return nil
+end
+
+local function error_envelope(body)
+  return {
+    code = text_at(body, { "/code" }),
+    message = text_at(body, { "/message" }),
+  }
+end
+
+local protocol = rest.new({
   empty_json_body = true,
-  unknown_tag = "UnknownNamespaceLabsError",
+  error_envelope = error_envelope,
+  glue = glue,
   parse_tag = "NamespaceLabsParseError",
+  provider = {
+    headers = {
+      { name = "authorization", values = { { template = "Bearer {token}" } }, secret = true },
+    },
+    base_url = { default = "https://global.namespaceapis.com", option = "global_base_url" },
+    options = {
+      compute_base_url = { env = { "NSC_COMPUTE_URL", "NSC_ENDPOINT" } },
+      global_base_url = { env = { "NSC_GLOBAL_URL" } },
+      private_api_base_url = {
+        default = "https://private-api.global.namespaceapis.com",
+        env = { "NSC_PRIVATE_API_URL" },
+      },
+      region = { default = "us", env = { "NSC_REGION" } },
+      storage_base_url = { env = { "NSC_STORAGE_URL" } },
+      token = { required = true, secret = true, env = { "NSC_TOKEN" } },
+    },
+    title = "NamespaceLabs",
+  },
+  unknown_fields = { details = "/details" },
+  unknown_tag = "UnknownNamespaceLabsError",
 })
 
 return Client.define({
   service = service,
   protocol = protocol,
-  options = rpc.client_options(settings),
+  options = {
+    compute_base_url = { type = "string" },
+    global_base_url = { type = "string" },
+    private_api_base_url = { type = "string" },
+    region = { type = "string" },
+    storage_base_url = { type = "string" },
+    token = { secret = true },
+  },
 })

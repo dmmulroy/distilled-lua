@@ -866,7 +866,7 @@ t.describe("generated namespacelabs clients (Connect JSON)", function()
   t.it("NSC_ENDPOINT is the compute host when NSC_COMPUTE_URL is unset", function()
     local c, tr = gen_client("namespacelabs.compute", { json_reply(200, {}) }, nil, {
       NSC_TOKEN = "nsc",
-      NSC_ENDPOINT = "https://compute.local.test/",
+      NSC_ENDPOINT = "https://compute.local.test",
     })
     t.truthy(c:create_instance({}))
     t.eq(

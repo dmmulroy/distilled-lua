@@ -716,13 +716,38 @@ pkg_of() {
   printf '%s' "$1"
 }
 
-# spec_packages: every Distilled package with a .generated-specs/*.json model
+# spec_packages: every Distilled package with a .generated-specs/*.json model or a
+# .generated-graphql/<pkg>.json GraphQL model (task 16)
 spec_packages() {
-  for d in "$PACKAGES"/*/.generated-specs; do
-    [ -d "$d" ] || continue
-    ls "$d" | grep -q '\.json$' || continue
-    basename "$(dirname "$d")"
+  for d in "$PACKAGES"/*/; do
+    p=$(basename "$d")
+    if ls "$d.generated-specs" 2>/dev/null | grep -q '\.json$' || [ -f "$d.generated-graphql/$p.json" ]; then
+      printf '%s\n' "$p"
+    fi
   done
+}
+
+# sync_graphql PKG: .generated-graphql/<pkg>.json -> models/<pkg>/graphql/<pkg>.json (task 16)
+# prints "graphql new|changed|same|removed|none"
+sync_graphql() {
+  g_src="$PACKAGES/$1/.generated-graphql/$1.json"
+  g_dst="$ROOT/models/$1/graphql/$1.json"
+  if [ ! -f "$g_src" ]; then
+    if [ -f "$g_dst" ]; then
+      rm -f "$g_dst"
+      printf 'removed'
+    else
+      printf 'none'
+    fi
+  elif [ ! -f "$g_dst" ]; then
+    mkdir -p "$ROOT/models/$1/graphql" && cp "$g_src" "$g_dst.tmp" && mv "$g_dst.tmp" "$g_dst"
+    printf 'new'
+  elif cmp -s "$g_src" "$g_dst"; then
+    printf 'same'
+  else
+    cp "$g_src" "$g_dst.tmp" && mv "$g_dst.tmp" "$g_dst"
+    printf 'changed'
+  fi
 }
 
 NODE_CONVERT="node --conditions=bun --experimental-transform-types --no-warnings"
@@ -750,6 +775,13 @@ cmd_models() {
   total=0
   for pkg in $pkgs; do
     src="$PACKAGES/$pkg/.generated-specs"
+    if [ "$convert" -eq 1 ] && [ -f "$PACKAGES/$pkg/scripts/convert-graphql.ts" ]; then
+      # github and fly-io convert their GraphQL schema separately (task 16)
+      if ! (cd "$PACKAGES/$pkg" && $NODE_CONVERT scripts/convert-graphql.ts) >"$TMP/convert-graphql-$pkg.log" 2>&1; then
+        say "FAIL $pkg: convert-graphql failed ($TMP/convert-graphql-$pkg.log)"
+        status=1
+      fi
+    fi
     if [ "$convert" -eq 1 ]; then
       if [ ! -f "$PACKAGES/$pkg/scripts/convert.ts" ]; then
         say "FAIL $pkg: no scripts/convert.ts"
@@ -762,9 +794,11 @@ cmd_models() {
         continue
       fi
     fi
+    gq=$(sync_graphql "$pkg")
     if [ ! -d "$src" ] || ! ls "$src" | grep -q '\.json$'; then
-      if [ -d "$PACKAGES/$pkg/.generated-graphql" ]; then
-        say "skip $pkg: a GraphQL package (.generated-graphql), not a Smithy model"
+      if [ "$gq" != none ] && [ "$gq" != removed ]; then
+        say "ok   $pkg: a GraphQL model only (graphql $gq)"
+        total=$((total + 1))
       else
         say "FAIL $pkg: no models in $src (run with --convert, or the package's specs are not fetched)"
         status=1
@@ -806,7 +840,8 @@ cmd_models() {
     fi
     n=$((new + changed + same))
     total=$((total + n))
-    say "ok   $pkg: $n models ($new new, $changed changed, $removed removed)"
+    if [ "$gq" = none ]; then gq_note=""; else gq_note="; graphql $gq"; fi
+    say "ok   $pkg: $n models ($new new, $changed changed, $removed removed$gq_note)"
   done
   say "models sync: $total models"
   exit $status
@@ -815,6 +850,11 @@ cmd_models() {
 # ----------------------------------------------------------------------------------
 # gen-diff (task 06): regenerate, diff against clients/<provider>/, check in every runtime
 # ----------------------------------------------------------------------------------
+
+# has_models PKG: models/<pkg>/ holds a Smithy model or a GraphQL model (task 16)
+has_models() {
+  ls "$ROOT/models/$1"/*.json >/dev/null 2>&1 || [ -f "$ROOT/models/$1/graphql/$1.json" ]
+}
 
 # gen_package RUNTIME PKG OUT [--quiet]: bin/distilled-lua package for models/<pkg>/ with
 # providers/<lua>.lua into OUT
@@ -833,7 +873,7 @@ cmd_gen_diff() {
   lua=$(lua_name "$pkg")
   spec="$ROOT/providers/$lua.lua"
   committed="$ROOT/clients/$lua"
-  ls "$ROOT/models/$pkg"/*.json >/dev/null 2>&1 || die "no models in models/$pkg (dl models sync $pkg)"
+  has_models "$pkg" || die "no models in models/$pkg (dl models sync $pkg)"
   [ -f "$spec" ] || die "no provider spec: $spec"
   out="$TMP/gen-diff"
   rm -rf "$out"
@@ -875,13 +915,27 @@ cmd_gen_diff() {
     status=1
   fi
   for rt in $RUNTIMES; do
-    case $rt in
-      lua | luajit) res=$("$rt" "$LIB/gen_check.lua" "$ROOT" "$check_dir" "$lua" 2>&1) ;;
-      rex) res=$(rex do "$LIB/gen_check.lua" "root=$ROOT" "dir=$check_dir" "provider=$lua" 2>&1) ;;
-    esac
-    code=$?
-    printf '%s\n' "$res" | grep -v '^"'
-    [ "$code" -eq 0 ] || status=1
+    if ls "$ROOT/models/$pkg"/*.json >/dev/null 2>&1; then
+      case $rt in
+        lua | luajit) res=$("$rt" "$LIB/gen_check.lua" "$ROOT" "$check_dir" "$lua" 2>&1) ;;
+        rex) res=$(rex do "$LIB/gen_check.lua" "root=$ROOT" "dir=$check_dir" "provider=$lua" 2>&1) ;;
+      esac
+      code=$?
+      printf '%s\n' "$res" | grep -v '^"'
+      [ "$code" -eq 0 ] || status=1
+    fi
+    # the GraphQL client (task 16): every root built and compiled, every type parsed
+    if [ -f "$ROOT/models/$pkg/graphql/$pkg.json" ]; then
+      gmod=$lua
+      ls "$ROOT/models/$pkg"/*.json >/dev/null 2>&1 && gmod="$lua.graphql"
+      case $rt in
+        lua | luajit) res=$("$rt" "$LIB/graphql_check.lua" "$ROOT" "$check_dir" "$gmod" 2>&1) ;;
+        rex) res=$(rex do "$LIB/graphql_check.lua" "root=$ROOT" "dir=$check_dir" "module=$gmod" 2>&1) ;;
+      esac
+      code=$?
+      printf '%s\n' "$res" | grep -v '^"'
+      [ "$code" -eq 0 ] || status=1
+    fi
   done
   if [ "$status" -eq 0 ]; then say "gen-diff $pkg: ok"; else say "gen-diff $pkg: FAIL"; fi
   exit $status
@@ -904,7 +958,7 @@ gen_all_one() {
   pkg=$1
   lua=$(lua_name "$pkg")
   report="$TMP/gen-all/$pkg.txt"
-  if ! ls "$ROOT/models/$pkg"/*.json >/dev/null 2>&1; then
+  if ! has_models "$pkg"; then
     say "FAIL $pkg: no models in models/$pkg (dl models sync $pkg)" >"$report"
     return 1
   fi

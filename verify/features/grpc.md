@@ -1,7 +1,8 @@
 # gRPC, gRPC-Web and Connect (`distilled.protobuf`, `distilled.protocol.grpc`, `distilled.protocol.connect`)
 
-Task 23 adds proto-sourced providers: modal and boxd over the binary gRPC wire, and e2b
-and namespacelabs over Connect JSON.
+Task 23 adds proto-sourced providers: modal and boxd over the binary gRPC wire (and gRPC-Web), and e2b
+over Connect JSON. namespacelabs (Connect JSON too) uses task 13's REST provider spec and glue
+(`providers/namespacelabs.lua`, merged from main); task 23 generated and tested its clients.
 
 ## Sub-features
 
@@ -32,7 +33,7 @@ and namespacelabs over Connect JSON.
 - **Transport** (`transport/curl_common.lua`):
   - `request.http2` becomes `--http2-prior-knowledge` for http:// URLs and `--http2` for https://.
   - HTTP trailers come back in `response.trailers`, with names lowercased. The body is located with curl's `%{size_header}`.
-- **`distilled.protocol.connect`** is `rest.new` with two additions:
+- **`distilled.protocol.connect`** (used by e2b) is `rest.new` with two additions:
   - `empty_json_body` defaults to true;
   - a `prepare` hook derives the settings.
 - **`distilled.protocol.rpc`** is the runtime for a provider spec's `rpc` section:
@@ -94,6 +95,7 @@ local inst = Compute.new({}):create_instance({ ... })   -- https://<region>.comp
 - **Server streams are collected, not incremental.** Bound a following stream with the request's timeout.
   - Client streaming and the Connect server streams (e2b `connect.ts`) are not ported.
 - **proto3 defaults:** a decoded message has every scalar at its default (`""`, `0`, `false`), as in Distilled. An absent field is not `nil`.
+- **Trailing slashes:** `rpc.base_url` trims a trailing `/` from the base URL. Distilled does not, and task 13's REST specs do not either (`${baseUrl}${uri}`).
 - **Not ported:**
   - Modal's `fromContainer` (unix socket);
   - the `x-modal-auth-token` fetch (pass `auth_token`);

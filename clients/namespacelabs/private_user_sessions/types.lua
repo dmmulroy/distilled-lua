@@ -114,12 +114,12 @@
 ---@field tag "Unauthenticated"
 
 ---@class namespacelabs.private_user_sessions.Options
----@field compute_base_url? string|number|boolean
----@field private_api_base_url? string|number|boolean
----@field region? string|number|boolean
----@field storage_base_url? string|number|boolean
----@field token? string|distilled.Secret|fun(host: table): (string|distilled.Secret|nil, distilled.Error?) Required; default from $NSC_TOKEN
----@field global_base_url? string Default https://global.namespaceapis.com (or $NSC_GLOBAL_URL)
+---@field compute_base_url? string from $NSC_COMPUTE_URL or $NSC_ENDPOINT
+---@field global_base_url? string from $NSC_GLOBAL_URL; default https://global.namespaceapis.com
+---@field private_api_base_url? string from $NSC_PRIVATE_API_URL; default https://private-api.global.namespaceapis.com
+---@field region? string from $NSC_REGION; default us
+---@field storage_base_url? string from $NSC_STORAGE_URL
+---@field token? string|distilled.Secret|fun(host: table): (string|distilled.Secret|nil, distilled.Error?) Required; from $NSC_TOKEN
 ---@field host? table The host seams: transport, sleep, now, exec, random, getenv, epoch
 ---@field transport? fun(request: table): (table?, distilled.Error?)
 ---@field sleep? fun(seconds: number)

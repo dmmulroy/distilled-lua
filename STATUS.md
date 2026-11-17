@@ -780,6 +780,109 @@ See `tasks/15-xml.done.md`.
 - `verify/features/README.md` should list `xml.md` (left for the orchestrator, to avoid
   conflicting edits).
 
+## 16 graphql
+
+**Done.** See `tasks/16-graphql.done.md` and `verify/features/graphql.md`.
+
+### What others can use
+
+- `require("distilled.graphql")`: the Query algebra (`map`, `filter`, `flat_map`, `of`,
+  `fn`), `compile`, `request_body`, `evaluate`, `result`, `classify`, `is_retryable` and
+  `pages`. Its error classes are `GqlError`, `UnknownGraphQLError`, `GraphQLFailure`,
+  `GraphQLTransportError` and `GraphQLPaginationError`.
+- `require("distilled.graphql.client").define{ name, transport, telemetry, options }`
+  builds on `Client.define` with no REST ops. Its methods are `run`, `pages`, `items`,
+  `compile`; `with` and `close` are inherited.
+- `require("distilled.graphql.sdk").build(spec)` is what a generated `init.lua` calls.
+- Generated clients:
+  - `clients/linear`, `clients/railway`, `clients/expo_eas`;
+  - `clients/github/graphql` (module `github.graphql`) and `clients/fly_io/graphql`
+    (module `fly_io.graphql`).
+
+### Decisions
+
+- **Mixed packages** (github, fly_io) keep their GraphQL client in `clients/<pkg>/graphql/`,
+  with the provider spec in `providers/graphql/<pkg>.lua`. The REST specs
+  (`providers/github.lua`, `fly_io.lua`; task 13) were not touched. `package` auto-detects
+  `models/<pkg>/graphql/<pkg>.json` and generates both parts.
+- Plan keys are visited sorted. Arguments are bound in schema order, and a page's
+  `after` last (as TS).
+- Combinators are free functions (`gql.map(q, fn)`), so no GraphQL field is shadowed.
+- Unknown fields and arguments raise (misuse).
+
+### Edits outside the obvious (orchestrator: note for merges)
+
+- In `bin/distilled-lua`:
+  - the `generate-graphql` command;
+  - the graphql auto-detect in `package`;
+  - `replaceable()` also accepts a directory holding only `graphql/init.lua`.
+- In `verify/dl`:
+  - `sync_graphql` (models sync plus `--convert`) and `has_models`;
+  - `spec_packages` includes GraphQL packages;
+  - gen-diff runs `verify/lib/graphql_check.lua` (new).
+- New files:
+  - `verify/conform/node/graphql_requests.mjs`;
+  - `spec/fixtures/graphql/cases.json`;
+  - `spec/golden/graphql/requests.json`.
+
+### Proposed (files I do not own)
+
+- `verify/features/README.md` should list `graphql.md` (area "GraphQL clients", task 16),
+  after the generator row.
+- STATUS.md itself has leftover merge markers (`
+
+## 13 providers
+
+Done (see `tasks/13-providers.done.md`).
+
+- Survey: `docs/providers-survey.md`, 106 packages: 18 A, 83 B, 5 C. 98 specs in
+  `providers/` (neon, hetzner (task 10) and 96 new; 23 with a glue module in `providers/glue/`). Not
+  written: hetzner (task 10 owns it), questrade (refresh token in a URL query), scaleway
+  and slack (reasons in the survey).
+- New spec keys (`lua/distilled/gen/provider_ext.lua`, called from `provider.validate`):
+  `options`, env lists, `headers`, `auth.kind = "basic"`, `auth.prefix`,
+  `auth.optional`, templated or required `base_url` with `trim_slash`, `ensure_suffix`,
+  `origin`; `require_one_of`, `public_operations`, `user_agent`, `oauth`,
+  `error_classes`, `unknown_fields`, `transform_response`, `empty_json_body`,
+  `query_style`, pointer lists in `error_envelope`, `glue`. A spec with none of them
+  generates exactly as before.
+- Runtime: `rest.new{ provider = ..., glue = ..., unknown_fields, transform_input,
+  classify_success }`, `rest.envelope`, `rest.transforms`, `rest.strip_nulls`,
+  `rest.compile_provider`. `credentials.from_env` takes a list of names.
+  `classify_error`'s info gained `now`; `classify_success` may return `true` (read the
+  2xx answer as a failure).
+
+Files outside my list that I had to change (orchestrator, please check on merge):
+
+- `lua/distilled/gen/writer.lua`: the protocol and options of `init.lua` are emitted
+  there, not in `gen/init.lua`; `writer.client` now emits `provider = ...` for task-13
+  specs (classic specs unchanged), `error_classes`, pointer-list envelopes, `glue`;
+  the README options table (`writer.option_rows`). Task 12 also edits this file.
+- `lua/distilled/gen/types.lua`: the `Options` fields of task-13 specs.
+- `spec/gen_provider_spec.lua`: one line, `kind = "basic"` is now valid (the case uses
+  `"digest"`).
+
+For task 10 (merge): `models.override` should be able to carry `auth`, `options` and
+`headers` (clerk, convex, digitalocean, e2b, exa, fly-io, mailchimp, onepassword have
+models with different auth; their spec comments say what). Apply an override to the raw
+spec *before* `provider.validate`: the runtime data (`spec.runtime`) is computed there,
+so changing `spec.base_url` after validation does not reach it. entire's Core models
+need only `base_url = { option = "core_base_url", env = "ENTIRE_CORE_BASE_URL",
+default = "https://us.console.entire.io" }`.
+
+Task 12 merged: a task-13 spec's base URL follows `rest.route_base_url`'s rule for an
+operation with `route.server` or its own `route.base_url` (`compile_provider`), and the
+writer declares task 12's `<server>_base_url` / template options for it too. stackit's
+glue reads `route.base_url` (the http trait's baseUrl), digitalocean's `route.server`.
+For task 10 (merged): `provider.for_model` passes a `models.override.<m>.base_url` on to
+the runtime data (`ext.override_base_url`).
+After the merge of main every package generates whole: `bin/distilled-lua package
+--models models/<pkg> --provider providers/<lua>.lua --out /tmp/...` for all 98 specs
+gives 1016 models ok, 0 failed, 2 skipped (models.skip). Two generator changes made that
+possible: an `error_classes` tag that a model also declares uses the model's class (Vercel,
+Whop, Starburst, Atlas declare PaymentRequired / PreconditionFailed in some models only),
+and `naming.operations` is not checked against a single model of a multi-model package (exa).
+
 ## 23 grpc
 
 **Status: done** (branch `task-23`). Done file: `tasks/23-grpc.done.md`.
@@ -787,11 +890,11 @@ See `tasks/15-xml.done.md`.
 Built:
 - `lua/distilled/protobuf.lua`: the proto3 codec.
 - `lua/distilled/protocol/grpc.lua`: gRPC and gRPC-Web, unary plus collected server streams.
-- `lua/distilled/protocol/connect.lua`: Connect JSON.
+- `lua/distilled/protocol/connect.lua`: Connect JSON (e2b).
 - `lua/distilled/protocol/rpc.lua`: the runtime for the provider spec's `rpc` section.
 - `lua/distilled/gen/proto.lua`.
 - Transport trailers and `request.http2` in `transport/curl_common.lua`.
-- Providers and committed clients for modal (304 ops), boxd (135), e2b (97) and namespacelabs (182). All four reach parity with Distilled.
+- Providers and committed clients for modal (304 ops), boxd (135) and e2b (97), plus generated clients for namespacelabs (182). All four reach parity with Distilled.
 - The full feature list is in `verify/features/grpc.md`.
 
 Decisions others should know:
@@ -810,6 +913,13 @@ Decisions others should know:
 - **gRPC server-streaming ops are callable** on the grpc wires: they return `{ items }`.
   - They are still `unsupported = "streaming"` on Connect and REST.
   - `gen/traits.lua`'s note for `com.distilled.grpc#serverStreaming` predates this. Proposed: say "callable on rpc grpc wires (gen/proto.lua); else unsupported".
+- **Merge with main (task 13):**
+  - Main brought its own `providers/e2b.lua` and `providers/namespacelabs.lua`.
+  - **namespacelabs:** I kept main's REST + glue spec. Task 13's keys cover it, and it is Connect JSON, which is plain REST. My `rpc` variant is not needed.
+  - **e2b:** I kept mine. Task 13's `models.override` takes only `{ base_url, title }`, and envd and volume content need per-model options, headers and hosts (`rpc.models`).
+  - **Overlap to fold later:** `rpc.options`, `rpc.headers` and `rpc.base_url` duplicate task 13's top-level `options`, `headers` and templated `base_url` for the grpc wires.
+  - **Proposed follow-up:** let task 13's model overrides carry `options` and `headers`. `rpc` could then keep only `wire`, `descriptors`, `http2` and `error_matchers_trait`.
+- **Outside my files:** I added `"boxd"` and `"modal"` to `NAMES` in `spec/provider_spec.lua`. It lists every `providers/*.lua`, and the merge broke it otherwise.
 - **`testing.transport` drops `response.trailers`.** `spec/grpc_spec.lua` uses its own scripted transport.
   - Proposed: pass `trailers` through in `distilled.testing`.
 - **`verify/features/parity.md` is stale.** `verify/dl parity` regenerates it with these four packages complete; I did not commit the regenerated file because I do not own it.
