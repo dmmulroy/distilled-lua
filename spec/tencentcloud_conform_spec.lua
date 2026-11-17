@@ -38,11 +38,13 @@ local function client(c)
   local creds = c.creds or {}
   local host = testing.host({
     epoch = ref.epoch,
-    responses = { c.response and {
-      status = c.response.status or 200,
-      headers = c.response.headers,
-      body = c.response.body,
-    } or { status = 200, body = '{"Response":{"RequestId":"req-ok"}}' } },
+    responses = {
+      c.response and {
+        status = c.response.status or 200,
+        headers = c.response.headers,
+        body = c.response.body,
+      } or { status = 200, body = '{"Response":{"RequestId":"req-ok"}}' },
+    },
   })
   local opts = {
     host = host,
@@ -88,7 +90,11 @@ local function error_matches(lua_err, want)
   for _, k in ipairs({ "status", "code", "message", "request_id", "retry_after", "body" }) do
     local w = want[k]
     if w == nil then
-      if got[k] ~= nil and not ALLOWED_EXTRA[k] and not (k == "body" and got.tag == "TencentCloudParseError") then
+      if
+        got[k] ~= nil
+        and not ALLOWED_EXTRA[k]
+        and not (k == "body" and got.tag == "TencentCloudParseError")
+      then
         problems[#problems + 1] = k .. ": lua has " .. enc(got[k]) .. ", distilled none"
       end
     elseif k == "message" and want.tag == "TencentCloudParseError" then
