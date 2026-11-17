@@ -11,17 +11,19 @@
 --               authorization = { "Bearer {access_token}", "{token_id}:{token}" },
 --               ["x-basic"] = { basic = "{user}:{password}" } },  -- Basic base64(...)
 --   base_url = { default = "https://api.{site}" | nil (required), option, env = "A" | {...},
---                trim_slash, ensure_suffix = "/api", origin = true | { label, example } },
+--                trim_slash, ensure_suffix = "/api",
+--                origin = true | { label, example, bare_host } },
 --   require_one_of = { "api_key", "access_token" },
 --   public_operations = { "GetThing" },        -- no secret header, no required check
 --   oauth = { token_url = "{base_url}/oauth/token", client_id, client_secret, into,
 --             auth = "basic" | "form", scope, extra = { field = option }, default_ttl_s,
---             refresh_window_s, reuse = "window" | "half", required, label },
+--             refresh_window_s, reuse = "window" | "half", required, exclusive, label },
 --   user_agent = { default = "distilled.cloud-github", env = "GITHUB_USER_AGENT" },
 --   error_envelope = { code = "/a" | { "/a", "/b" }, message = ..., non_empty = true },
 --   error_classes = { Gone = { categories = { "NotFoundError" }, retryable = false } },
 --   unknown_fields = { reason = "/reason" },
 --   transform_response = { "strip_nulls", { unwrap = "result", skip_paginated = true } },
+--   empty_json_body = true,    -- send {} for a bodied operation without body members
 --   glue = "glue/<name>.lua",   -- hand-written Lua copied next to the client (glue.lua)
 --
 -- A template's `{name}` is an option's value. provider.validate calls ext.reduce first
@@ -41,6 +43,7 @@ ext.TOP = {
   error_classes = true,
   unknown_fields = true,
   transform_response = true,
+  empty_json_body = true,
   glue = true,
 }
 
@@ -71,6 +74,7 @@ local OAUTH_KEYS = {
   refresh_window_s = true,
   reuse = true,
   required = true,
+  exclusive = true,
   label = true,
 }
 
@@ -582,6 +586,13 @@ function ext.validate(raw, out, p, opts)
     end
   end
 
+  if raw.empty_json_body ~= nil then
+    if type(raw.empty_json_body) ~= "boolean" then
+      p[#p + 1] = "provider spec: empty_json_body must be a boolean"
+    end
+    out.empty_json_body = raw.empty_json_body == true or nil
+  end
+
   if raw.glue ~= nil then
     if type(raw.glue) ~= "string" or not string.find(raw.glue, "%.lua$") then
       p[#p + 1] = "provider spec: glue must be the path of a .lua file (relative to the spec)"
@@ -751,10 +762,16 @@ function ext.validate(raw, out, p, opts)
       p[#p + 1] = "provider spec base_url.origin must be true or { label, example }"
       o = {}
     end
-    unknown_keys("provider spec base_url.origin", o, { label = true, example = true }, p)
+    unknown_keys(
+      "provider spec base_url.origin",
+      o,
+      { label = true, example = true, bare_host = true },
+      p
+    )
     base_rt.origin = {
       label = o.label or (out.title .. " base URL"),
       example = o.example or (base_rt.default or "https://api.example.com"),
+      bare_host = o.bare_host == true or nil,
     }
   end
   out.base_url = {
@@ -924,6 +941,7 @@ function ext.validate(raw, out, p, opts)
         refresh_window_s = o.refresh_window_s,
         reuse = o.reuse,
         required = o.required == true or nil,
+        exclusive = o.exclusive == true or nil,
         label = o.label,
       }
     end

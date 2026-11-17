@@ -170,6 +170,9 @@ function writer.client(plan)
   if spec.unknown_fields then
     protocol_args.unknown_fields = spec.unknown_fields
   end
+  if spec.empty_json_body then
+    protocol_args.empty_json_body = true
+  end
   if spec.transform_response then
     protocol_args.transform_response = emit.call("rest.transforms", spec.transform_response)
   end

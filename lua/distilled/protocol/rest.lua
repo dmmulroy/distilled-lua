@@ -19,7 +19,8 @@
 --                  user_agent },
 --     unknown_fields = { reason = "/reason" },   -- extra fields of the unknown error
 --     transform_input = fn(input, op) -> input,
---     classify_success = fn{ status, headers, body, non_json, op } -> err | nil,
+--     classify_success = fn{ status, headers, body, non_json, op } -> err | true | nil,
+--                        -- true: read the 2xx answer as a failure (envelope, matchers, ...)
 --     glue = <module>,   -- a provider's hand-written functions, by these names: settings
 --                        -- (settings, host, route) -> settings | nil, err; base_url;
 --                        -- headers (settings, route, headers) -> headers; transform_input;
@@ -481,6 +482,27 @@ function rest.compile_provider(p)
       settings[name] = v
     end
     local oauth = p.oauth
+    -- oauth.exclusive (Tailscale BOTH_METHODS): a token and client credentials together
+    -- are a ConfigError, not a silent choice
+    if
+      oauth
+      and oauth.exclusive
+      and present(settings[oauth.into])
+      and (present(settings[oauth.client_id]) or present(settings[oauth.client_secret]))
+    then
+      return nil,
+        config_error(
+          title
+            .. ": pass "
+            .. oauth.into
+            .. " or "
+            .. oauth.client_id
+            .. " and "
+            .. oauth.client_secret
+            .. ", not both",
+          oauth.into
+        )
+    end
     if
       oauth
       and not present(settings[oauth.into])
@@ -488,7 +510,22 @@ function rest.compile_provider(p)
       and present(settings[oauth.client_secret])
       and not is_anon
     then
-      local token, err = oauth_token(oauth_cache, title, oauth, settings, host, timeout)
+      -- the token URL may name the base URL option ({base_url}/oauth/token): it sees the
+      -- resolved base URL (default, template, suffix and origin rules applied)
+      local ctx = settings
+      local bopt = p.base_url and p.base_url.option
+      if bopt and string.find(oauth.token_url, "{" .. bopt .. "}", 1, true) then
+        local base, berr = compiled.base_url(settings)
+        if not base then
+          return nil, berr
+        end
+        ctx = {}
+        for k, v in pairs(settings) do
+          ctx[k] = v
+        end
+        ctx[bopt] = base
+      end
+      local token, err = oauth_token(oauth_cache, title, oauth, ctx, host, timeout)
       if not token then
         return nil, err
       end
@@ -596,6 +633,10 @@ function rest.compile_provider(p)
       end
     end
     if b.origin then
+      -- origin.bare_host (Starburst Galaxy apiBaseUrlFor): a host without a scheme is https
+      if b.origin.bare_host and not string.find(value, "^[%a][%w+.-]*://") then
+        value = "https://" .. value
+      end
       local origin, why = origin_of(
         value,
         b.origin.label or (title .. " base URL"),
@@ -1029,6 +1070,7 @@ function rest.new(opts)
         message = message,
         body = body,
         headers = headers,
+        now = now, -- the host's epoch seconds (a glue computes retry hints from it)
       })
       if not ok then
         return classified
@@ -1223,7 +1265,12 @@ function rest.new(opts)
       if not ok then
         return nil, failed
       end
-      if failed ~= nil then
+      if failed == true then
+        -- a failure the protocol reads like any other (envelope, classify_error, the
+        -- operation's errors, the status map, the unknown error): ZeroSSL success = 0
+        return nil, decode_failure(ctx, op, status, headers, text, value, non_json)
+      end
+      if failed ~= nil and failed ~= false then
         if errors.is(failed) then
           return nil, failed
         end

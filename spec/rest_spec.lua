@@ -1534,11 +1534,10 @@ t.describe("rest provider: anonymous operations", function()
         anonymous = { GetText = true },
       }
       local o = { api_key = { secret = true } }
-      local c, host = pclient(
-        p,
-        o,
-        { env = { DOPPLER_TOKEN = "dp.st.x" }, responses = { json_response(""), json_response({}) } }
-      )
+      local c, host = pclient(p, o, {
+        env = { DOPPLER_TOKEN = "dp.st.x" },
+        responses = { json_response(""), json_response({}) },
+      })
       must(c:get_text({ id = "t1" }))
       t.eq(host.requests[1].headers.authorization, nil)
       t.eq(host.requests[1].headers.accept, "application/json")
