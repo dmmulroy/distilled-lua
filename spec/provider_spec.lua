@@ -93,6 +93,7 @@ local NAMES = {
   "chronosphere",
   "clerk",
   "clickhouse_cloud",
+  "coinbase", -- task 28
   "coinflow",
   "convex",
   "coolify",
@@ -144,6 +145,7 @@ local NAMES = {
   "plaid",
   "planetscale",
   "polar",
+  "polymarket", -- task 28
   "porkbun",
   "posthog",
   "prisma",
