@@ -147,6 +147,7 @@ local NAMES = {
   "posthog",
   "prisma",
   "proxmox",
+  "questrade",
   "redis_cloud",
   "remote",
   "render",

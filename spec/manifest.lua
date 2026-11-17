@@ -34,6 +34,7 @@ return {
   "paginate_spec.lua",
   "provider_models_spec.lua",
   "provider_spec.lua",
+  "questrade_client_spec.lua",
   "redact_spec.lua",
   "regex_spec.lua",
   "request_spec.lua",
