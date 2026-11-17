@@ -88,12 +88,14 @@ local NAMES = {
   "auth0",
   "aws", -- task 17 (gen/aws.lua)
   "axiom",
+  "azure", -- task 20 (protocol distilled.protocol.azure)
   "boat_dev",
   "boxd",
   "celld",
   "chronosphere",
   "clerk",
   "clickhouse_cloud",
+  "cloudflare",
   "coinflow",
   "convex",
   "coolify",
@@ -111,7 +113,9 @@ local NAMES = {
   "exa",
   "fly_io",
   "forgejo",
+  "gcp", -- task 21 (discovery spec)
   "github",
+  "google_workspace", -- task 21 (discovery spec)
   "grafana",
   "growthbook",
   "gusto",

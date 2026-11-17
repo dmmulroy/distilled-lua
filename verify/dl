@@ -293,6 +293,17 @@ cmd_crypto_vectors() {
   stylua "$ROOT/spec/golden/crypto/vectors.lua" "$ROOT/spec/golden/sigv4/vectors.lua"
 }
 
+# azure-errors / azure-ref (task 20): the Azure error data and conformance reference
+cmd_azure_errors() {
+  node --conditions=bun --experimental-transform-types --no-warnings "$LIB/azure_errors_port.mjs" "$ROOT/lua/distilled/azure/errors_data.lua" || die "node failed"
+  stylua "$ROOT/lua/distilled/azure/errors_data.lua"
+}
+
+cmd_azure_ref() {
+  luajit "$LIB/azure_cases.lua" "$ROOT" "$ROOT/spec/fixtures/azure/cases.json" || die "azure_cases.lua failed"
+  node --conditions=bun --experimental-transform-types --no-warnings "$LIB/azure_ref.mjs" "$ROOT/spec/golden/azure/ref.json" || die "node failed"
+}
+
 # pk-bench / pk-vectors (task 24): public-key signing times and node:crypto vectors
 cmd_pk_bench() {
   status=0
@@ -745,7 +756,7 @@ pkg_of() {
 spec_packages() {
   for d in "$PACKAGES"/*/; do
     p=$(basename "$d")
-    if ls "$d.generated-specs" 2>/dev/null | grep -q '\.json$' || [ -f "$d.generated-graphql/$p.json" ]; then
+    if ls "$d.generated-specs" 2>/dev/null | grep -q '\.json$' || ls "$d.generated-specs/stable" 2>/dev/null | grep -q '\.json$' || [ -f "$d.generated-graphql/$p.json" ]; then
       printf '%s\n' "$p"
     fi
   done
@@ -772,6 +783,37 @@ sync_graphql() {
     cp "$g_src" "$g_dst.tmp" && mv "$g_dst.tmp" "$g_dst"
     printf 'changed'
   fi
+}
+
+# sync_json_dir SRC DST: mirror SRC/*.json into DST/ (stale DST/*.json removed; DST's
+# subdirectories are left alone); prints "<models> <new> <changed> <removed>" (task 21)
+sync_json_dir() {
+  sj_new=0
+  sj_changed=0
+  sj_same=0
+  sj_removed=0
+  mkdir -p "$2"
+  for f in "$2"/*.json; do
+    [ -f "$f" ] || continue
+    if [ ! -f "$1/$(basename "$f")" ]; then
+      rm -f "$f"
+      sj_removed=$((sj_removed + 1))
+    fi
+  done
+  for f in "$1"/*.json; do
+    [ -f "$f" ] || continue
+    b=$(basename "$f")
+    if [ ! -f "$2/$b" ]; then
+      sj_new=$((sj_new + 1))
+    elif cmp -s "$f" "$2/$b"; then
+      sj_same=$((sj_same + 1))
+      continue
+    else
+      sj_changed=$((sj_changed + 1))
+    fi
+    cp "$f" "$2/$b.tmp" && mv "$2/$b.tmp" "$2/$b"
+  done
+  printf '%s %s %s %s\n' $((sj_new + sj_changed + sj_same)) "$sj_new" "$sj_changed" "$sj_removed"
 }
 
 NODE_CONVERT="node --conditions=bun --experimental-transform-types --no-warnings"
@@ -819,6 +861,17 @@ cmd_models() {
       fi
     fi
     gq=$(sync_graphql "$pkg")
+    if [ -d "$src/stable" ] && ! ls "$src" | grep -q '\.json$'; then
+      # gcp, google-workspace (task 21): .generated-specs/stable/ (Distilled's preferred
+      # versions, @distilled.cloud/gcp/<service>) -> models/<pkg>/, and unstable/
+      # (@distilled.cloud/gcp/unstable/<service>) -> models/<pkg>/unstable/
+      st=$(sync_json_dir "$src/stable" "$ROOT/models/$pkg")
+      un=$(sync_json_dir "$src/unstable" "$ROOT/models/$pkg/unstable")
+      set -- $st $un
+      total=$((total + $1 + $5))
+      say "ok   $pkg: $1 stable models ($2 new, $3 changed, $4 removed), $5 unstable models ($6 new, $7 changed, $8 removed)"
+      continue
+    fi
     if [ ! -d "$src" ] || ! ls "$src" | grep -q '\.json$'; then
       if [ "$gq" != none ] && [ "$gq" != removed ]; then
         say "ok   $pkg: a GraphQL model only (graphql $gq)"
@@ -831,21 +884,25 @@ cmd_models() {
     fi
     dst="$ROOT/models/$pkg"
     mkdir -p "$dst"
+    # Hand-written models next to the converted ones (cloudflare's k2, aws's simpledb):
+    # Distilled's generate reads them too (scripts/generate.ts manualSpecsDir).
+    manual=""
+    if [ -d "$PACKAGES/$pkg/manual-specs" ] &&
+      grep -q manualSpecsDir "$PACKAGES/$pkg/scripts/generate.ts" 2>/dev/null; then
+      manual="$PACKAGES/$pkg/manual-specs"
+    fi
     new=0
     changed=0
     same=0
     removed=0
-    # manual-specs/ holds hand-written models Distilled's generator reads too (AWS
-    # SimpleDB, task 17)
-    manual="$PACKAGES/$pkg/manual-specs"
     for f in "$dst"/*.json; do
       [ -f "$f" ] || continue
-      if [ ! -f "$src/$(basename "$f")" ] && [ ! -f "$manual/$(basename "$f")" ]; then
+      if [ ! -f "$src/$(basename "$f")" ] && { [ -z "$manual" ] || [ ! -f "$manual/$(basename "$f")" ]; }; then
         rm -f "$f"
         removed=$((removed + 1))
       fi
     done
-    for f in "$src"/*.json "$manual"/*.json; do
+    for f in "$src"/*.json ${manual:+"$manual"/*.json}; do
       [ -f "$f" ] || continue
       b=$(basename "$f")
       if [ ! -f "$dst/$b" ]; then
@@ -947,6 +1004,26 @@ cmd_gen_diff() {
       case $rt in
         lua | luajit) res=$("$rt" "$LIB/gen_check.lua" "$ROOT" "$check_dir" "$lua" 2>&1) ;;
         rex) res=$(rex do "$LIB/gen_check.lua" "root=$ROOT" "dir=$check_dir" "provider=$lua" 2>&1) ;;
+      esac
+      code=$?
+      printf '%s\n' "$res" | grep -v '^"'
+      [ "$code" -eq 0 ] || status=1
+    fi
+    # unstable/ (task 21): the package's second index, <lua>.unstable
+    if [ -f "$check_dir/$lua/unstable/init.lua" ]; then
+      case $rt in
+        lua | luajit) res=$("$rt" "$LIB/gen_check.lua" "$ROOT" "$check_dir" "$lua.unstable" 2>&1) ;;
+        rex) res=$(rex do "$LIB/gen_check.lua" "root=$ROOT" "dir=$check_dir" "provider=$lua.unstable" 2>&1) ;;
+      esac
+      code=$?
+      printf '%s\n' "$res" | grep -v '^"' | grep -v '^note '
+      [ "$code" -eq 0 ] || status=1
+    fi
+    # a package on the GCP protocol (task 21): every op encoded by distilled.gcp.protocol
+    if grep -q 'protocol = "distilled\.gcp\.' "$spec"; then
+      case $rt in
+        lua | luajit) res=$("$rt" "$LIB/gcp_check.lua" "$ROOT" "$check_dir" "$lua" 2>&1) ;;
+        rex) res=$(rex do "$LIB/gcp_check.lua" "root=$ROOT" "dir=$check_dir" "package=$lua" 2>&1) ;;
       esac
       code=$?
       printf '%s\n' "$res" | grep -v '^"'
@@ -1070,6 +1147,8 @@ verify/dl: distilled-lua verification driver
   dl crypto-bench           distilled.crypto throughput (1 MB, HMAC, SigV4) under lua,
                             luajit and rex, checked against the million-"a" digests
   dl crypto-vectors         regenerate spec/golden/{crypto,sigv4}/vectors.lua with Node
+  dl azure-errors           regenerate lua/distilled/azure/errors_data.lua from Distilled's errors.ts
+  dl azure-ref              regenerate spec/fixtures/azure/cases.json and spec/golden/azure/ref.json
                             (node:crypto, aws4fetch from ../distilled)
   dl tencentcloud-ref       regenerate spec/golden/tencentcloud/ref.json with Node
                             (Distilled's Tencent Cloud SDK: signer, requests, responses)
@@ -1101,7 +1180,9 @@ verify/dl: distilled-lua verification driver
                             Exit 3 (skipped) when Docker is not running.
   dl models sync [pkg ...]  copy ../distilled/packages/<pkg>/.generated-specs/*.json to
                             models/<pkg>/ (all packages when none named; git-ignored
-                            except models/neon/). DL_DISTILLED overrides ../distilled
+                            except models/neon/). DL_DISTILLED overrides ../distilled.
+                            stable/ + unstable/ (gcp, google-workspace): models/<pkg>/
+                            and models/<pkg>/unstable/
       --convert             first re-run the package's scripts/convert.ts (Node)
   dl gen-all [pkg ...]      regenerate every package with models/<pkg>/ and
                             providers/<lua>.lua into clients/<lua>/, in parallel (luajit;
@@ -1230,6 +1311,8 @@ case $cmd in
   json-bench) cmd_json_bench "$@" ;;
   crypto-bench) cmd_crypto_bench "$@" ;;
   crypto-vectors) cmd_crypto_vectors "$@" ;;
+  azure-errors) cmd_azure_errors "$@" ;;
+  azure-ref) cmd_azure_ref "$@" ;;
   tencentcloud-ref) cmd_tencentcloud_ref "$@" ;;
   pk-bench) cmd_pk_bench "$@" ;;
   pk-vectors) cmd_pk_vectors "$@" ;;

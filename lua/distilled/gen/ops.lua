@@ -42,6 +42,9 @@ local HTTP_KEYS = {
   server = true,
   baseUrl = true,
   rawDownload = true,
+  -- Azure's ARM api-version, folded into the http trait by its convert.ts (AzureHttpTrait;
+  -- the same value as com.distilled.openapi#apiVersion): op.api_version (gen/azure.lua)
+  apiVersion = true,
 }
 
 --- ops.base_url_variables(url) -> list of `{name}` template variables in order | nil, message
@@ -149,6 +152,10 @@ function ops.http(ctx, op)
   if http.rawDownload ~= nil and type(http.rawDownload) ~= "boolean" then
     return nil, where .. ": smithy.api#http rawDownload must be a boolean"
   end
+  local api_version, aerr = require("distilled.gen.azure").api_version(ctx, op, http)
+  if aerr then
+    return nil, where .. ": " .. aerr
+  end
   return {
     method = string.upper(http.method),
     uri = http.uri,
@@ -159,6 +166,7 @@ function ops.http(ctx, op)
     server = http.server,
     base_url = http.baseUrl,
     raw_download = http.rawDownload == true or nil,
+    api_version = api_version,
   }
 end
 
@@ -299,7 +307,11 @@ function ops.pagination(ctx, op)
     end
   end
   local mode = pg.mode or "token"
-  local fields = CORE_STRATEGY_FIELDS[mode]
+  if not CORE_STRATEGY_FIELDS[mode] then
+    return false, where .. ": smithy.api#paginated mode " .. tostring(mode) .. " is not known"
+  end
+  -- a provider strategy may need fewer fields (Cloudflare's page mode: inputToken only)
+  local fields = (ctx.strategy_fields and ctx.strategy_fields[mode]) or CORE_STRATEGY_FIELDS[mode]
   if not fields then
     return false, where .. ": smithy.api#paginated mode " .. tostring(mode) .. " is not known"
   end
@@ -348,7 +360,11 @@ function ops.pagination(ctx, op)
   end
   -- a provider strategy for the mode (task 27, Distilled's paginationProfiles): Scaleway
   -- pages by total count (paginate.lua strategies.total_count)
-  local out = { mode = (ctx.provider.pagination.modes or {})[mode] or mode }
+  -- and Cloudflare's (gen/cloudflare.lua: trait.strategy picks strategies["cloudflare.<mode>"])
+  local out = {
+    mode = (ctx.provider.pagination.modes or {})[mode] or mode,
+    strategy = ctx.pagination_strategy,
+  }
   if pg.inputToken then
     out.input_token = lua_path(ctx, op.input, pg.inputToken)
   end
@@ -380,6 +396,11 @@ function ops.pagination(ctx, op)
     end
   end
   local items_root = string.match(out.items or "", "^[^%.]+")
+  if items == "" and pg.items == nil then
+    -- items_fallback = "" (gcp: Distilled's token profile with syntheticOutputs [""]): the
+    -- trait names no items, so the operation pages and its _items yields each page
+    return out
+  end
   if ctx.aws and out.items == nil then
     return out
   end
@@ -923,6 +944,7 @@ function ops.descriptor(ctx, op)
     base_url = op.http.base_url,
     server = op.http.server,
     raw_download = op.http.raw_download,
+    api_version = op.http.api_version,
     unsupported = op.unsupported,
     rpc = require("distilled.gen.rpc").field(ctx, op),
     input = emit.call("S.ref", naming.local_name(op.input)),
@@ -933,6 +955,10 @@ function ops.descriptor(ctx, op)
     pagination_methods = ops.renamed_page_methods(op),
     retry = op.retry,
     span = op.span,
+    -- provider fields (Cloudflare: host, jurisdiction, fallback_wire; gen/cloudflare.lua)
+    host = op.extra and op.extra.host,
+    jurisdiction = op.extra and op.extra.jurisdiction,
+    fallback_wire = op.extra and op.extra.fallback_wire,
     -- AWS operations: host prefix, static context params, checksums (gen/aws.lua)
     aws = ctx.aws and require("distilled.gen.aws").op_facts(ctx, op) or nil,
   }

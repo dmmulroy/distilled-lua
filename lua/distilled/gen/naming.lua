@@ -343,13 +343,44 @@ function naming.nearest(word, candidates, n)
 end
 
 --- naming.one_line(doc) -> doc collapsed to one line, or nil
+-- UTF-8 of the non-ASCII White_Space characters (Rust's char::is_whitespace, which
+-- stylua uses to strip trailing whitespace from comments): U+0085, U+00A0, U+1680,
+-- U+2000-U+200A, U+2028, U+2029, U+202F, U+205F, U+3000. Azure's docs end lines with
+-- U+202F; left in, the generated file fails `stylua --check`.
+local UNICODE_SPACE = {
+  "\194\133",
+  "\194\160",
+  "\225\154\128",
+  "\226\128[\128-\138]",
+  "\226\128\168",
+  "\226\128\169",
+  "\226\128\175",
+  "\226\129\159",
+  "\227\128\128",
+}
+
+--- naming.rtrim(s) -> s without trailing whitespace, ASCII or Unicode
+function naming.rtrim(s)
+  local changed = true
+  while changed do
+    changed = false
+    local before = #s
+    s = string.gsub(s, "%s+$", "")
+    for _, pattern in ipairs(UNICODE_SPACE) do
+      s = string.gsub(s, pattern .. "$", "")
+    end
+    changed = #s ~= before
+  end
+  return s
+end
+
 function naming.one_line(doc)
   if type(doc) ~= "string" then
     return nil
   end
   local s = string.gsub(doc, "%s+", " ")
   s = string.gsub(s, "^ ", "")
-  s = string.gsub(s, " $", "")
+  s = naming.rtrim(s)
   if s == "" then
     return nil
   end

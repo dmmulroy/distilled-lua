@@ -1194,6 +1194,109 @@ models"). infisical's client now loads on luajit, and `require` takes 74 ms in R
 - Random bytes for key generation, Coinbase nonces and DPoP `jti` need a host field,
   as task 14 proposed. `ecdsa.private_key(curve, random32)` turns them into a key.
 
+## 20 azure
+
+**Done** (see `tasks/20-azure.done.md` and `verify/features/azure.md`). 223 of 223 models
+generate, 13,869 operations (every TS operation of those models, by name), all build in
+lua, luajit and Rex (`dl gen-diff azure` ok); conformance against Distilled: 1,170
+requests byte for byte, 39 responses, the error module.
+
+### What others can use
+
+- `require("distilled.protocol.azure")`: `azure.new(service, { provider, unknown_tag,
+  parse_tag })` (the module is callable, for the provider spec `protocol` key) wraps
+  `rest.new`: it overrides `protocol.encode` (options resolved with
+  `rest.compile_provider` on every request, then rest's encode) and `protocol.decode`
+  (its own failure path, rest's success path). A template for other bespoke protocols
+  that are "rest plus a few rules".
+- `require("distilled.azure.errors")` (classes, `codes`, `matchers`, `parse_arm`,
+  `class_for`), `require("distilled.azure.credentials")` (`cli`, `managed_identity`
+  token sources).
+- `dl azure-errors`, `dl azure-ref` (Node regenerations; deterministic).
+
+### Generator changes (outside "Azure only", all small; orchestrator please note)
+
+- `gen/ops.lua`: http key `apiVersion` and op field `api_version` (via
+  `gen/azure.lua`, which fails generation for a non-Azure protocol).
+- `gen/init.lua`: the Azure hook after the ctx (greedy leading labels, case-collision
+  names passed to `naming.operation_names` as overrides). Near task 19's cloudflare hook
+  (merge: both stay, in either order).
+- `gen/writer.lua`: a provider spec with both `protocol` and task-13 keys passes
+  `provider = <runtime data>` to the protocol module (no other spec has both today, so
+  no committed client changes).
+- `gen/naming.lua` (`naming.rtrim`, used by `one_line`) and `gen/types.lua`
+  (`doc_lines`): trailing Unicode whitespace is stripped (U+202F in Azure docs broke
+  `stylua --check`). No committed client changed (checked by regenerating all of them).
+- `gen/traits.lua`: the `com.distilled.openapi#apiVersion` entry.
+- `verify/dl`: `azure-errors`, `azure-ref` commands and help lines only.
+
+### Problems found for others
+
+- Parity (`verify/features/parity.md`, regenerated after merging task 26's split-service
+  count): azure 13,869 of 13,887. The 18 "missing" are `planetarycomputer.ts` (6) and
+  `portal.ts` (12): stale TS service files with no model in `.generated-specs` (the
+  convert no longer emits them). Every TS operation of the 223 models exists by name.
+- `t.pending(...)` called inside a running `t.it` does nothing (the test passes
+  silently): `spec/tencentcloud_protocol_spec.lua`'s HTTP case does this. Check
+  `serve.url()` at describe time and call `t.pending` there (as `azure_protocol_spec`).
+- `operation.lua` refreshes credentials only for tag `Unauthorized`. A provider whose
+  401s map to typed classes (Azure's `InvalidAuthenticationToken`) never refreshes.
+  Proposed: refresh on `err.status == 401` (or AuthError with status 401).
+
+
+## 19 cloudflare
+
+**Done.** See `tasks/19-cloudflare.done.md` and `verify/features/cloudflare.md`. 130
+models (129 v4 services plus `k2`) generate into `clients/cloudflare/` (3,128 operations
+and 25 opAlias methods). They load and build every request under lua, luajit and rex
+(`verify/dl gen-diff cloudflare`). Conformance against Distilled's TS SDK: 3,090 cases
+over 536 operations of all 130 models, 0 mismatches (`spec/cloudflare_conform_spec.lua`,
+`verify/conform/cloudflare/`).
+
+### Decisions others should know
+
+- Member names stay as the wire spells them (`naming.members = "wire"`). The models'
+  pagination traits are written in Distilled's camelCase TS names (`perPage`,
+  `resultInfo.page`); `gen/cloudflare.lua` translates them back. Paginated outputs get a
+  `result_info` member, filled from the envelope.
+- `protocol = "distilled.protocol.cloudflare"` in the provider spec: the module is
+  callable (`require(mod)(service, spec)`). It is `rest.new` with its own encode and
+  decode.
+- Pagination: `trait.strategy = "cloudflare"` selects `paginate.strategies
+  ["cloudflare.page"]` (pagination.ts). Other modes fall back to the core ones. A
+  strategy step may return `false` to end a traversal without a page (stop
+  `page_not_advancing`). Neon's modes are unchanged.
+- Response validation treats every Cloudflare union as `unknown`. That is Distilled's
+  unionStyle `opaque-cases`: `S.Unknown.pipe(T.UnionCases(...))`. It is done with a lazy
+  validation view of the registry in `protocol/cloudflare.lua`. Decoding still picks an
+  arm.
+- Distilled's `validatePaginated`: an unusable pagination trait is dropped with a
+  generator warning, not a failure.
+- opAliases (model metadata) are emitted as second methods on the target operation, as
+  generator.ts `export const alias = target`.
+
+### Contract proposals (orchestrator)
+
+- `errors.match`: Distilled's `matchTypedError` builds the class with `code: best.code ??
+  0`, while ours leaves `code` nil. A status-only match on an envelope-less 404 shows the
+  difference. The Cloudflare protocol sets 0 itself. Proposal: core does it, for every
+  protocol.
+- `validate.check`: an `opaque` union flag (accept any value) would replace the
+  Cloudflare registry view.
+
+### Edits outside my file list
+
+- `verify/dl` `cmd_models`: `models sync <pkg>` also copies `manual-specs/*.json` when
+  the package's `scripts/generate.ts` reads `manualSpecsDir` (Cloudflare's `k2`; AWS has
+  the same layout).
+- `spec/provider_spec.lua`: `"cloudflare"` added to the provider list (one line), or the
+  listing test fails.
+- Hooks in `gen/init.lua`, `gen/ops.lua`, `gen/shapes.lua`, `gen/traits.lua` and
+  `gen/writer.lua` (Cloudflare support, allowed by the brief). Each one is `if
+  ctx.cloudflare` or a nil-safe field.
+- New `verify/conform/cloudflare/` (cases.lua, ts.mjs, compare.lua, intended.lua,
+  run.lua, lib.lua, and the saved cases.jsonl and ref.jsonl).
+
 ## 26 clients
 
 **Done.** See `tasks/26-clients.done.md`. 89 REST packages generated and committed
@@ -1365,3 +1468,60 @@ slack 355, scaleway 1580, questrade 25.
   filesystem / process overrides (EnvdProtocol: sandbox headers, host, empty JSON bodies,
   `providers/glue/e2b_envd.lua`) and volume_content's (VolumeContentProtocol). The Connect
   streaming parts are task 23's; expect a conflict there.
+
+
+## 21 gcp
+
+**Done.** See `tasks/21-gcp.done.md` and `verify/features/gcp.md`. gcp: 529/529 models
+(315 stable + 214 unstable), 31,288 ops; google_workspace: 35/35 (28 + 7), 1,021 ops (the
+TS count). `dl gen-diff gcp` and `dl gen-diff google-workspace` ok in all three runtimes,
+every op also encoded through the package protocol (`verify/lib/gcp_check.lua`).
+Conformance with Distilled's TS: 1,078 requests, 26 responses, 3 pagination flows, 0
+mismatches (`spec/gcp_conform_spec.lua`).
+
+### Layout decision
+
+`.generated-specs/stable/` → `models/<pkg>/`, `unstable/` → `models/<pkg>/unstable/`
+(`dl models sync`). `bin/distilled-lua package` generates `<models>/unstable/*.json` into
+`<out>/unstable/<model>/` as `<pkg>.unstable.<model>` with its own index
+(`require("gcp.unstable")`), mirroring `@distilled.cloud/gcp/<service>` and its unstable
+entry point.
+
+### What others can use
+
+- Provider spec key **`discovery = { error_matchers = "<ns#trait>" }`** (`gen/discovery.lua`)
+  for Google discovery models: relative `v1/{+name}` URIs → `/v1/{name+}`, structure
+  payload bodies flattened into top-level members, per-model base URL from
+  `metadata.baseUrl`, matcher trait → typed error matchers, `details` member on error
+  structs, trailing `_` dropped from op names. No `base_url` needed with `discovery`.
+- `distilled.gcp.credentials`: providers (`from_application_default`, `from_authorized_user`,
+  `from_service_account_key`, `from_metadata_server`, `from_workload_identity`,
+  `from_access_token`, `from_env`, `custom(fn)`), `refreshing(kind, source, overrides)`,
+  `parse_time`, `sign_assertion`. The `credentials` client option takes a provider table.
+- Provider option `type = "table"` (`gen/provider_ext.lua`): a non-secret option checked
+  as a table, documented as `table`.
+- Pagination trait without `items` (`items_fallback = ""`): `*_items` yields whole pages.
+
+### Edits outside my files (small hooks; please keep when merging)
+
+- `bin/distilled-lua` (package: `generate_models` loop, `unstable/` sub-package).
+- `gen/provider.lua` (`discovery` in TOP, placeholder base URL), `gen/init.lua`
+  (discovery.prepare hook, op-name `_` strip, `gen.index` `local_name` and dir path),
+  `gen/writer.lua` (discovery base_url line; `table` option docs), `gen/types.lua`
+  (`table` option type), `gen/provider_ext.lua` (`type = "table"`), `gen/ops.lua`
+  (items_fallback ""), `lua/distilled/paginate.lua` (page as item when no items path).
+- `verify/dl`: models sync for stable/unstable; `gen-diff` also checks `<lua>.unstable`
+  and runs `verify/lib/gcp_check.lua` for `distilled.gcp.*` protocols.
+- `spec/provider_spec.lua`: `gcp`, `google_workspace` added to its list.
+
+### Notes for others
+
+- No LRO helpers: Distilled has none either (Operation results are plain data).
+- No `User-Agent` set: Distilled's GCP/Workspace protocols set none.
+- `verify/features/parity.md` not regenerated (shared): `dl parity` shows
+  `gcp 13901 13290 315/0 611` — the 611 are TS files without a stable model (explained in
+  `verify/features/gcp.md`); `google-workspace 708 708`. parity.lua counts stable only.
+- `verify/features/README.md` should list `gcp.md` (task 21).
+- `clients/gcp` is 187 MB; `dl gen-diff gcp` takes ~2.5 min.
+- Contract additions for `docs/interfaces.md`: provider spec keys `discovery` and option
+  `type = "table"`; error field `rpc_status` (envelope status; Distilled `status`).

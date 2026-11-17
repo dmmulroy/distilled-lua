@@ -286,10 +286,17 @@ t.describe("gen.ops: http trait and selection", function()
   t.it("refuses an unsupported http key and method", function()
     local _, err = fx.generate({
       replace = {
+        { '"uri": "/names", "code": 200', '"uri": "/names", "code": 200, "frobnicate": "x"' },
+      },
+    })
+    t.match(err, "smithy.api#http has unsupported key frobnicate", true)
+    -- apiVersion is Azure's (task 20): only the Azure protocol may carry it
+    _, err = fx.generate({
+      replace = {
         { '"uri": "/names", "code": 200', '"uri": "/names", "code": 200, "apiVersion": "x"' },
       },
     })
-    t.match(err, "smithy.api#http has unsupported key apiVersion", true)
+    t.match(err, "api-version x needs the Azure protocol", true)
     _, err = fx.generate({
       replace = { { '"method": "GET", "uri": "/names"', '"method": "TRACE", "uri": "/names"' } },
     })
