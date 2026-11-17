@@ -288,6 +288,17 @@ cmd_crypto_vectors() {
   stylua "$ROOT/spec/golden/crypto/vectors.lua" "$ROOT/spec/golden/sigv4/vectors.lua"
 }
 
+# azure-errors / azure-ref (task 20): the Azure error data and conformance reference
+cmd_azure_errors() {
+  node --conditions=bun --experimental-transform-types --no-warnings "$LIB/azure_errors_port.mjs" "$ROOT/lua/distilled/azure/errors_data.lua" || die "node failed"
+  stylua "$ROOT/lua/distilled/azure/errors_data.lua"
+}
+
+cmd_azure_ref() {
+  luajit "$LIB/azure_cases.lua" "$ROOT" "$ROOT/spec/fixtures/azure/cases.json" || die "azure_cases.lua failed"
+  node --conditions=bun --experimental-transform-types --no-warnings "$LIB/azure_ref.mjs" "$ROOT/spec/golden/azure/ref.json" || die "node failed"
+}
+
 # pk-bench / pk-vectors (task 24): public-key signing times and node:crypto vectors
 cmd_pk_bench() {
   status=0
@@ -1053,6 +1064,8 @@ verify/dl: distilled-lua verification driver
   dl crypto-bench           distilled.crypto throughput (1 MB, HMAC, SigV4) under lua,
                             luajit and rex, checked against the million-"a" digests
   dl crypto-vectors         regenerate spec/golden/{crypto,sigv4}/vectors.lua with Node
+  dl azure-errors           regenerate lua/distilled/azure/errors_data.lua from Distilled's errors.ts
+  dl azure-ref              regenerate spec/fixtures/azure/cases.json and spec/golden/azure/ref.json
                             (node:crypto, aws4fetch from ../distilled)
   dl pk-bench               RS256 (2048-4096), ES256, ES256K and EdDSA signing times under
                             lua, luajit and rex, each checked against node:crypto
@@ -1191,6 +1204,8 @@ case $cmd in
   json-bench) cmd_json_bench "$@" ;;
   crypto-bench) cmd_crypto_bench "$@" ;;
   crypto-vectors) cmd_crypto_vectors "$@" ;;
+  azure-errors) cmd_azure_errors "$@" ;;
+  azure-ref) cmd_azure_ref "$@" ;;
   pk-bench) cmd_pk_bench "$@" ;;
   pk-vectors) cmd_pk_vectors "$@" ;;
   xml-bench) cmd_xml_bench "$@" ;;
