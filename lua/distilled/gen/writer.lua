@@ -52,8 +52,8 @@ end
 --   * LuaJIT refuses a function with more than 65,536 constants (infisical's service.lua);
 --   * gopher-lua compiles a function in time quadratic in its distinct constants: 65,000
 --     take 7 s, the same code in 64 KB files 0.03 s. Its own limit is 262,143;
---   * gopher-lua compiles about 1.5 MB/s of shape code even when split: loading every
---     shape of a 15 MB service takes 0.5 s, hence lazy shapes.
+--   * split, gopher-lua still needs 0.57 s to load all of infisical's 15 MB of shapes
+--     (Neon's whole service: 24 ms), hence lazy shapes.
 -- Sizes are of the emitted source; constants are emit.scan's upper bound.
 writer.SINGLE_FILE_MAX_BYTES = 512 * 1024
 writer.SINGLE_FILE_MAX_CONSTANTS = 20000

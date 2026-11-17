@@ -860,8 +860,8 @@ models"). infisical's client now loads on luajit, and `require` takes 74 ms in R
   layout; no other change.
 - New verify scripts (measurement only): `verify/lib/load_bench.lua`,
   `verify/lib/big_models.sh`, `verify/lib/bench_sanitize.mjs`, `verify/lib/big_synth.lua`,
-  `verify/lib/lua_limits.lua`. Proposed: `dl big-models` / `dl lua-limits` wrappers in
-  `verify/dl`, and a row in `verify/features/README.md` is not needed (generator.md).
+  `verify/lib/lua_limits.lua`. Proposed (orchestrator): `dl big-models` / `dl lua-limits`
+  wrappers in `verify/dl`.
 
 ### For the AWS / Azure / Cloudflare / GCP / Tencent tasks
 
