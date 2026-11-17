@@ -63,6 +63,78 @@ local function is_record(v)
   return type(v) == "table" and v ~= null and not json.is_array(v) and not secret.is(v)
 end
 
+-- Validation sees every union as `unknown`. Distilled's Cloudflare generator emits
+-- unions with unionStyle "opaque-cases" (scripts/generate.ts): the schema is
+-- `S.Unknown.pipe(T.UnionCases(...))`, so a validating mode accepts any value there --
+-- Cloudflare returns every case's keys, null for the inactive ones, which no single
+-- arm would accept. Decoding still picks an arm (keys.decode, schema.pick_arm).
+-- The view is a lazy copy of the registry, built once per registry and node; registries
+-- and nodes live as long as the generated service, so the caches stay bounded.
+local OPAQUE = { t = "unknown" }
+local opaque_nodes = {} -- original node -> node with unions replaced
+local opaque_views = {} -- registry -> view registry
+local MAX_INLINE_DEPTH = 32
+
+local function opaque_node(node, depth)
+  if type(node) ~= "table" or node.t == "ref" then
+    return node
+  end
+  if node.t == "union" then
+    return OPAQUE
+  end
+  local done = opaque_nodes[node]
+  if done then
+    return done
+  end
+  local t = node.t
+  if depth > MAX_INLINE_DEPTH or (t ~= "struct" and t ~= "list" and t ~= "map") then
+    return node
+  end
+  -- inline nesting only (named shapes are refs): bounded by the schema, not the data
+  local copy = {}
+  for k, v in pairs(node) do
+    copy[k] = v
+  end
+  if t == "list" then
+    copy.item = opaque_node(node.item, depth + 1)
+  elseif t == "map" then
+    copy.value = opaque_node(node.value, depth + 1)
+  else
+    local members = {}
+    for i, m in ipairs(node.members or {}) do
+      local mc = {}
+      for k, v in pairs(m) do
+        mc[k] = v
+      end
+      mc.schema = opaque_node(m.schema, depth + 1)
+      members[i] = mc
+    end
+    copy.members = members
+  end
+  opaque_nodes[node] = copy
+  return copy
+end
+
+local function opaque_view(registry)
+  local view = opaque_views[registry]
+  if view == nil then
+    view = setmetatable({}, {
+      __index = function(t, name)
+        local n = registry[name]
+        if n == nil then
+          return nil
+        end
+        local c = opaque_node(n, 0)
+        rawset(t, name, c)
+        return c
+      end,
+    })
+    opaque_views[registry] = view
+  end
+  return view
+end
+cloudflare.opaque_view = opaque_view
+
 -- JavaScript /.../i: the patterns below are written in lower case and tested against the
 -- lower-cased message (ASCII case folding; Cloudflare's messages are English).
 local PATTERNS = {
@@ -438,6 +510,11 @@ function cloudflare.new(opts)
       headers = headers,
     })
     if typed then
+      -- matchTypedError builds the class with `code: best.code ?? 0` (an envelope-less
+      -- 404 matched by a status matcher still has code 0)
+      if typed.code == nil then
+        typed.code = 0
+      end
       return tag_blip(typed)
     end
 
@@ -585,7 +662,12 @@ function cloudflare.new(opts)
         return nil, parse_error(op, "[REDACTED]", "Invalid JSON response")
       end
       if mode ~= "lenient" then
-        local ok, mismatch = validate.check(output, value, registry, { exact = mode == "strict" })
+        local ok, mismatch = validate.check(
+          opaque_node(output, 0),
+          value,
+          opaque_view(registry),
+          { exact = mode == "strict" }
+        )
         if not ok then
           if sensitive then
             return nil, parse_error(op, "[REDACTED]", validate.withhold(mismatch))
@@ -664,6 +746,7 @@ function cloudflare.new(opts)
         return nil,
           parse_error(op, wire_body, {
             path = { extra[1] },
+            expected = "no value (the schema does not model this key)",
             actual = rawget(payload, extra[1]),
             message = "no value (the schema does not model this key)",
           })

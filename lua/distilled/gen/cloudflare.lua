@@ -112,6 +112,16 @@ function cloudflare.ts_member_name(n)
   return lowered
 end
 
+--- cloudflare.ts_export_name(op_name) -> Distilled's TS export of an operation
+-- (lowerFirst: `GetZone` -> `getZone`, `Delete` stays `Delete`, a reserved word)
+function cloudflare.ts_export_name(name)
+  local lowered = string.lower(string.sub(name, 1, 1)) .. string.sub(name, 2)
+  if RESERVED[lowered] then
+    return name
+  end
+  return lowered
+end
+
 --- cloudflare.camel_to_snake(key) -> protocol.ts camelToSnake (unknown input keys)
 function cloudflare.camel_to_snake(key)
   return string.lower((string.gsub(key, "([a-z0-9])([A-Z])", "%1_%2")))
