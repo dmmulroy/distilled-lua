@@ -6,6 +6,7 @@ return {
   "conform_diff_spec.lua",
   "conform_replay_spec.lua",
   "credentials_spec.lua",
+  "crypto_pk_spec.lua",
   "crypto_spec.lua",
   "errors_spec.lua",
   "gen_emit_spec.lua",
