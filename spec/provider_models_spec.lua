@@ -118,6 +118,18 @@ t.describe("provider spec models.override: auth, options, headers (task 27)", fu
   end)
 end)
 
+t.describe("provider spec pagination.modes (task 27)", function()
+  t.it("maps a trait mode to a runtime strategy; refuses unknown modes", function()
+    local spec =
+      assert(provider.validate(base_spec({ pagination = { modes = { page = "total_count" } } })))
+    t.same(spec.pagination.modes, { page = "total_count" })
+    local _, err = provider.validate(base_spec({ pagination = { modes = { page = "pages" } } }))
+    t.match(err, "pagination.modes.page: pages is not a distilled.paginate mode", true)
+    _, err = provider.validate(base_spec({ pagination = { modes = { offset = "page" } } }))
+    t.match(err, "pagination.modes: offset is not a trait mode", true)
+  end)
+end)
+
 t.describe("clerk.platform (ClerkPlatformProtocol)", function()
   local Platform = require("clerk.platform")
   t.it("bearer CLERK_PLATFORM_API_KEY, no Clerk-API-Version, /v1 appended once", function()

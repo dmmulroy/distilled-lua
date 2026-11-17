@@ -40,6 +40,7 @@ return {
   "rest_spec.lua",
   "retry_spec.lua",
   "rex_host_spec.lua",
+  "scaleway_client_spec.lua",
   "schema_spec.lua",
   "scope_spec.lua",
   "secret_spec.lua",
