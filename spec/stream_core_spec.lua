@@ -282,7 +282,10 @@ t.describe("stream: Boat's NDJSON operations", function()
   t.it("a frame that is not JSON ends the stream with the parse error", function()
     local tr = testing.stream_transport({
       responses = {
-        { headers = NDJSON, chunks = { '{"type":"started"}\n', "not json\n", '{"type":"exit"}\n' } },
+        {
+          headers = NDJSON,
+          chunks = { '{"type":"started"}\n', "not json\n", '{"type":"exit"}\n' },
+        },
       },
     })
     local s = ok(boat(tr):execute_sandbox_command_stream(EXEC))
@@ -393,5 +396,17 @@ t.describe("stream: Boat's NDJSON operations", function()
     local v, err = s:next()
     t.eq(v, nil)
     t.eq(err.tag, "BoatParseError")
+  end)
+end)
+
+t.describe("stream: curl config of a streamed transfer", function()
+  t.it("the header dump goes to fd 5 (headers, then trailers), never to stdout", function()
+    local cd = require("distilled.transport.curl_duplex")
+    local text =
+      cd.config({ method = "GET", url = "http://h.test/x", headers = { a = "b" } }, "body")
+    t.match(text, 'dump-header = "/dev/fd/5"', true)
+    t.no_match(text, 'dump-header = "-"', true)
+    t.no_match(text, "write-out", true)
+    t.eq(cd.HEADER_FD, 5)
   end)
 end)

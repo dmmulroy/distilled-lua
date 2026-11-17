@@ -229,9 +229,12 @@ function M.conn(proc, req)
       if status_line == nil or status_line == "" then
         return nil, failure() or transport_error("curl output has no HTTP status line")
       end
-      local status = tonumber(string.match(status_line, "^HTTP/[%d.]+%s+(%d%d%d)"))
+      local code = string.match(status_line, "^HTTP/[%d.]+%s+(%d%d%d)")
+      local status = code and tonumber(code)
       if not status then
-        return nil, transport_error("curl output does not start with an HTTP status line")
+        -- in Rex the header channel is stderr: curl's own failure message lands here
+        return nil,
+          failure() or transport_error("curl output does not start with an HTTP status line")
       end
       local block = { status_line }
       while true do

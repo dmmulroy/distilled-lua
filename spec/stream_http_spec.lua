@@ -428,4 +428,16 @@ t.describe("streams over HTTP (dl serve)", function()
       t.eq(got[2].code, 5)
     end
   )
+
+  t.it(
+    "a refused connection is a TransportError naming curl's failure, not a header line",
+    function()
+      local res, err =
+        host.transport.stream({ method = "GET", url = "http://127.0.0.1:9/x", headers = {} })
+      t.eq(res, nil)
+      t.eq(err.tag, "TransportError")
+      t.eq(err.curl_code, 7)
+      t.match(err.message, "^curl: %(7%)")
+    end
+  )
 end)
