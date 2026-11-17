@@ -993,6 +993,8 @@ function ext.validate(raw, out, p, opts)
       choices = o.choices,
       doc = o.doc,
       base_url = name == b.option or nil,
+      -- a table option (task 21) is documented as one; other types keep "text"
+      table = o.type == "table" or nil,
     }
   end
   if b.option and base_rt.default == nil then

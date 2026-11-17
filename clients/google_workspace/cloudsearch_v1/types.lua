@@ -1371,7 +1371,7 @@
 
 ---@class google_workspace.cloudsearch_v1.Options
 ---@field access_token? string|distilled.Secret|fun(host: table): (string|distilled.Secret|nil, distilled.Error?)
----@field credentials? string
+---@field credentials? table
 ---@field host? table The host seams: transport, sleep, now, exec, random, getenv, epoch
 ---@field transport? fun(request: table): (table?, distilled.Error?)
 ---@field sleep? fun(seconds: number)

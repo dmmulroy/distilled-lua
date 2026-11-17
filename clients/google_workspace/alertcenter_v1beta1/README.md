@@ -20,7 +20,7 @@ local client = GoogleWorkspaceAlertcenterV1beta1.new({
 | Option | Meaning |
 | --- | --- |
 | `access_token` | secret: a string, a secret, or `fn(host) -> value, err`; An OAuth2 access token (`gcloud auth print-access-token`). Default: GOOGLE_ACCESS_TOKEN. |
-| `credentials` | text; A credentials provider from `distilled.gcp.credentials` (from_authorized_user, from_service_account_key, from_application_default, ...); wins over access_token. |
+| `credentials` | table; A credentials provider from `distilled.gcp.credentials` (from_authorized_user, from_service_account_key, from_application_default, ...); wins over access_token. |
 | `host`, `transport`, `sleep`, ... | the host seams (see distilled's docs/interfaces.md) |
 | `retry`, `deadline_s`, `tracing`, `validation` | the common client options |
 
