@@ -168,3 +168,19 @@ Checks, after `git merge main` (task 26):
   rex 1668, 0 failed.
 - In a fresh `git clone` of the branch, `verify/dl doctor` was ok and `verify/dl test
   cloudflare` passed 82/82 in all three runtimes.
+
+## Merge with main (tasks 17 aws, 25 s3)
+
+The conflicts were in `gen/init.lua`, `ops.lua`, `shapes.lua` and `traits.lua`: the
+Cloudflare and AWS hooks sat side by side. Both were kept. In `ops.pagination`, AWS's
+items rule now comes before `local out = { mode = mode, strategy =
+ctx.pagination_strategy }`.
+
+Checks after the merge:
+
+- `verify/dl doctor` was ok.
+- `verify/dl test` passed: lua 1857, luajit 1857, rex 1844, 0 failed.
+- `gen-diff cloudflare` and `gen-diff neon` were ok.
+- s3 (an AWS model, checked by hand as task 25 does): generating with lua and with luajit
+  gives files identical to `clients/s3`. gen-check passed under lua and luajit, with
+  111/112 ops built and 1 acknowledged unsupported.
