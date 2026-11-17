@@ -385,6 +385,30 @@ t.describe("aws client: errors and retry", function()
   end)
 end)
 
+t.describe("aws client: optionalAuth", function()
+  t.it("an auth: [] operation is signed, and fails without credentials, as in Distilled", function()
+    local STS = require("aws.sts")
+    local xml = { ["content-type"] = "text/xml" }
+    local ok_body = "<AssumeRoleWithWebIdentityResponse><AssumeRoleWithWebIdentityResult>"
+      .. "</AssumeRoleWithWebIdentityResult></AssumeRoleWithWebIdentityResponse>"
+    local input = {
+      RoleArn = "arn:aws:iam::123456789012:role/r",
+      RoleSessionName = "s",
+      WebIdentityToken = "jwt",
+    }
+    local c, host = client(STS, { { status = 200, headers = xml, body = ok_body } })
+    assert(c:assume_role_with_web_identity(input))
+    t.truthy(header(host.requests[1], "authorization"), "signed")
+    local none = function()
+      return nil, require("distilled.errors").new("ConfigError", { message = "no creds" })
+    end
+    local c2, host2 = client(STS, {}, { credentials = none })
+    local out, err = c2:assume_role_with_web_identity(input)
+    t.fails_with("ConfigError", out, err)
+    t.eq(#host2.requests, 0)
+  end)
+end)
+
 t.describe("aws client: SigV2, bearer and gzip services", function()
   t.it("SimpleDB signs with SigV2 in the body (the signature Distilled computes)", function()
     local SimpleDB = require("aws.simpledb")

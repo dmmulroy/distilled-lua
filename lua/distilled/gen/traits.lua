@@ -182,8 +182,9 @@ traits.AWS = {
   ["smithy.api#requestCompression"] = aws_handled(
     "op.aws.gzip: gzip bodies of at least 10 KiB (aws/gzip.lua)"
   ),
-  ["smithy.api#auth"] = aws_handled("an empty list: op.aws.optional_auth"),
-  ["smithy.api#optionalAuth"] = aws_handled("op.aws.optional_auth"),
+  -- noted on the op; such operations are signed like the rest, as in Distilled
+  ["smithy.api#auth"] = aws_handled("an empty list: op.aws.optional_auth (signed anyway)"),
+  ["smithy.api#optionalAuth"] = aws_handled("op.aws.optional_auth (signed anyway)"),
   ["smithy.api#clientOptional"] = aws_handled("not required on input"),
   ["smithy.api#addedDefault"] = aws_ignored("a default added later: no behaviour"),
   ["smithy.api#default"] = aws_ignored("defaults are the service's; members stay optional"),

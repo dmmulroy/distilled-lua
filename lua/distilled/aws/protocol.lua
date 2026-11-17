@@ -408,7 +408,6 @@ function M.new(service, args)
     input = copy
 
     local identity, ierr
-    local unsigned = false
     if args.auth == "bearer" then
       identity = {}
     elseif opts.credentials ~= nil then
@@ -416,9 +415,6 @@ function M.new(service, args)
       if not identity then
         return nil, ierr
       end
-    elseif op.aws and op.aws.optional_auth then
-      unsigned = true
-      identity = { region = aws_credentials.region(host) }
     else
       return nil, errors.new("ConfigError", { message = "no AWS credentials", key = "credentials" })
     end
@@ -563,9 +559,6 @@ function M.new(service, args)
         return nil, errors.new("ConfigError", { message = "no bearer token", key = "token" })
       end
       headers["Authorization"] = "Bearer " .. token
-      return out
-    end
-    if unsigned then
       return out
     end
     if args.auth == "sigv2" then
@@ -846,11 +839,11 @@ function M.new(service, args)
       opts, cerr = tracer:with("distilled.credentials", { debug = true }, function()
         return ctx.credentials()
       end)
+      -- an optionalAuth operation needs credentials too, as in Distilled (which signs
+      -- every request): the client resolves every option at once, so without them
+      -- there is no region or endpoint either
       if opts == nil then
-        if not (op.aws and op.aws.optional_auth) then
-          return nil, cerr
-        end
-        opts = {}
+        return nil, cerr
       end
     end
 
