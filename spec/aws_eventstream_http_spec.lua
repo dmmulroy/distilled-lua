@@ -87,6 +87,29 @@ t.describe("aws event streams over HTTP (dl serve)", function()
     t.eq(type(plain.duplex), "function")
   end)
 
+  t.it("transport.stream keeps task 29's reader contract", function()
+    local res =
+      ok(plain.stream({ method = "GET", url = serve.url() .. "/_dl/bytes?n=1000", headers = {} }))
+    t.eq(res.status, 200)
+    local all = serve.pattern_bytes(1000)
+    t.eq(ok(res.body:read_exact(10)), string.sub(all, 1, 10))
+    t.eq(ok(res.body:read_all()), string.sub(all, 11))
+    local v, err = res.body:read_exact(1)
+    t.eq(v, nil, "clean EOF")
+    t.eq(err, nil, "clean EOF")
+    res.body:close()
+    res.body:close() -- idempotent
+    -- closed mid-body: curl is stopped
+    res = ok(
+      plain.stream({ method = "GET", url = serve.url() .. "/_dl/bytes?n=5000000", headers = {} })
+    )
+    t.eq(#ok(res.body:read_exact(100)), 100)
+    res.body:close()
+    v, err = res.body:read_exact(1)
+    t.eq(v, nil)
+    t.eq(err and err.tag, "TransportError", "a read after close")
+  end)
+
   t.it("an output stream's events arrive one at a time", function()
     control("POST", "/_dl/eventstream/reset")
     local path = "/esh1/model/m/converse-stream"
