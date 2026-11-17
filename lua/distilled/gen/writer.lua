@@ -113,6 +113,9 @@ end
 
 --- writer.client(plan) -> source of init.lua
 function writer.client(plan)
+  if plan.ctx.cloudflare then
+    return require("distilled.gen.cloudflare").client(plan)
+  end
   local spec = plan.provider
   local b = emit.buffer()
   b:lines_of(
@@ -321,7 +324,9 @@ function writer.readme(plan)
   add()
   add("local " .. spec.title .. ' = require("' .. spec.name .. '")')
   add("local client = " .. spec.title .. ".new({")
-  if spec.auth.kind ~= "none" then
+  if plan.ctx.cloudflare then
+    add("  api_token = token, -- default: $CLOUDFLARE_API_TOKEN")
+  elseif spec.auth.kind ~= "none" then
     local env = spec.auth.env and (" -- default: $" .. spec.auth.env) or ""
     add("  " .. spec.auth.from .. " = key," .. env)
   end
@@ -331,7 +336,9 @@ function writer.readme(plan)
   add()
   add("| Option | Meaning |")
   add("| --- | --- |")
-  if spec.auth.kind ~= "none" then
+  if plan.ctx.cloudflare then
+    require("distilled.gen.cloudflare").readme_options(plan, add)
+  elseif spec.auth.kind ~= "none" then
     add(
       "| `"
         .. spec.auth.from

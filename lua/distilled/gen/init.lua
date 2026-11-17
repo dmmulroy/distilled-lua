@@ -211,6 +211,14 @@ function gen.plan(args)
     greedy = {},
     items_root = {},
   }
+  -- Cloudflare's v4 envelope models (gen/cloudflare.lua): model rewrites and hooks
+  local cloudflare = require("distilled.gen.cloudflare")
+  if cloudflare.applies(m) then
+    local ok, cerr = cloudflare.prepare(ctx)
+    if not ok then
+      return nil, cerr
+    end
+  end
 
   -- method names for every operation (collisions are checked over the whole model, so
   -- `--ops` cannot hide one)
@@ -281,7 +289,11 @@ function gen.plan(args)
           for _, mem in ipairs(m:members(in_def)) do
             local bind = shapes.binding(mem.traits)
             if bind == "label" then
-              if not placeholder[mem.name] then
+              -- a label may name the operation's own host instead (Cloudflare's host)
+              local host_label = ctx.host_labels
+                and ctx.host_labels[op.id]
+                and ctx.host_labels[op.id][mem.name]
+              if not placeholder[mem.name] and not host_label then
                 problems[#problems + 1] = op.id
                   .. ": label member "
                   .. mem.name
@@ -343,6 +355,10 @@ function gen.plan(args)
   end
   if #problems > 0 then
     return fail(problems)
+  end
+
+  if ctx.cloudflare then
+    cloudflare.after_select(ctx, plan_ops)
   end
 
   -- request-reachable shapes (for the @default rule)

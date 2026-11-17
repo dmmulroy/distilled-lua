@@ -284,7 +284,11 @@ function ops.pagination(ctx, op)
     end
   end
   local mode = pg.mode or "token"
-  local fields = CORE_STRATEGY_FIELDS[mode]
+  if not CORE_STRATEGY_FIELDS[mode] then
+    return false, where .. ": smithy.api#paginated mode " .. tostring(mode) .. " is not known"
+  end
+  -- a provider strategy may need fewer fields (Cloudflare's page mode: inputToken only)
+  local fields = (ctx.strategy_fields and ctx.strategy_fields[mode]) or CORE_STRATEGY_FIELDS[mode]
   if not fields then
     return false, where .. ": smithy.api#paginated mode " .. tostring(mode) .. " is not known"
   end
@@ -326,7 +330,7 @@ function ops.pagination(ctx, op)
   -- validatePaginated: the token must be an input member and the items root an output
   -- member; Distilled quietly degrades such an operation to a plain one, we fail.
   local items = pg.items or ctx.provider.pagination.items_fallback
-  local out = { mode = mode }
+  local out = { mode = mode, strategy = ctx.pagination_strategy }
   if pg.inputToken then
     out.input_token = lua_path(ctx, op.input, pg.inputToken)
   end
@@ -906,6 +910,10 @@ function ops.descriptor(ctx, op)
     pagination_methods = ops.renamed_page_methods(op),
     retry = op.retry,
     span = op.span,
+    -- provider fields (Cloudflare: host, jurisdiction, fallback_wire; gen/cloudflare.lua)
+    host = op.extra and op.extra.host,
+    jurisdiction = op.extra and op.extra.jurisdiction,
+    fallback_wire = op.extra and op.extra.fallback_wire,
   }
 end
 
