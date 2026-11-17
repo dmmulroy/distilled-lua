@@ -163,6 +163,7 @@ local NAMES = {
   "supabase",
   "surrealdb",
   "tailscale",
+  "technitium",
   "temporal",
   "trigger_dev",
   "turbopuffer",
@@ -1061,5 +1062,68 @@ t.describe("providers: the new keys are validated strictly", function()
       fx.generate({ provider = fx.provider({ public_operations = { "Nope" } }) })
     t.eq(files2, nil)
     t.match(gerr2, "public_operations names an unknown operation Nope", true)
+  end)
+end)
+
+t.describe("providers: Technitium's 2xx envelope", function()
+  local ENV = { TECHNITIUM_API_TOKEN = "tt", TECHNITIUM_API_URL = "http://localhost:5380/" }
+
+  t.it("status ok yields response, or the body without the envelope members", function()
+    local c, host = client("technitium", {
+      env = ENV,
+      responses = {
+        json_response({ status = "ok", response = THING }),
+        json_response({ status = "ok", server = "dns1", thing = { id = "t2" } }),
+      },
+    })
+    t.eq(must(c:get_thing({ thing_id = "x" })).thing.id, "t1")
+    t.eq(host.requests[1].url, "http://localhost:5380/things/x")
+    t.eq(host.requests[1].headers.authorization, "Bearer tt")
+    t.eq(must(c:get_thing({ thing_id = "x" })).thing.id, "t2")
+  end)
+
+  t.it("error, invalid-token, 2fa-required, other statuses and non-objects", function()
+    local c = client("technitium", {
+      env = ENV,
+      responses = {
+        json_response({ status = "error", errorMessage = "Zone exists", innerErrorMessage = "dup" }),
+        json_response({ status = "error", errorMessage = "Access was denied." }),
+        json_response({ status = "invalid-token", errorMessage = "Invalid token" }),
+        json_response({ status = "2fa-required", errorMessage = "Need OTP" }),
+        json_response({ status = "weird" }),
+        json_response({ 1, 2 }),
+        json_response({ errorMessage = "Not here" }, 404),
+      },
+    })
+    local e1 = t.fails_with("TechnitiumError", c:get_thing({ thing_id = "x" }))
+    t.eq(e1.message, "Zone exists")
+    t.eq(e1.innerMessage, "dup")
+    t.truthy(errors.has_category(e1, "BadRequestError"))
+    t.fails_with("Forbidden", c:get_thing({ thing_id = "x" }))
+    t.fails_with("Unauthorized", c:get_thing({ thing_id = "x" }))
+    t.truthy(
+      errors.has_category(
+        t.fails_with("TwoFactorAuthRequired", c:get_thing({ thing_id = "x" })),
+        "AuthError"
+      )
+    )
+    t.eq(
+      t.fails_with("UnknownTechnitiumError", c:get_thing({ thing_id = "x" })).message,
+      'Unknown status "weird"'
+    )
+    t.eq(
+      t.fails_with("UnknownTechnitiumError", c:get_thing({ thing_id = "x" })).message,
+      "Response is not a JSON object"
+    )
+    t.eq(t.fails_with("NotFound", c:get_thing({ thing_id = "x" })).message, "Not here")
+  end)
+
+  t.it("the server URL must be an origin, https unless loopback", function()
+    local c, host = client("technitium", {
+      env = { TECHNITIUM_API_TOKEN = "tt", TECHNITIUM_API_URL = "http://dns.example.com" },
+    })
+    local err = t.fails_with("ConfigError", c:get_thing({ thing_id = "x" }))
+    t.match(err.message, "Technitium API URL must use HTTPS", true)
+    t.eq(#host.requests, 0)
   end)
 end)
