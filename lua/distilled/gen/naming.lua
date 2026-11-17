@@ -143,15 +143,25 @@ naming.PAGE_SUFFIXES = { "_pages", "_items" }
 -- Names a generated operation method may not take: the client's own methods.
 naming.CLIENT_METHODS = { with = true, close = true, new = true }
 
---- naming.operation_names(ops, opts) -> { [op_id] = method name } | nil, message
+--- naming.operation_names(ops, opts) -> { [op_id] = method name }, nil, page_methods
+---   | nil, message
 -- ops: list of { id, name, paginated }; opts.words, opts.overrides ({ [OpName] = name }).
--- Fails on a keyword, a non-identifier, a client method name, or two operations (or an
--- operation and another's _pages/_items sibling) landing on the same name.
+-- Fails on a keyword, a non-identifier, a client method name, or two operations landing
+-- on the same name.
+--
+-- page_methods = { [op_id] = { pages = name, items = name } } for paginated operations.
+-- Real operations claim their names first. A paginated operation's `_pages` / `_items`
+-- method that would take a real operation's name (Exa: ListWebsets's items and the
+-- operation ListWebsetsItems) becomes `<method>_all_pages` / `<method>_all_items`, so
+-- `list_websets_items` stays Distilled's `listWebsetsItems` (Distilled has no collision:
+-- its pages and items are `.pages()` / `.items()` on the operation). Anything that still
+-- collides fails, naming the override to add.
 function naming.operation_names(ops, opts)
   opts = opts or {}
   local words = naming.words(opts.words)
   local overrides = opts.overrides or {}
   local taken = {} -- method name -> description of who took it
+  local real = {} -- method names of operations
   local result = {}
   local problems = {}
   local function claim(method, who)
@@ -162,9 +172,10 @@ function naming.operation_names(ops, opts)
         .. who
         .. " are both "
         .. method
-      return
+      return false
     end
     taken[method] = who
+    return true
   end
   for _, op in ipairs(ops) do
     local method = overrides[op.name] or naming.snake_case(op.name, words)
@@ -188,19 +199,31 @@ function naming.operation_names(ops, opts)
         .. ", a method every client already has"
     else
       claim(method, op.name)
-      if op.paginated then
-        for _, suffix in ipairs(naming.PAGE_SUFFIXES) do
-          claim(method .. suffix, op.name .. " (" .. suffix .. ")")
-        end
-      end
+      real[method] = true
       result[op.id] = method
+    end
+  end
+  local page_methods = {}
+  for _, op in ipairs(ops) do
+    local method = result[op.id]
+    if op.paginated and method then
+      local names = {}
+      for _, suffix in ipairs(naming.PAGE_SUFFIXES) do
+        local name = method .. suffix
+        if real[name] then
+          name = method .. "_all" .. suffix
+        end
+        claim(name, op.name .. " (" .. suffix .. ")")
+        names[string.sub(suffix, 2)] = name
+      end
+      page_methods[op.id] = names
     end
   end
   if #problems > 0 then
     table.sort(problems)
     return nil, compat.concat(problems, "\n")
   end
-  return result
+  return result, nil, page_methods
 end
 
 --- naming.local_name("ns#Shape") -> "Shape"

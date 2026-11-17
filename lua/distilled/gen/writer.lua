@@ -143,6 +143,14 @@ function writer.client(plan)
     options[auth.from] = { secret = true, env = auth.env, required = true }
   end
   options[spec.base_url.option] = { default = spec.base_url.default, env = spec.base_url.env }
+  -- operations on their own host (smithy.api#http server / baseUrl, task 12): a
+  -- `<server>_base_url` option per server and an option per {variable} of a base URL
+  local route_hosts = writer.route_hosts(plan)
+  for _, name in ipairs(route_hosts.options) do
+    if options[name] == nil then
+      options[name] = {}
+    end
+  end
 
   local protocol_args = {
     base_url = emit.raw("function(creds)\n    return creds." .. spec.base_url.option .. "\n  end"),
@@ -224,9 +232,19 @@ function writer.client(plan)
   else
     -- base_url is a function: emitted by hand so it is formatted as stylua would
     b:line("local protocol = rest.new({")
-    b:line("  base_url = function(creds)")
-    b:line("    return creds." .. spec.base_url.option)
-    b:line("  end,")
+    if route_hosts.any then
+      b:line(
+        "  base_url = rest.route_base_url("
+          .. emit.string(spec.base_url.option)
+          .. ", { default = "
+          .. emit.string(spec.base_url.default)
+          .. " }),"
+      )
+    else
+      b:line("  base_url = function(creds)")
+      b:line("    return creds." .. spec.base_url.option)
+      b:line("  end,")
+    end
     protocol_args.base_url = nil
     for _, k in ipairs(emit.sorted_keys(protocol_args)) do
       b:lines_of(emit.value(protocol_args[k], "  ", emit.key(k), ","))
@@ -240,6 +258,32 @@ function writer.client(plan)
   b:lines_of(emit.value(options, "  ", "options = ", ","))
   b:line("})")
   return b:text()
+end
+
+--- writer.route_hosts(plan) -> { any = bool, options = { names, sorted } }
+-- Whether an operation names its own host, and the client options that implies.
+function writer.route_hosts(plan)
+  local seen, list, any = {}, {}, false
+  local function add(name)
+    if not seen[name] then
+      seen[name] = true
+      list[#list + 1] = name
+    end
+  end
+  for _, op in ipairs(plan.ops) do
+    if op.http.server then
+      any = true
+      add(op.http.server .. "_base_url")
+    end
+    if op.http.base_url then
+      any = true
+      for name in string.gmatch(op.http.base_url, "{([%w_]+)}") do
+        add(name)
+      end
+    end
+  end
+  table.sort(list)
+  return { any = any, options = list }
 end
 
 ---------------------------------------------------------------------------------------
@@ -338,7 +382,13 @@ function writer.readme(plan)
       or ""
     local method = "`" .. op.method_name .. "`"
     if op.pagination then
-      method = method .. " (+ `_pages`, `_items`)"
+      local ops_mod = require("distilled.gen.ops")
+      local pages, items = ops_mod.page_method(op, "pages"), ops_mod.page_method(op, "items")
+      if pages == op.method_name .. "_pages" and items == op.method_name .. "_items" then
+        method = method .. " (+ `_pages`, `_items`)"
+      else
+        method = method .. " (+ `" .. pages .. "`, `" .. items .. "`)"
+      end
     end
     add(
       "| "

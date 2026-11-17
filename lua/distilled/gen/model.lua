@@ -204,32 +204,48 @@ end
 
 -- ensureNamedIo: a Unit input or output becomes an empty named structure, so every
 -- operation has a shape that can carry its traits.
-local function ensure_named_io(m, op)
+--
+-- The name can already be taken. By an operation (Mailchimp: GetSurvey's output is
+-- GetSurveyResponse, and GetSurveyResponse is also an operation): Distilled overwrites the
+-- map entry and so do we; operations are reached through m.operations, never through
+-- shapes, and are not registry entries. By an empty structure: it is reused (ours, from an
+-- earlier pass, or the model's own). Anything else is a problem: overwriting it, as
+-- Distilled would, would change every member that targets it.
+local function named_io(m, op, id, problems)
+  local existing = m.shapes[id]
+  if existing ~= nil and existing.type ~= "operation" then
+    local empty = existing.type == "structure" and next(existing.members or {}) == nil
+    if not empty then
+      problems[#problems + 1] = op.id
+        .. ": its Unit input or output needs the name "
+        .. id
+        .. ", which a "
+        .. tostring(existing.type)
+        .. " shape already has"
+    end
+    return id
+  end
+  m.shapes[id] = new_object(
+    m,
+    { type = "structure", members = new_object(m, {}) },
+    { "type", "members" }
+  )
+  if existing == nil then
+    m.ids[#m.ids + 1] = id
+  end
+  return id
+end
+
+local function ensure_named_io(m, op, problems)
   local def = op.def
   local input = def.input and def.input.target or "smithy.api#Unit"
   local output = def.output and def.output.target or "smithy.api#Unit"
   local ns = m.namespace
   if input == "smithy.api#Unit" then
-    input = ns .. "#" .. op.name .. "Request"
-    if m.shapes[input] == nil then
-      m.shapes[input] = new_object(
-        m,
-        { type = "structure", members = new_object(m, {}) },
-        { "type", "members" }
-      )
-      m.ids[#m.ids + 1] = input
-    end
+    input = named_io(m, op, ns .. "#" .. op.name .. "Request", problems)
   end
   if output == "smithy.api#Unit" then
-    output = ns .. "#" .. op.name .. "Response"
-    if m.shapes[output] == nil then
-      m.shapes[output] = new_object(
-        m,
-        { type = "structure", members = new_object(m, {}) },
-        { "type", "members" }
-      )
-      m.ids[#m.ids + 1] = output
-    end
+    output = named_io(m, op, ns .. "#" .. op.name .. "Response", problems)
   end
   op.input, op.output = input, output
 end
@@ -574,7 +590,10 @@ function model.from_text(text, path)
   boolean_string_enums(m)
   inherit_service_errors(m)
   for _, op in ipairs(m.operations) do
-    ensure_named_io(m, op)
+    ensure_named_io(m, op, problems)
+  end
+  if #problems > 0 then
+    return nil, compat.concat(problems, "\n")
   end
   return m
 end

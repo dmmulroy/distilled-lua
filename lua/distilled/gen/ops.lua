@@ -9,6 +9,7 @@ local emit = require("distilled.gen.emit")
 local json = require("distilled.json")
 local naming = require("distilled.gen.naming")
 local shapes = require("distilled.gen.shapes")
+local traits_table = require("distilled.gen.traits")
 
 local ops = {}
 
@@ -26,7 +27,40 @@ METHODS.OPTIONS = true
 -- http trait
 ---------------------------------------------------------------------------------------
 
---- ops.http(ctx, op) -> { method, uri, code, content_type, body_media_type } | nil, message
+-- Keys of smithy.api#http. Beyond Smithy's method/uri/code, Distilled's core HttpTrait
+-- (trait.ts) has contentType, bodyMediaType, accept and server, and two provider
+-- extensions ride on the same trait: baseUrl (ScalewayHttpTrait, StackitHttpTrait: the
+-- OpenAPI `servers` entry baked into each operation) and rawDownload (Scaleway's `...Raw`
+-- downloads, for which ScalewayProtocol appends `dl=1`).
+local HTTP_KEYS = {
+  method = true,
+  uri = true,
+  code = true,
+  contentType = true,
+  bodyMediaType = true,
+  accept = true,
+  server = true,
+  baseUrl = true,
+  rawDownload = true,
+}
+
+--- ops.base_url_variables(url) -> list of `{name}` template variables in order | nil, message
+function ops.base_url_variables(url)
+  local out, seen = {}, {}
+  for inner in string.gmatch(url, "{([^}]*)}") do
+    if not string.find(inner, "^[A-Za-z_][A-Za-z0-9_]*$") then
+      return nil, "bad template variable {" .. inner .. "}"
+    end
+    if not seen[inner] then
+      seen[inner] = true
+      out[#out + 1] = inner
+    end
+  end
+  return out
+end
+
+--- ops.http(ctx, op) -> { method, uri, code, content_type, body_media_type, accept, server,
+--   base_url, raw_download } | nil, message
 function ops.http(ctx, op)
   local http = op.def.traits and op.def.traits["smithy.api#http"]
   local where = op.id
@@ -34,10 +68,8 @@ function ops.http(ctx, op)
     return nil, where .. ": no smithy.api#http trait (only HTTP bindings are supported)"
   end
   for _, k in ipairs(ctx.model:keys(http)) do
-    if k ~= "method" and k ~= "uri" and k ~= "code" and k ~= "contentType" then
-      if k ~= "bodyMediaType" then
-        return nil, where .. ": smithy.api#http has unsupported key " .. k
-      end
+    if not HTTP_KEYS[k] then
+      return nil, where .. ": smithy.api#http has unsupported key " .. k
     end
   end
   if type(http.method) ~= "string" or not METHODS[string.upper(http.method)] then
@@ -62,12 +94,60 @@ function ops.http(ctx, op)
   if http.bodyMediaType ~= nil and type(http.bodyMediaType) ~= "string" then
     return nil, where .. ": smithy.api#http bodyMediaType must be a string"
   end
+  -- accept: the operation's Accept header (MongoDB Atlas pins an API version this way)
+  if http.accept ~= nil then
+    if
+      type(http.accept) ~= "string" or not string.find(http.accept, "^[%w!#$&^_.+%-]+/[^%c]+$")
+    then
+      return nil, where .. ": smithy.api#http accept must be a media type"
+    end
+  end
+  -- server: the NAME of another host (DigitalOcean's "inference"), never a URL; the
+  -- client maps it to a base URL from its options (option <server>_base_url)
+  if http.server ~= nil then
+    if type(http.server) ~= "string" or not string.find(http.server, "^[a-z][a-z0-9_]*$") then
+      return nil, where .. ": smithy.api#http server must be a lower-case host name like inference"
+    end
+  end
+  -- baseUrl: the operation's own base URL, maybe with {variables} filled from client options
+  if http.baseUrl ~= nil then
+    local b = http.baseUrl
+    if type(b) ~= "string" or not string.find(b, "^https?://[^/]") then
+      return nil, where .. ": smithy.api#http baseUrl must be an http(s) URL"
+    end
+    if string.sub(b, -1) == "/" then
+      return nil, where .. ": smithy.api#http baseUrl must not end with / (the uri starts with one)"
+    end
+    local vars, verr = ops.base_url_variables(b)
+    if verr then
+      return nil, where .. ": smithy.api#http baseUrl " .. b .. ": " .. verr
+    end
+    -- each variable becomes a client option of that name (gen/writer.lua route_hosts)
+    for _, name in ipairs(vars) do
+      for _, common in ipairs(require("distilled.client").COMMON_OPTIONS) do
+        if name == common then
+          return nil,
+            where .. ": smithy.api#http baseUrl variable {" .. name .. "} is a common client option"
+        end
+      end
+    end
+    if http.server ~= nil then
+      return nil, where .. ": smithy.api#http has both baseUrl and server"
+    end
+  end
+  if http.rawDownload ~= nil and type(http.rawDownload) ~= "boolean" then
+    return nil, where .. ": smithy.api#http rawDownload must be a boolean"
+  end
   return {
     method = string.upper(http.method),
     uri = http.uri,
     code = http.code or 200,
     content_type = ct,
     body_media_type = http.bodyMediaType,
+    accept = http.accept,
+    server = http.server,
+    base_url = http.baseUrl,
+    raw_download = http.rawDownload == true or nil,
   }
 end
 
@@ -97,6 +177,11 @@ end
 function ops.output(ctx, op)
   local id = op.output
   local def = ctx.model.shapes[id]
+  if def == nil and naming.is_prelude(id) then
+    -- a prelude output other than Unit (Stripe's CreateTransfer answers
+    -- smithy.api#Document): the body is the value, as Distilled's output schema is
+    return { value = shapes.ref(ctx, id), raw = true, root = nil, type_target = id }
+  end
   local members = ctx.model:members(def)
   if def.type == "structure" and #members == 1 and members[1].traits[T_RAW] ~= nil then
     local mem = members[1]
@@ -204,6 +289,25 @@ function ops.pagination(ctx, op)
       missing[#missing + 1] = f
     end
   end
+  if mode == "cursor" and #missing == 1 and missing[1] == "outputToken" and pg.hasNextPage then
+    -- Resend's shape: `has_more` and no next-cursor field (the next cursor is the last
+    -- item's id). Distilled pages it with a provider strategy (resend/src/pagination.ts
+    -- paginateResend) and would fail generation without one; the Lua runtime has no
+    -- provider strategies, so the operation is emitted as a plain call (one page per
+    -- call; pass the cursor yourself) and the CLI says so.
+    local message = where
+      .. ": cursor pagination without outputToken (the next cursor is not in the"
+      .. " response); emitted as a plain operation without _pages/_items"
+    local warnings = ctx.model.warnings
+    local seen = false
+    for _, w in ipairs(warnings) do
+      seen = seen or w == message
+    end
+    if not seen then
+      warnings[#warnings + 1] = message
+    end
+    return nil
+  end
   if #missing > 0 then
     return false,
       where
@@ -236,7 +340,8 @@ function ops.pagination(ctx, op)
   for _, info in ipairs(shapes.members(ctx, ctx.model.shapes[op.input], op.input)) do
     in_names[info.name] = true
   end
-  for _, info in ipairs(shapes.members(ctx, ctx.model.shapes[op.output], op.output)) do
+  local out_def = ctx.model.shapes[op.output] -- nil for a prelude output (Document)
+  for _, info in ipairs(out_def and shapes.members(ctx, out_def, op.output) or {}) do
     out_names[info.name] = true
   end
   if mode ~= "single" then
@@ -624,7 +729,7 @@ function ops.span(ctx, op, rules, http)
   end
   local output = {}
   local out_def = ctx.model.shapes[op.output]
-  for _, info in ipairs(shapes.members(ctx, out_def, op.output)) do
+  for _, info in ipairs(out_def and shapes.members(ctx, out_def, op.output) or {}) do
     local r = info.traits[T_TEL_ATTRS]
     if type(r) == "table" and #r > 0 then
       output[info.name] = rule_list(ctx, r)
@@ -709,8 +814,68 @@ function ops.span(ctx, op, rules, http)
 end
 
 ---------------------------------------------------------------------------------------
+-- streaming
+---------------------------------------------------------------------------------------
+
+--- ops.streaming(ctx, op) -> "streaming" | nil | false, message
+-- An operation with a streaming trait (traits.STREAMING) needs allow_unsupported =
+-- { "streaming" } in the provider spec, as Distilled needs `streams: true` on its
+-- SdkSpec. Then a server- or client-streaming operation is emitted with
+-- `unsupported = "streaming"` (every call fails with SdkError), and a streamWhen
+-- operation as its plain call, which keeps the operation's output in Distilled too.
+function ops.streaming(ctx, op)
+  local found, plain_ok = nil, true
+  for _, id in ipairs(ctx.model:keys(op.def.traits or {})) do
+    local plain = traits_table.STREAMING[id]
+    if plain ~= nil then
+      found = found or id
+      plain_ok = plain_ok and plain
+    end
+  end
+  if not found then
+    return nil
+  end
+  if not ctx.provider.allow_unsupported.streaming then
+    return false,
+      op.id
+        .. ": "
+        .. found
+        .. ': distilled-lua cannot stream yet; add allow_unsupported = { "streaming" } to'
+        .. " the provider spec to emit "
+        .. (plain_ok and "its plain call" or "it as an operation that fails with SdkError")
+  end
+  if plain_ok then
+    return nil
+  end
+  return "streaming"
+end
+
+---------------------------------------------------------------------------------------
 -- descriptor
 ---------------------------------------------------------------------------------------
+
+--- ops.renamed_page_methods(op) -> { pages = name?, items = name? } | nil
+-- Only the `_pages` / `_items` names that differ from `<method>_pages` / `<method>_items`
+-- (naming.operation_names renames one that would take a real operation's name).
+function ops.renamed_page_methods(op)
+  if not op.pagination or not op.page_methods then
+    return nil
+  end
+  local out
+  for _, kind in ipairs({ "pages", "items" }) do
+    local name = op.page_methods[kind]
+    if name and name ~= op.method_name .. "_" .. kind then
+      out = out or {}
+      out[kind] = name
+    end
+  end
+  return out
+end
+
+--- ops.page_method(op, kind) -> the client method name of op's "pages" or "items"
+function ops.page_method(op, kind)
+  return (op.page_methods and op.page_methods[kind]) or (op.method_name .. "_" .. kind)
+end
 
 --- ops.descriptor(ctx, op) -> emit value of the op descriptor
 -- op has been prepared by gen/init.lua: http, output, pagination, retry, span, errors.
@@ -722,11 +887,17 @@ function ops.descriptor(ctx, op)
     code = op.http.code,
     content_type = op.http.content_type,
     body_media_type = op.http.body_media_type,
+    accept = op.http.accept,
+    base_url = op.http.base_url,
+    server = op.http.server,
+    raw_download = op.http.raw_download,
+    unsupported = op.unsupported,
     input = emit.call("S.ref", naming.local_name(op.input)),
     output = op.out.value,
     output_raw = op.out.raw or nil,
     errors = emit.list(op.error_tags),
     pagination = op.pagination,
+    pagination_methods = ops.renamed_page_methods(op),
     retry = op.retry,
     span = op.span,
   }

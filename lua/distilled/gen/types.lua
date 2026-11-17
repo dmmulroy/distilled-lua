@@ -324,13 +324,13 @@ function types.render(plan)
     method(op.method_name, { out_ret .. " value", "distilled.Error? err" })
     if op.pagination then
       method(
-        op.method_name .. "_pages",
+        require("distilled.gen.ops").page_method(op, "pages"),
         { "distilled.Iterator<" .. output_t .. ">" },
         "Every page, fetched as the loop asks for it."
       )
       local item_t = op.item_target and types.type_of(ctx, prefix, op.item_target, false) or "any"
       method(
-        op.method_name .. "_items",
+        require("distilled.gen.ops").page_method(op, "items"),
         { "distilled.Iterator<" .. item_t .. ">" },
         "Every item of every page (`" .. tostring(op.pagination.items) .. "`)."
       )
