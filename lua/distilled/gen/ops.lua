@@ -90,7 +90,7 @@ end
 ---------------------------------------------------------------------------------------
 
 --- ops.output(ctx, op) -> { value = emit value, raw = bool, root = shape id | nil,
---   target = id (for types), type_target = id }
+--   target = id (for types), type_target = id, nullable = true | nil }
 -- A structure whose only member carries rawResponse is a bare-payload response: the
 -- output IS that member's value (`output_raw`). A paginated output keeps its member form
 -- unless items is that sole member. A Blob target is binary (Neon's BinaryResponse).
@@ -103,15 +103,21 @@ function ops.output(ctx, op)
     local items_sole = op.pagination ~= nil
       and shapes.member_name(ctx, mem.name) == op.pagination_items_root
     if op.pagination == nil or items_sole then
-      if mem.traits["com.distilled.openapi#nullable"] ~= nil then
-        return nil, id .. ": a nullable rawResponse member is not supported"
-      end
       local root = (not naming.is_prelude(mem.target)) and mem.target or nil
+      local value = shapes.ref(ctx, mem.target)
+      -- A nullable member: Distilled's `S.NullOr(target)` root. The node keeps the
+      -- target's type (an empty body still decodes as "" or {}), and json.null, a JSON
+      -- `null` body, passes validation in every mode.
+      local nullable = mem.traits["com.distilled.openapi#nullable"] ~= nil
+      if nullable then
+        value = emit.call("S.nullable", value)
+      end
       return {
-        value = shapes.ref(ctx, mem.target),
+        value = value,
         raw = true,
         root = root,
         type_target = mem.target,
+        nullable = nullable or nil,
       }
     end
   end

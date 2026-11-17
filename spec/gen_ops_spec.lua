@@ -308,13 +308,134 @@ t.describe("gen.ops: http trait and selection", function()
     t.eq(svc.ops.put_blob.body_media_type, "application/zip")
   end)
 
-  t.it("names colliding with the client's type names fail", function()
-    local _, err = fx.generate({
-      extra = '"ex.api#Client": { "type": "structure", "members": {} }',
+  -- Task 11: Distilled has no such rule (its error classes are the shapes' own names and
+  -- there is no Client type), so ours is documented in naming.type_names: a shape whose
+  -- LuaLS type name the client takes (Client, Options, Module, <Tag>Error) is typed
+  -- <Name>Shape (then Shape2, ...). Registry keys and S.ref names do not change.
+  local function count(text, plain)
+    local n, at = 0, 1
+    while true do
+      local s, e = string.find(text, plain, at, true)
+      if not s then
+        return n
+      end
+      n, at = n + 1, e + 1
+    end
+  end
+
+  t.it("shapes named like the client's types get the Shape suffix in types.lua", function()
+    local files, err, plan = fx.generate({
+      extra = '"ex.api#Client": { "type": "structure", "members": { "id": { "target": "smithy.api#String" } } },'
+        .. ' "ex.api#Module": { "type": "structure", "members": {} },'
+        .. ' "ex.api#Options": { "type": "list", "member": { "target": "ex.api#Client" } },'
+        .. ' "ex.api#ModuleShape": { "type": "structure", "members": {} },'
+        .. ' "ex.api#NotFoundError": { "type": "structure", "members": { "m": { "target": "ex.api#Module" } } }',
       replace = {
-        { '"note": { "target": "smithy.api#String" }', '"note": { "target": "ex.api#Client" }' },
+        {
+          '"note": { "target": "smithy.api#String" }',
+          '"note": { "target": "ex.api#Client" }, "opts": { "target": "ex.api#Options" },'
+            .. ' "nf": { "target": "ex.api#NotFoundError" }, "ms": { "target": "ex.api#ModuleShape" }',
+        },
       },
     })
-    t.match(err, "ex.api#Client: its type name ex.Client is the client class", true)
+    t.eq(err, nil)
+    local ty = files["types.lua"]
+    t.match(ty, "---@class ex.ClientShape\n---@field id? string\n", true)
+    t.match(ty, "---@alias ex.OptionsShape ex.ClientShape[]\n", true)
+    t.match(ty, "---@class ex.ModuleShape2\n", true)
+    t.match(ty, "---@class ex.ModuleShape\n", true)
+    t.match(ty, "---@class ex.NotFoundErrorShape\n---@field m? ex.ModuleShape2\n", true)
+    t.match(ty, "---@field note? ex.ClientShape\n", true)
+    t.match(ty, "---@field nf? ex.NotFoundErrorShape\n", true)
+    t.match(ty, "---@field ms? ex.ModuleShape\n", true)
+    -- the client's own types and the error class are untouched, and declared once
+    t.match(ty, '---@class ex.NotFoundError: distilled.Error\n---@field tag "NotFound"\n', true)
+    t.eq(count(ty, "---@class ex.Client\n"), 1)
+    t.eq(count(ty, "---@class ex.Module\n"), 1)
+    t.eq(count(ty, "---@class ex.Options\n"), 1)
+    t.eq(count(ty, "---@class ex.NotFoundError:"), 1)
+    t.eq(count(ty, "---@class ex.NotFoundError\n"), 0)
+    -- the registry keeps the model's names
+    local svc = fx.load(files["service.lua"], "ex.service")
+    t.eq(svc.shapes.Client.name, "Client")
+    t.same(svc.shapes.Options, { t = "list", item = { t = "ref", name = "Client" } })
+    t.eq(svc.shapes.NotFoundError.t, "struct")
+    t.eq(plan.ctx.type_names["ex.api#Client"], "ClientShape")
+    t.eq(plan.ctx.type_names["ex.api#Thing"], nil)
+    t.truthy(require("distilled.compat").load(ty, "=types"))
+  end)
+end)
+
+-- Task 11: a rawResponse member with the nullable trait (anthropic, discord, polymarket,
+-- tailscale, vercel). Distilled emits `S.NullOr(target)` as the bare-payload output; an
+-- empty body still decodes like the target's (resolveNode collapses NullOr: `""` for a
+-- string, `{}` otherwise) and a JSON `null` body is the value null, in strict mode too
+-- (protocol-rest.test.ts "a 200 response whose body is JSON null returns null").
+t.describe("gen.ops: nullable rawResponse output", function()
+  local json = require("distilled.json")
+  local testing = require("distilled.testing")
+
+  local NULLABLE_RAW = {
+    '"body": { "target": "ex.api#TagList", "traits": { "com.distilled.openapi#rawResponse": {}, "smithy.api#required": {} } }',
+    '"body": { "target": "ex.api#TagList", "traits": { "com.distilled.openapi#rawResponse": {}, "smithy.api#required": {}, "com.distilled.openapi#nullable": {} } }',
+  }
+  local NULLABLE_TEXT = {
+    '"body": { "target": "smithy.api#Blob", "traits": { "com.distilled.openapi#rawResponse": {}, "smithy.api#required": {} } }',
+    '"body": { "target": "smithy.api#String", "traits": { "com.distilled.openapi#rawResponse": {}, "smithy.api#required": {}, "com.distilled.openapi#nullable": {} } }',
+  }
+  local svc, files = service({ replace = { NULLABLE_RAW, NULLABLE_TEXT } })
+
+  local function client(responses, validation)
+    local class = fx.load(files["init.lua"], "ex", { ["ex.service"] = svc })
+    return class.new({
+      api_key = "k",
+      host = testing.host({ responses = responses }),
+      validation = validation,
+    })
+  end
+
+  t.it("the output is the target's node marked nullable, still output_raw", function()
+    t.same(svc.ops.list_names.output, { t = "ref", name = "TagList", nullable = true })
+    t.eq(svc.ops.list_names.output_raw, true)
+    t.same(svc.ops.get_blob.output, { t = "string", nullable = true })
+    t.match(files["service.lua"], 'output = S.nullable(S.ref("TagList"))', true)
+  end)
+
+  t.it("types.lua returns the target or distilled.Null", function()
+    t.match(
+      files["types.lua"],
+      "---@return (ex.TagList|distilled.Null)? value\n---@return distilled.Error? err\n"
+        .. "function Client:list_names(input) end",
+      true
+    )
+  end)
+
+  t.it("a JSON null body is json.null, in strict mode too", function()
+    for _, mode in ipairs({ "lenient", "additional", "strict" }) do
+      local c = client({ { status = 200, body = "null" } }, mode)
+      local v, err = c:list_names()
+      t.eq(err, nil, mode)
+      t.eq(v, json.null, mode)
+    end
+  end)
+
+  t.it("a list body is the list; a wrong body still fails strict validation", function()
+    local v, err = client({ { status = 200, body = '["a","b"]' } }, "strict"):list_names()
+    t.eq(err, nil)
+    t.same(v, { "a", "b" })
+    local _, err2 = client({ { status = 200, body = '{"a":1}' } }, "strict"):list_names()
+    t.eq(err2 and err2.tag, "ExParseError")
+  end)
+
+  t.it('an empty body decodes as for the target: {} (or "" for a string)', function()
+    local v, err = client({ { status = 200, body = "" } }):list_names()
+    t.eq(err, nil)
+    t.truthy(json.is_object(v))
+    t.eq(next(v), nil)
+    local _, err2 = client({ { status = 204, body = "" } }, "strict"):list_names()
+    t.eq(err2 and err2.tag, "ExParseError")
+    local s, err3 = client({ { status = 200, body = "" } }, "strict"):get_blob({ key = "k" })
+    t.eq(err3, nil)
+    t.eq(s, "")
   end)
 end)

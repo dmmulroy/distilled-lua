@@ -15,6 +15,11 @@
 --   list item or map value has no member to carry it);
 -- - `S.ref(name)` nodes are resolved through a registry ({ [name] = node }) passed to
 --   every algorithm; nothing is global.
+--
+-- Addition (task 11): any node may carry `nullable = true`: json.null is a value of it
+-- (Distilled's `S.NullOr(node)`). A list item or map value has no member to carry
+-- `@nullable` (Smithy's sparse lists and maps), and neither does a rawResponse output,
+-- so the flag sits on the node: `S.list(S.nullable(S.ref("Thing")))`.
 local compat = require("distilled.compat")
 
 local schema = {}
@@ -70,6 +75,20 @@ function schema.sensitive(node)
     copy[k] = v
   end
   copy.sensitive = true
+  return copy
+end
+
+--- S.nullable(node) -> a copy of node that also accepts json.null (S.NullOr). A ref keeps
+-- its name: the flag is read on the node itself, before the ref is followed.
+function schema.nullable(node)
+  if type(node) ~= "table" or type(node.t) ~= "string" then
+    misuse("nullable expects a schema node")
+  end
+  local copy = {}
+  for k, v in pairs(node) do
+    copy[k] = v
+  end
+  copy.nullable = true
   return copy
 end
 
@@ -215,6 +234,26 @@ function schema.node_sensitive(node, registry)
       return true
     end
     if node.t ~= "ref" or hops > MAX_REF_CHAIN then
+      return false
+    end
+    hops = hops + 1
+    node = registry and registry[node.name]
+  end
+  return false
+end
+
+-- Whether json.null is a value of node: the node (or a ref on the way) is marked
+-- nullable, or it resolves to `null` or `unknown`. Missing refs are not.
+function schema.node_nullable(node, registry)
+  local hops = 0
+  while type(node) == "table" do
+    if node.nullable == true then
+      return true
+    end
+    if node.t ~= "ref" then
+      return node.t == "null" or node.t == "unknown"
+    end
+    if hops > MAX_REF_CHAIN then
       return false
     end
     hops = hops + 1

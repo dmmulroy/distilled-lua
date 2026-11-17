@@ -221,6 +221,22 @@ argument; nothing global. Any node may also carry `sensitive = true` (Smithy put
 `@sensitive` on shapes; list items and map values have no member);
 `schema.node_sensitive(node, registry)` reads it through refs.
 
+Any node may also carry `nullable = true`: `json.null` is then a value of it (Distilled's
+`S.NullOr(node)`). `S.nullable(node)` returns a marked copy (a ref keeps its name and
+type); `schema.node_nullable(node, registry)` reads the flag through refs and is also true
+for `null` and `unknown` nodes. The generator emits it where no member can carry the
+trait: a sparse list item or map value (`S.list(S.nullable(S.ref("Thing")))`, the nullable
+trait on the list member or map value) and a nullable rawResponse output root
+(`output = S.nullable(S.ref("Body"))`, `output_raw = true`). `validate.check` accepts
+`json.null` at such a node in every mode; `keys` and `redact` pass it through unchanged.
+The node's type is unchanged, so an empty response body still decodes as for the target
+(`""` for a string output, else `{}`), and a JSON `null` body is `json.null`.
+
+LuaLS type names (`types.lua`) are `<provider>.<local name>`, except that a shape named like
+one of the client's own types (`Client`, `Options`, `Module`, `<Tag>Error` of a generated
+error class) is typed `<Name>Shape` (then `Shape2`, ... while taken; `naming.type_names`).
+Registry keys, struct names and `S.ref` names keep the model's local names.
+
 ## Operation and service descriptors
 
 ```lua
