@@ -32,6 +32,19 @@ the table top to bottom and stops at the first area that fails.
 | 17 | OTLP over HTTP, Jaeger | [otlp.md](otlp.md) | task 05 |
 | 18 | Generator | [generator.md](generator.md) | task 06 |
 | 19 | Conformance against Distilled, `dl live` | [conformance.md](conformance.md) | task 07 |
+| 20 | Crypto and SigV4 | [crypto.md](crypto.md) | task 14, 24 |
+| 21 | XML codec | [xml.md](xml.md) | task 15 |
+| 22 | Multi-model packages and parity | [parity.md](parity.md) | task 10 |
+| 23 | GraphQL clients | [graphql.md](graphql.md) | task 16 |
+| 24 | gRPC and Connect | [grpc.md](grpc.md) | task 23, 30 |
+| 25 | Streaming responses | [streaming.md](streaming.md) | task 29 |
+| 26 | AWS (incl. event streams) | [aws.md](aws.md) | task 17, 31 |
+| 27 | S3 | [s3.md](s3.md) | task 25 |
+| 28 | Cloudflare | [cloudflare.md](cloudflare.md) | task 19 |
+| 29 | Azure | [azure.md](azure.md) | task 20 |
+| 30 | GCP and Google Workspace | [gcp.md](gcp.md) | task 21 |
+| 31 | Tencent Cloud | [tencentcloud.md](tencentcloud.md) | task 22 |
+| 32 | Signed REST (Coinbase, Polymarket) | [signed-rest.md](signed-rest.md) | task 28 |
 
 ## Full sweep
 

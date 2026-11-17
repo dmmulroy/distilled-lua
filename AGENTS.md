@@ -22,7 +22,8 @@ agent (`tasks/NN-name.md`) and checks the result.
   integer/float distinction, no `table.unpack` (use the compat shim), no `utf8` library, no
   `<close>`, no `string.pack`, no C modules.
 - **The core never names `rex`.** Only `lua/distilled/host/rex.lua` may. Nothing in the core
-  may call `io.popen` or `os.execute` either, except `transport/popen_curl.lua`.
+  may call `io.popen` or `os.execute` either, except `transport/popen_curl.lua` and
+  `transport/popen_curl_duplex.lua` (streaming and two-way streams, task 31).
 - **Expected failures return `nil, err`** where `err` is an error table from
   `distilled.errors`. Library code never raises for a runtime failure. `error()` is only for
   misuse (a wrong argument type), with level 2.
