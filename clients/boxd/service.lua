@@ -2762,6 +2762,7 @@ ops.download_file_stream = {
   output = S.ref("DownloadFileStreamStream"),
   errors = {},
   span = "DownloadFileStream",
+  stream = { item = S.ref("DownloadFileChunk"), framing = "grpc" },
 }
 ops.expose_port = {
   name = "ExposePort",
@@ -2802,6 +2803,7 @@ ops.fs_list = {
   output = S.ref("FsListStream"),
   errors = {},
   span = "FsList",
+  stream = { item = S.ref("FsListChunk"), framing = "grpc" },
 }
 ops.fs_mkdir = {
   name = "FsMkdir",
@@ -2822,6 +2824,7 @@ ops.fs_read = {
   output = S.ref("FsReadStream"),
   errors = {},
   span = "FsRead",
+  stream = { item = S.ref("FsReadChunk"), framing = "grpc" },
 }
 ops.fs_realpath = {
   name = "FsRealpath",
@@ -3692,6 +3695,7 @@ ops.stream_logs = {
   output = S.ref("StreamLogsStream"),
   errors = {},
   span = "StreamLogs",
+  stream = { item = S.ref("LogChunk"), framing = "grpc" },
 }
 ops.suggest_vm_name = {
   name = "SuggestVmName",

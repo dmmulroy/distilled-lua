@@ -538,6 +538,7 @@ ops.volume_list_files = {
   output = S.ref("VolumeListFilesStream"),
   errors = {},
   span = "VolumeListFiles",
+  stream = { item = S.ref("VolumeListFilesResponse"), framing = "grpc" },
 }
 ops.volume_list_files2 = {
   name = "VolumeListFiles2",
@@ -548,6 +549,7 @@ ops.volume_list_files2 = {
   output = S.ref("VolumeListFiles2Stream"),
   errors = { "VolumeFileNotFound" },
   span = "VolumeListFiles2",
+  stream = { item = S.ref("VolumeListFiles2Response"), framing = "grpc" },
 }
 ops.volume_put_files = {
   name = "VolumePutFiles",

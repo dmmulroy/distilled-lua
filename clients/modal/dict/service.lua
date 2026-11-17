@@ -266,6 +266,7 @@ ops.dict_contents = {
   output = S.ref("DictContentsStream"),
   errors = { "DictNotFound" },
   span = "DictContents",
+  stream = { item = S.ref("DictEntry"), framing = "grpc" },
 }
 ops.dict_get_by_id = {
   name = "DictGetById",

@@ -527,6 +527,7 @@ ops.image_join_streaming = {
   output = S.ref("ImageJoinStreamingStream"),
   errors = { "ImageNotFound" },
   span = "ImageJoinStreaming",
+  stream = { item = S.ref("ImageJoinStreamingResponse"), framing = "grpc" },
 }
 ops.image_list_tags = {
   name = "ImageListTags",

@@ -946,6 +946,7 @@ function ops.descriptor(ctx, op)
     raw_download = op.http.raw_download,
     api_version = op.http.api_version,
     unsupported = op.unsupported,
+    stream = op.stream,
     rpc = require("distilled.gen.rpc").field(ctx, op),
     input = emit.call("S.ref", naming.local_name(op.input)),
     output = op.out.value,

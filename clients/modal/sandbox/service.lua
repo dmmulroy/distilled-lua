@@ -1494,6 +1494,7 @@ ops.sandbox_get_logs = {
   output = S.ref("SandboxGetLogsStream"),
   errors = { "SandboxNotFound" },
   span = "SandboxGetLogs",
+  stream = { item = S.ref("TaskLogsBatch"), framing = "grpc" },
 }
 ops.sandbox_get_resource_usage = {
   name = "SandboxGetResourceUsage",

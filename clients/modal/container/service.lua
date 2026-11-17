@@ -404,6 +404,7 @@ ops.container_exec_get_output = {
   output = S.ref("ContainerExecGetOutputStream"),
   errors = {},
   span = "ContainerExecGetOutput",
+  stream = { item = S.ref("RuntimeOutputBatch"), framing = "grpc" },
 }
 ops.container_exec_put_input = {
   name = "ContainerExecPutInput",

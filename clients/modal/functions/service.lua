@@ -1700,6 +1700,7 @@ ops.function_call_get_data_in = {
   output = S.ref("FunctionCallGetDataInStream"),
   errors = {},
   span = "FunctionCallGetDataIn",
+  stream = { item = S.ref("DataChunk"), framing = "grpc" },
 }
 ops.function_call_get_data_out = {
   name = "FunctionCallGetDataOut",
@@ -1710,6 +1711,7 @@ ops.function_call_get_data_out = {
   output = S.ref("FunctionCallGetDataOutStream"),
   errors = {},
   span = "FunctionCallGetDataOut",
+  stream = { item = S.ref("DataChunk"), framing = "grpc" },
 }
 ops.function_call_get_info = {
   name = "FunctionCallGetInfo",

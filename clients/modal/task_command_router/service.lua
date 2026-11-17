@@ -547,6 +547,7 @@ ops.sandbox_stdio_read_v2 = {
   output = S.ref("SandboxStdioReadV2Stream"),
   errors = {},
   span = "SandboxStdioReadV2",
+  stream = { item = S.ref("SandboxStdioReadV2Response"), framing = "grpc" },
 }
 ops.sandbox_wait_until_ready = {
   name = "SandboxWaitUntilReady",
@@ -607,6 +608,7 @@ ops.task_exec_stdio_read = {
   output = S.ref("TaskExecStdioReadStream"),
   errors = {},
   span = "TaskExecStdioRead",
+  stream = { item = S.ref("TaskExecStdioReadResponse"), framing = "grpc" },
 }
 ops.task_exec_wait = {
   name = "TaskExecWait",

@@ -1141,6 +1141,7 @@ ops.app_get_logs = {
   output = S.ref("AppGetLogsStream"),
   errors = { "AppNotFound" },
   span = "AppGetLogs",
+  stream = { item = S.ref("TaskLogsBatch"), framing = "grpc" },
 }
 ops.app_get_objects = {
   name = "AppGetObjects",

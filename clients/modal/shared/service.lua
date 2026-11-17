@@ -264,6 +264,7 @@ ops.shared_volume_list_files_stream = {
   output = S.ref("SharedVolumeListFilesStreamStream"),
   errors = {},
   span = "SharedVolumeListFilesStream",
+  stream = { item = S.ref("SharedVolumeListFilesResponse2"), framing = "grpc" },
 }
 ops.shared_volume_put_file = {
   name = "SharedVolumePutFile",

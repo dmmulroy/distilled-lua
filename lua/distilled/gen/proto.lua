@@ -567,9 +567,27 @@ local function has_trait(op, id)
   return op.def.traits ~= nil and op.def.traits[id] ~= nil
 end
 
+-- the message shape of a server stream's `{ items: [Message] }` output, or nil
+local function stream_item(ctx, op)
+  local def = op.output and ctx.model.shapes[op.output]
+  for _, m in ipairs(ctx.model:members(def)) do
+    if m.name == "items" then
+      local list = ctx.model.shapes[m.target]
+      local item = list and list.member and list.member.target
+      if item and ctx.model.shapes[item] then
+        return item
+      end
+    end
+  end
+  return nil
+end
+
 --- proto.streaming(ctx, op, unsupported, err) -> unsupported, err
--- gRPC server-streaming operations are callable on the grpc wires: the call collects the
--- stream from one HTTP response ({ items }). Client streaming stays unsupported.
+-- gRPC server-streaming operations are callable on the grpc wires: the plain call
+-- collects the stream from one HTTP response ({ items }); op.stream = { framing =
+-- "grpc", item } (task 30) gives the client its `<op>_stream` method, which delivers
+-- each message as it arrives (protocol.grpc's stream). Client streaming stays
+-- unsupported.
 function proto.streaming(ctx, op, unsupported, err)
   local r = ctx.provider.proto
   if
@@ -578,6 +596,11 @@ function proto.streaming(ctx, op, unsupported, err)
     and has_trait(op, "com.distilled.grpc#serverStreaming")
     and not has_trait(op, "com.distilled.grpc#clientStreaming")
   then
+    local item = stream_item(ctx, op)
+    if item == nil then
+      return false, op.id .. ": a server stream's output needs an `items` list of messages"
+    end
+    op.stream = { framing = "grpc", item = emit.call("S.ref", naming.local_name(item)) }
     return nil, nil
   end
   return unsupported, err

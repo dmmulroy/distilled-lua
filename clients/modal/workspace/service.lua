@@ -270,6 +270,7 @@ ops.workspace_billing_report = {
   output = S.ref("WorkspaceBillingReportStream"),
   errors = {},
   span = "WorkspaceBillingReport",
+  stream = { item = S.ref("WorkspaceBillingReportItem"), framing = "grpc" },
 }
 ops.workspace_billing_summary = {
   name = "WorkspaceBillingSummary",
