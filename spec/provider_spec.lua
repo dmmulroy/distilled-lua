@@ -1128,3 +1128,39 @@ t.describe("providers: Technitium's 2xx envelope", function()
     t.eq(#host.requests, 0)
   end)
 end)
+
+t.describe("providers: per-model base URL overrides (task 10) reach the runtime data", function()
+  t.it("models.override.<m>.base_url replaces the default and declares a new option", function()
+    local spec = must(provider.validate({
+      name = "entire",
+      title = "Entire",
+      base_url = {
+        default = "https://aws-us-east-2.api.entire.io",
+        option = "base_url",
+        env = "ENTIRE_API_BASE_URL",
+      },
+      auth = { kind = "bearer", from = "token", env = { "ENTIRE_TOKEN" } },
+      unknown_tag = "UnknownEntireError",
+      parse_tag = "EntireParseError",
+      models = {
+        override = {
+          orgs = {
+            base_url = {
+              option = "core_base_url",
+              env = "ENTIRE_CORE_BASE_URL",
+              default = "https://us.console.entire.io",
+            },
+          },
+        },
+      },
+    }))
+    local cell = provider.for_model(spec, "repos")
+    t.eq(cell.runtime.base_url.default, "https://aws-us-east-2.api.entire.io")
+    local core = provider.for_model(spec, "orgs")
+    t.eq(core.runtime.base_url.default, "https://us.console.entire.io")
+    t.eq(core.runtime.base_url.option, "core_base_url")
+    t.same(core.runtime.options.core_base_url, { env = { "ENTIRE_CORE_BASE_URL" } })
+    t.same(core.client_options.core_base_url, { type = "string" })
+    t.eq(spec.runtime.options.core_base_url, nil) -- the package spec is unchanged
+  end)
+end)

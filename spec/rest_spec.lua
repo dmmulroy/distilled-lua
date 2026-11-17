@@ -1880,3 +1880,44 @@ t.describe("rest provider: OAuth client credentials", function()
     t.match(err2.message, "no access_token", true)
   end)
 end)
+
+t.describe("rest provider: operations on their own host (task 12 routes)", function()
+  local compiled = rest.compile_provider({
+    title = "DigitalOcean",
+    options = { base_url = {}, inference_base_url = { default = "https://inference.do-ai.run" } },
+    base_url = { option = "base_url", default = "https://api.digitalocean.com" },
+  })
+
+  t.it("a route without its own host uses the provider's base URL", function()
+    t.eq(compiled.base_url({}, { uri = "/v2/droplets" }), "https://api.digitalocean.com")
+    t.eq(
+      compiled.base_url({}, { uri = "/x", base_url = "https://api.digitalocean.com" }),
+      "https://api.digitalocean.com"
+    )
+    t.eq(compiled.base_url({ base_url = "https://mock.test" }, {}), "https://mock.test")
+  end)
+
+  t.it("route.server reads <server>_base_url; unset is a ConfigError", function()
+    t.eq(
+      compiled.base_url(
+        { inference_base_url = "https://inference.do-ai.run" },
+        { server = "inference" }
+      ),
+      "https://inference.do-ai.run"
+    )
+    local url, err = compiled.base_url({}, { server = "actions" })
+    t.eq(url, nil)
+    t.eq(err.tag, "ConfigError")
+    t.eq(err.key, "actions_base_url")
+  end)
+
+  t.it("route.base_url is filled from the settings", function()
+    t.eq(
+      compiled.base_url({ region = "fr-par" }, { base_url = "https://api.{region}.scw.test" }),
+      "https://api.fr-par.scw.test"
+    )
+    local url, err = compiled.base_url({}, { base_url = "https://api.{region}.scw.test" })
+    t.eq(url, nil)
+    t.eq(err.key, "region")
+  end)
+end)
