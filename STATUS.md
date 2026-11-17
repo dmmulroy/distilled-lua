@@ -1580,6 +1580,25 @@ Built so far:
   (`read_exact`), gRPC-Web trailer frames collected, `rest` for an incomplete last frame.
 - `lua/distilled/stream/connect.lua`: Connect envelopes (flags, length, JSON; 0x02 end).
 - `protocol.grpc`: `protocol.stream(ctx, op, input) -> parts, nil, meta | nil, err, meta`.
+- `protocol.connect`: `connect.stream(...)`, `connect.stream_method{ op, fail, decode }`.
+- e2b: `start_process_stream`, `connect_process_stream` (e2b.process), `watch_dir_stream`
+  (e2b.filesystem), from `providers/glue/e2b_envd.lua` `glue.methods`.
+- gen: `op.stream = { framing = "grpc", item = S.ref(<message>) }` for gRPC server streams
+  (modal 13, boxd 4); `stream = op.stream` in `gen/ops.lua` descriptor (task 31 adds the
+  same line).
+- Specs: grpc_stream_spec, connect_stream_spec, grpc_stream_conform_spec (20 cases vs TS).
+
+Blocked: the `dl serve` incremental proof and `<op>_stream` client methods for gRPC need
+task 29 (transport.stream, slow-streaming serve endpoints, client.lua). Nothing of task 29
+is on main or its branch yet.
+
+Edits outside my file list (generator glue hook, needed for e2b's hand-written streams):
+- `gen/provider_ext.lua` HOOKS: `methods = fn(service) -> { [name] = fn(client, input) }`.
+- `gen/writer.lua` client(): when the glue has `methods`, init.lua installs them into
+  `Class.methods` after `Client.define` (collision -> error at load).
+- Pre-existing, not mine: `dl gen-diff e2b` reports FAIL on "e2b.unstable has neither
+  service.lua nor an index": `verify/dl` treats any `unstable/init.lua` as GCP's second
+  index (task 21), and e2b has a model named `unstable`. The diff itself is clean.
 
 ### For task 29 (proposed contract additions; I code against them now)
 
