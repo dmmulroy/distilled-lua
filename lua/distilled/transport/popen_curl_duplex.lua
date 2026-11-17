@@ -90,23 +90,25 @@ local function transfer_new(opts, one_way)
     local template = opts.tmpdir and sh_quote(opts.tmpdir .. "/distilled-duplex.XXXXXX")
       or '"${TMPDIR:-/tmp}/distilled-duplex.XXXXXX"'
     local dir, derr = read_command(
-      "umask 077; d=$(mktemp -d " .. template .. ') && mkfifo "$d/in" "$d/out" && printf %s "$d"'
+      "umask 077; d=$(mktemp -d "
+        .. template
+        .. ') && mkfifo "$d/in" "$d/out" "$d/hdr" && printf %s "$d"'
     )
     if not dir or dir == "" or string.find(dir, "[\r\n]") then
       return nil, derr or transport_error("popen_curl: mktemp -d / mkfifo failed")
     end
-    local files = { "config", "body", "in", "out", "err", "pid", "status" }
+    local files = { "config", "body", "in", "out", "hdr", "err", "pid", "status" }
     local function path(name)
       return dir .. "/" .. name
     end
-    local w, keep, r
+    local w, keep, r, h
     local cleaned = false
     local function cleanup()
       if cleaned then
         return
       end
       cleaned = true
-      for _, f in ipairs({ w, keep, r }) do
+      for _, f in ipairs({ w, keep, r, h }) do
         if f then
           compat.pcall(function()
             f:close()
@@ -135,7 +137,9 @@ local function transfer_new(opts, one_way)
       .. sh_quote(curl)
       .. " -q --config config <"
       .. (one_way and "/dev/null" or "in")
-      .. " >out 2>err & echo $! >pid; wait $!; echo $? >status; }"
+      .. " >out 2>err "
+      .. curl_duplex.HEADER_FD
+      .. ">hdr & echo $! >pid; wait $!; echo $? >status; }"
     local started, serr = read_command("umask 077; (" .. script .. ") >/dev/null 2>&1 </dev/null &")
     if not started then
       cleanup()
@@ -148,7 +152,9 @@ local function transfer_new(opts, one_way)
       keep = w and io.open(path("in"), "rb")
     end
     r = (one_way or keep) and io.open(path("out"), "rb")
-    if not r then
+    -- the header channel last: the shell opens `>out` before `5>hdr`
+    h = r and io.open(path("hdr"), "rb")
+    if not h then
       cleanup()
       return nil, transport_error("popen_curl: cannot open the duplex FIFOs")
     end
@@ -205,6 +211,12 @@ local function transfer_new(opts, one_way)
       end
       return line
     end
+    function proc.head_line()
+      if cleaned then
+        return ""
+      end
+      return h:read("*L") or ""
+    end
     function proc.finish()
       local code
       for _ = 1, 200 do
@@ -216,8 +228,10 @@ local function transfer_new(opts, one_way)
         popen_curl.sleep(0.05)
       end
       local stderr = read_file(path("err"))
+      -- curl has exited: what is left on the header channel is the trailers
+      local rest = h and h:read("*a") or ""
       cleanup()
-      return code or -1, stderr
+      return code or -1, stderr, rest
     end
     function proc.kill()
       if not cleaned then

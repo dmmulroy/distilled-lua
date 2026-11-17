@@ -294,4 +294,138 @@ t.describe("streams over HTTP (dl serve)", function()
     t.eq(v, nil)
     t.eq(err, nil)
   end)
+
+  -- HTTP trailers of a streamed reply (task 29b): curl's header dump has its own channel
+  -- (fd 5: a FIFO on popen, stderr in Rex); reader:trailers() reads it after the body
+  t.it("reader:trailers() returns chunked HTTP trailers after the body, apart from it", function()
+    s.reset()
+    s.script("/tr", {
+      {
+        headers = { ["Content-Type"] = "text/plain" },
+        chunks = json.array({ "one\n", "two\n" }),
+        trailers = { ["X-Check"] = "yes", ["Grpc-Status"] = "0" },
+      },
+      { headers = { ["Content-Type"] = "text/plain" }, chunks = json.array({ "plain" }) },
+    })
+    local res =
+      ok(host.transport.stream({ method = "GET", url = serve.url() .. "/tr", headers = {} }))
+    t.eq(res.status, 200)
+    t.match(res.headers["trailer"], "X-Check", true) -- announced in the head
+    t.eq(res.body:read_line(), "one")
+    t.eq(ok(res.body:read_all()), "two\n")
+    t.same(res.body:trailers(), { ["x-check"] = "yes", ["grpc-status"] = "0" })
+    res.body:close()
+    local res2 =
+      ok(host.transport.stream({ method = "GET", url = serve.url() .. "/tr", headers = {} }))
+    t.eq(ok(res2.body:read_all()), "plain")
+    t.eq(res2.body:trailers(), nil)
+    res2.body:close()
+  end)
+
+  local function grpc_things()
+    local pb = require("distilled.protobuf")
+    local D = {
+      messages = {
+        ["t.WatchRequest"] = { { 1, "thingId", "string" } },
+        ["t.Thing"] = { { 1, "thingId", "string" } },
+      },
+      enums = {},
+      methods = { ["/t.Things/Watch"] = { "t.WatchRequest", "t.Thing", 1 } },
+    }
+    local shapes = {
+      WatchRequest = S.struct({
+        name = "WatchRequest",
+        members = { S.member({ name = "thingId", schema = S.string }) },
+      }),
+      Thing = S.struct({
+        name = "Thing",
+        members = { S.member({ name = "thingId", schema = S.string }) },
+      }),
+      WatchStream = S.struct({
+        name = "WatchStream",
+        members = { S.member({ name = "items", schema = S.list(S.ref("Thing")) }) },
+      }),
+    }
+    local Class = Client.define({
+      service = {
+        name = "things",
+        shapes = shapes,
+        errors = {
+          ThingNotFound = errors.define({
+            tag = "ThingNotFound",
+            categories = { "NotFoundError" },
+            matchers = { { code = 5 } },
+          }),
+        },
+        ops = {
+          watch = {
+            name = "Watch",
+            method = "POST",
+            uri = "/t.Things/Watch",
+            code = 200,
+            input = S.ref("WatchRequest"),
+            output = S.ref("WatchStream"),
+            errors = { "ThingNotFound" },
+            stream = { framing = "grpc", item = S.ref("Thing") },
+          },
+        },
+      },
+      protocol = require("distilled.protocol.grpc").new({
+        descriptors = D,
+        base_url = serve.url(),
+        unknown_tag = "UnknownThingsError",
+        parse_tag = "ThingsParseError",
+      }),
+    })
+    local function frame(id)
+      return crypto.base64.encode(pb.frame(ok(pb.encode(D, "t.Thing", { thingId = id }))))
+    end
+    return Class.new({ host = host, retry = "none" }), frame
+  end
+
+  t.it("gRPC (binary): grpc-status 0 in the HTTP trailers ends the stream cleanly", function()
+    local client, frame = grpc_things()
+    s.reset()
+    s.script("/t.Things/Watch", {
+      {
+        headers = { ["Content-Type"] = "application/grpc" },
+        chunk_delay = 1,
+        chunks_b64 = json.array({ frame("a"), frame("b") }),
+        trailers = { ["grpc-status"] = "0" },
+      },
+    })
+    local st = ok(client:watch_stream({ thingId = "x" }))
+    t.eq(ok(st:next()).thingId, "a")
+    t.eq(#streams_for("/t.Things/Watch")[1].sent, 1)
+    t.eq(ok(st:next()).thingId, "b")
+    local v, err = st:next()
+    t.eq(v, nil)
+    t.eq(err, nil)
+    t.eq(s.requests()[1].headers["te"], "trailers")
+  end)
+
+  t.it(
+    "gRPC (binary): a non-zero grpc-status in the trailers ends with the mapped error",
+    function()
+      local client, frame = grpc_things()
+      s.reset()
+      s.script("/t.Things/Watch", {
+        {
+          headers = { ["Content-Type"] = "application/grpc" },
+          chunks_b64 = json.array({ frame("a") }),
+          trailers = { ["grpc-status"] = "5", ["grpc-message"] = "vm%20gone" },
+        },
+      })
+      local st = ok(client:watch_stream({ thingId = "x" }))
+      local got = {}
+      for item, err in st:iter() do
+        got[#got + 1] = item or err
+      end
+      t.eq(#got, 2)
+      t.eq(got[1].thingId, "a")
+      t.eq(got[2].tag, "ThingNotFound")
+      t.eq(got[2].message, "vm gone")
+      t.eq(got[2].code, 5)
+    end
+  )
 end)

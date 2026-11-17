@@ -28,7 +28,9 @@ A <response> is an object with any of:
   Streaming (task 29): chunks (list of text) or chunks_b64 (list of base64 bytes) send a
   chunked body one chunk at a time, chunk_delay seconds apart (after `stall`);
   drop_after (n: cut the connection after n chunks, half-way through the next one);
-  hang (seconds to wait after the last chunk before ending the body: a stalled stream).
+  hang (seconds to wait after the last chunk before ending the body: a stalled stream);
+  trailers ({name: value} or [[name, value], ...]: HTTP trailers after the last chunk,
+  announced in a Trailer header; task 29b).
   GET /_dl/streams lists each streamed response: {path, sent: [unix times], ended}.
 
 A path with no script, or whose script ran out (and repeat_last is false), gets 404 with
@@ -166,6 +168,11 @@ class Handler(BaseHTTPRequestHandler):
         for name, value in headers:
             self.send_header(name, value)
         self.send_header("Transfer-Encoding", "chunked")
+        names = [k for k, _ in (entry.get("trailers") or {}).items()] if isinstance(
+            entry.get("trailers"), dict
+        ) else [k for k, _ in (entry.get("trailers") or [])]
+        if names:
+            self.send_header("Trailer", ", ".join(names))
         self.end_headers()
         self.wfile.flush()
         if entry.get("stall"):
@@ -184,7 +191,11 @@ class Handler(BaseHTTPRequestHandler):
                 log["sent"].append(time.time())
             if entry.get("hang"):
                 time.sleep(float(entry["hang"]))
-            self.wfile.write(b"0\r\n\r\n")
+            trailers = entry.get("trailers") or {}
+            if isinstance(trailers, dict):
+                trailers = list(trailers.items())
+            tail = "".join("%s: %s\r\n" % (k, v) for k, v in trailers)
+            self.wfile.write(b"0\r\n" + tail.encode("utf-8") + b"\r\n")
             self.wfile.flush()
             log["ended"] = time.time()
         except (BrokenPipeError, ConnectionResetError):

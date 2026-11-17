@@ -26,6 +26,11 @@ local errors = require("distilled.errors")
 
 local M = {}
 
+-- The fd curl writes its header dump to: the process modules open it (popen: a FIFO in
+-- the private directory; Rex: duplicated onto stderr). Headers come first, the HTTP
+-- trailers after the body; reader:trailers() reads them once the body has ended.
+M.HEADER_FD = 5
+
 --- M.config(request, body_path) -> curl config text
 -- Without body_path: a duplex transfer (the body from stdin, `upload-file = "."`).
 -- With body_path: a one-way streaming transfer whose body curl reads from that file
@@ -49,6 +54,10 @@ function M.config(req, body_path)
   for line in string.gmatch(text, "[^\n]+") do
     if string.find(line, "^data%-binary = ") then
       data_line = line
+    elseif string.find(line, "^dump%-header = ") then
+      -- the header dump (every header block, then the HTTP trailers after the body) on
+      -- its own channel, fd HEADER_FD, so trailers never mix with the body (task 29b)
+      lines[#lines + 1] = 'dump-header = "/dev/fd/' .. M.HEADER_FD .. '"'
     elseif not string.find(line, "^write%-out = ") then
       lines[#lines + 1] = line
     end
@@ -89,18 +98,21 @@ local function transport_error(message, fields)
 end
 
 -- proc: { write(bytes) -> true | nil, msg; close_stdin(); read(n) -> bytes ("" or short
--- at EOF); read_line() -> line with its "\n" | rest | "" at EOF; finish() -> exit code,
--- stderr (after EOF); kill() }
+-- at EOF); read_line() -> line with its "\n" | rest | "" at EOF; head_line() -> the next
+-- line of the header channel (same shape); finish() -> exit code, stderr, the rest of
+-- the header channel (after EOF: the trailers); kill() }
 
 --- M.conn(proc, request) -> conn
 function M.conn(proc, req)
   local conn = { closed = false }
   local failed -- the error once curl is known to have failed
   local finished = false
+  local trailer_text
   local function failure()
     if not finished then
       finished = true
-      local code, stderr = proc.finish()
+      local code, stderr, rest = proc.finish()
+      trailer_text = rest
       if code ~= 0 then
         failed = common.failure({ code = code, stderr = stderr, request = req })
       end
@@ -182,6 +194,29 @@ function M.conn(proc, req)
     end
     return table.concat(parts)
   end
+  --- reader:trailers() -> { [lowercase name] = value } | nil: the HTTP trailers, once the
+  -- body has ended (waits for curl to exit); nil when the reply had none
+  local parsed_trailers
+  function reader:trailers()
+    if parsed_trailers == nil then
+      failure()
+      local t, any = {}, false
+      for line in string.gmatch(trailer_text or "", "[^\r\n]+") do
+        -- curl's own messages share the channel in Rex (stderr): not trailers
+        if not string.find(line, "^curl: ") and not string.find(line, "^HTTP/") then
+          local name, value = string.match(line, "^([%w!#$%%&'*+%-.^_`|~]+):%s*(.-)%s*$")
+          if name then
+            name = string.lower(name)
+            t[name] = t[name] and (t[name] .. ", " .. value) or value
+            any = true
+          end
+        end
+      end
+      parsed_trailers = any and t or false
+    end
+    return parsed_trailers or nil
+  end
+
   function reader:close()
     reader.closed = true
     conn:close()
@@ -190,7 +225,7 @@ function M.conn(proc, req)
   -- the head: header blocks until a final (non-1xx) status
   function conn:response()
     while true do
-      local status_line = proc.read_line()
+      local status_line = proc.head_line()
       if status_line == nil or status_line == "" then
         return nil, failure() or transport_error("curl output has no HTTP status line")
       end
@@ -200,7 +235,7 @@ function M.conn(proc, req)
       end
       local block = { status_line }
       while true do
-        local line = proc.read_line()
+        local line = proc.head_line()
         if line == nil or line == "" then
           return nil, failure() or transport_error("the response head was cut short")
         end

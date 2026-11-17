@@ -21,8 +21,11 @@ local curl_duplex = require("distilled.transport.curl_duplex")
 local common = require("distilled.transport.curl_common")
 local compat = require("distilled.compat")
 
-local SCRIPT =
-  'exec 3<&0; dd bs=1 count="$1" 2>/dev/null | "$2" -q --config /dev/fd/4 4<&0 0<&3 3<&-'
+-- fd 5 (curl_duplex.HEADER_FD) is curl's header dump, sent to stderr: the stderr
+-- callback carries the header blocks, the HTTP trailers and curl's own messages
+local SCRIPT = 'exec 3<&0; dd bs=1 count="$1" 2>/dev/null | "$2" -q --config /dev/fd/4 4<&0 0<&3 3<&- '
+  .. curl_duplex.HEADER_FD
+  .. ">&2"
 
 local function open(start, opts, one_way)
   if type(start) ~= "function" and not (type(start) == "table" and getmetatable(start)) then
@@ -47,6 +50,8 @@ local function open(start, opts, one_way)
     local config = curl_duplex.config(req, one_way and req.body ~= nil and "-" or nil)
     local out, err_parts = {}, {}
     local buffered = "" -- what read_* have not taken yet
+    local head_buffered = "" -- stderr (the header channel) not taken yet
+    local all_err = {} -- every stderr piece, for error messages
     local h, serr = start({ "sh", "-c", SCRIPT, "sh", tostring(#config), curl }, {
       stdin = true,
       stdout = function(piece)
@@ -60,10 +65,24 @@ local function open(start, opts, one_way)
       return nil, common.failure({ not_found = true, message = tostring(serr), request = req })
     end
     local exited -- the wait result once the process ended
-    local function pump()
+    local function take()
+      local moved = false
       if #out > 0 then
         buffered = buffered .. compat.concat(out)
         out = {}
+        moved = true
+      end
+      if #err_parts > 0 then
+        local text = compat.concat(err_parts)
+        all_err[#all_err + 1] = text
+        head_buffered = head_buffered .. text
+        err_parts = {}
+        moved = true
+      end
+      return moved
+    end
+    local function pump()
+      if take() then
         return true
       end
       if exited then
@@ -73,10 +92,7 @@ local function open(start, opts, one_way)
       if type(r) == "table" then
         exited = r
       end
-      if #out > 0 then
-        buffered = buffered .. compat.concat(out)
-        out = {}
-      end
+      take()
       return true
     end
     local wok, werr = h:write(config)
@@ -121,6 +137,23 @@ local function open(start, opts, one_way)
       end
       return line
     end
+    function proc.head_line()
+      while not string.find(head_buffered, "\n", 1, true) do
+        if not pump() then
+          break
+        end
+      end
+      local i = string.find(head_buffered, "\n", 1, true)
+      local line
+      if i then
+        line = string.sub(head_buffered, 1, i)
+        head_buffered = string.sub(head_buffered, i + 1)
+      else
+        line = head_buffered
+        head_buffered = ""
+      end
+      return line
+    end
     function proc.finish()
       while not exited do
         local r = h:wait(5)
@@ -128,7 +161,10 @@ local function open(start, opts, one_way)
           exited = r
         end
       end
-      return exited.code, compat.concat(err_parts) .. tostring(exited.stderr or "")
+      take()
+      local rest = head_buffered
+      head_buffered = ""
+      return exited.code, compat.concat(all_err), rest
     end
     function proc.kill()
       if not exited then
