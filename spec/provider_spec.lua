@@ -89,6 +89,7 @@ local NAMES = {
   "aws", -- task 17 (gen/aws.lua)
   "axiom",
   "boat_dev",
+  "boxd",
   "celld",
   "chronosphere",
   "clerk",
@@ -111,7 +112,9 @@ local NAMES = {
   "exa",
   "fly_io",
   "forgejo",
+  "gcp", -- task 21 (discovery spec)
   "github",
+  "google_workspace", -- task 21 (discovery spec)
   "grafana",
   "growthbook",
   "gusto",
@@ -129,6 +132,7 @@ local NAMES = {
   "meilisearch",
   "mercury",
   "metabase",
+  "modal",
   "modrinth",
   "mongodb_atlas",
   "namespacelabs",

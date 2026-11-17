@@ -388,6 +388,11 @@ function ops.pagination(ctx, op)
     end
   end
   local items_root = string.match(out.items or "", "^[^%.]+")
+  if items == "" and pg.items == nil then
+    -- items_fallback = "" (gcp: Distilled's token profile with syntheticOutputs [""]): the
+    -- trait names no items, so the operation pages and its _items yields each page
+    return out
+  end
   if ctx.aws and out.items == nil then
     return out
   end

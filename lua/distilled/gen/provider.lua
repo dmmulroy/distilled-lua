@@ -145,7 +145,10 @@ local TOP = {
   pagination = true,
   allow_unsupported = true,
   models = true,
+  -- Google discovery models (gcp, google-workspace): gen/discovery.lua (task 21)
+  discovery = true,
   rpc = true, -- RPC models without http traits (gen/rpc.lua, task 22)
+  proto = true, -- proto-sourced providers: gRPC, gRPC-Web, Connect (gen/proto.lua, task 23)
 }
 for k in pairs(ext.TOP) do
   TOP[k] = true
@@ -362,7 +365,11 @@ function provider.validate(spec, opts)
       and (string.upper(string.sub(spec.name, 1, 1)) .. string.sub(spec.name, 2))
     )
 
-  -- base_url (an rpc model's protocol finds its hosts itself: no base URL needed)
+  -- base_url (a discovery model has its own: gen/discovery.lua replaces this placeholder;
+  -- an rpc model's protocol finds its hosts itself: no base URL needed)
+  if spec.discovery ~= nil and spec.base_url == nil then
+    spec.base_url = "https://discovery.googleapis.invalid"
+  end
   local base = {}
   if spec.rpc == nil or spec.base_url ~= nil then
     base = normalize_base_url("provider spec base_url", spec.base_url, p)
@@ -647,7 +654,21 @@ function provider.validate(spec, opts)
     end
   end
 
+  if spec.discovery ~= nil then
+    require("distilled.gen.discovery").check_spec(spec.discovery, p)
+    out.discovery = spec.discovery
+  end
+
   ext.validate(raw, out, p, opts)
+
+  -- proto-sourced providers (gRPC, gRPC-Web, Connect): validated by gen/proto.lua
+  if spec.proto ~= nil then
+    local r, rp = require("distilled.gen.proto").validate(spec.proto, out)
+    for _, problem in ipairs(rp or {}) do
+      p[#p + 1] = problem
+    end
+    out.proto = r
+  end
 
   if #p > 0 then
     return nil, compat.concat(p, "\n")

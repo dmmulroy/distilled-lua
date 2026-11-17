@@ -941,6 +941,58 @@ conformance with Distilled: 16 signer vectors, 17 requests, 85 responses, 0 mism
 - One unexplained Rex failure in the first `dl test --http tencentcloud` run (output
   lost); 14 reruns (rex alone and all three runtimes) passed. Recorded in the done file.
 
+## 23 grpc
+
+**Status: done** (branch `task-23`). Done file: `tasks/23-grpc.done.md`.
+
+Built:
+- `lua/distilled/protobuf.lua`: the proto3 codec.
+- `lua/distilled/protocol/grpc.lua`: gRPC and gRPC-Web, unary plus collected server streams.
+- `lua/distilled/protocol/connect.lua`: Connect JSON (e2b).
+- `lua/distilled/protocol/rpc.lua`: the runtime for the provider spec's `proto` section (settings, hosts, headers).
+- `lua/distilled/gen/proto.lua`.
+- Transport trailers and `request.http2` in `transport/curl_common.lua`.
+- Providers and committed clients for modal (304 ops), boxd (135) and e2b (97), plus generated clients for namespacelabs (182). All four reach parity with Distilled.
+- The full feature list is in `verify/features/grpc.md`.
+
+Decisions others should know:
+- **New provider spec key `proto`** (I renamed it from `rpc` when merging task 22, which owns `rpc` for operations without http traits; `proto` together with `rpc` is refused).
+  - It is validated by `gen/proto.lua` and documented at the top of that file.
+  - With `proto`, a provider's `init.lua` comes from `proto.client`, not `writer.client`.
+  - `status_map`, `classify_error`, `protocol` and `rpc` are refused alongside `proto`.
+- **Edits outside "descriptor emission" in `gen/*`.** These are hooks only, each guarded by `spec.proto`; non-rpc providers generate the same bytes as before.
+  - `gen/provider.lua`: `proto` in TOP, plus the validation call.
+  - `gen/init.lua`:
+    - `proto.streaming` after `ops.streaming`;
+    - `proto.prepare_model` before errors;
+    - `proto.plan` after the plan;
+    - the extra files.
+- **`verify/dl models sync`** now also copies `packages/<pkg>/src/descriptors.ts` to `models/<pkg>/`. The generator reads it from there.
+- **gRPC server-streaming ops are callable** on the grpc wires: they return `{ items }`.
+  - They are still `unsupported = "streaming"` on Connect and REST.
+  - `gen/traits.lua`'s note for `com.distilled.grpc#serverStreaming` predates this. Proposed: say "callable on rpc grpc wires (gen/proto.lua); else unsupported".
+- **Merge with main (task 13):**
+  - Main brought its own `providers/e2b.lua` and `providers/namespacelabs.lua`.
+  - **namespacelabs:** I kept main's REST + glue spec. Task 13's keys cover it, and it is Connect JSON, which is plain REST. My `proto` variant is not needed.
+  - **e2b:** I kept mine at first, because task 13's `models.override` took only `{ base_url, title }`. Task 27 then extended the overrides and rewrote `providers/e2b.lua` with them (plus `glue/e2b_envd.lua`). At that merge I took task 27's spec and `clients/e2b`, and my e2b client specs pass against them.
+  - **Result:** no generated client uses `proto` `wire = "connect"` (`protocol/connect.lua`) now. It stays supported and tested by `gen.proto`'s spec.
+  - **Overlap to fold later:** `proto.options`, `proto.headers` and `proto.base_url` duplicate task 13's top-level `options`, `headers` and templated `base_url` for the grpc wires.
+  - **Proposed follow-up:** let task 13's model overrides carry `options` and `headers`. `proto` could then keep only `wire`, `descriptors`, `http2` and `error_matchers_trait`.
+- **Outside my files:** I added `"boxd"` and `"modal"` to `NAMES` in `spec/provider_spec.lua`. It lists every `providers/*.lua`, and the merge broke it otherwise.
+- **`testing.transport` drops `response.trailers`.** `spec/grpc_spec.lua` uses its own scripted transport.
+  - Proposed: pass `trailers` through in `distilled.testing`.
+- **`verify/features/parity.md` is stale.** `verify/dl parity` regenerates it with these four packages complete; I did not commit the regenerated file because I do not own it.
+- **Proposed contract addition (`docs/interfaces.md`, transport):**
+  - `request.http2?: boolean`;
+  - `response.trailers?: { [lowercase name] = value }`.
+- **Fixed a race in exec_curl bodies** (`transport/curl_common.lua`).
+  - curl reads a `data-binary = "@/dev/fd/3"` file as soon as it parses that config line.
+  - fd 3 shares its file offset with the stdin that `dd` copies the config from. So any config line after `data-binary` could be taken as body.
+  - Seen as "curl output has no write-out trailer" and a body 8 bytes long instead of 1, in about one full `dl test --http` run in three. My longer write-out line made it visible.
+  - `data-binary` is now always the last config line; `spec/grpc_spec.lua` checks this.
+- **`clients/hetzner` is stale on main.** It differs from a fresh generation on main's own tree (task 13's error-envelope emission), so `dl gen-diff hetzner` fails. This is not from task 23: main's tree and task-23 give byte-identical hetzner output.
+
+
 ## 18 big-models
 
 **Done.** See `tasks/18-big-models.done.md` and `verify/features/generator.md` ("Large
@@ -1268,3 +1320,60 @@ slack 355, scaleway 1580, questrade 25.
   filesystem / process overrides (EnvdProtocol: sandbox headers, host, empty JSON bodies,
   `providers/glue/e2b_envd.lua`) and volume_content's (VolumeContentProtocol). The Connect
   streaming parts are task 23's; expect a conflict there.
+
+
+## 21 gcp
+
+**Done.** See `tasks/21-gcp.done.md` and `verify/features/gcp.md`. gcp: 529/529 models
+(315 stable + 214 unstable), 31,288 ops; google_workspace: 35/35 (28 + 7), 1,021 ops (the
+TS count). `dl gen-diff gcp` and `dl gen-diff google-workspace` ok in all three runtimes,
+every op also encoded through the package protocol (`verify/lib/gcp_check.lua`).
+Conformance with Distilled's TS: 1,078 requests, 26 responses, 3 pagination flows, 0
+mismatches (`spec/gcp_conform_spec.lua`).
+
+### Layout decision
+
+`.generated-specs/stable/` → `models/<pkg>/`, `unstable/` → `models/<pkg>/unstable/`
+(`dl models sync`). `bin/distilled-lua package` generates `<models>/unstable/*.json` into
+`<out>/unstable/<model>/` as `<pkg>.unstable.<model>` with its own index
+(`require("gcp.unstable")`), mirroring `@distilled.cloud/gcp/<service>` and its unstable
+entry point.
+
+### What others can use
+
+- Provider spec key **`discovery = { error_matchers = "<ns#trait>" }`** (`gen/discovery.lua`)
+  for Google discovery models: relative `v1/{+name}` URIs → `/v1/{name+}`, structure
+  payload bodies flattened into top-level members, per-model base URL from
+  `metadata.baseUrl`, matcher trait → typed error matchers, `details` member on error
+  structs, trailing `_` dropped from op names. No `base_url` needed with `discovery`.
+- `distilled.gcp.credentials`: providers (`from_application_default`, `from_authorized_user`,
+  `from_service_account_key`, `from_metadata_server`, `from_workload_identity`,
+  `from_access_token`, `from_env`, `custom(fn)`), `refreshing(kind, source, overrides)`,
+  `parse_time`, `sign_assertion`. The `credentials` client option takes a provider table.
+- Provider option `type = "table"` (`gen/provider_ext.lua`): a non-secret option checked
+  as a table, documented as `table`.
+- Pagination trait without `items` (`items_fallback = ""`): `*_items` yields whole pages.
+
+### Edits outside my files (small hooks; please keep when merging)
+
+- `bin/distilled-lua` (package: `generate_models` loop, `unstable/` sub-package).
+- `gen/provider.lua` (`discovery` in TOP, placeholder base URL), `gen/init.lua`
+  (discovery.prepare hook, op-name `_` strip, `gen.index` `local_name` and dir path),
+  `gen/writer.lua` (discovery base_url line; `table` option docs), `gen/types.lua`
+  (`table` option type), `gen/provider_ext.lua` (`type = "table"`), `gen/ops.lua`
+  (items_fallback ""), `lua/distilled/paginate.lua` (page as item when no items path).
+- `verify/dl`: models sync for stable/unstable; `gen-diff` also checks `<lua>.unstable`
+  and runs `verify/lib/gcp_check.lua` for `distilled.gcp.*` protocols.
+- `spec/provider_spec.lua`: `gcp`, `google_workspace` added to its list.
+
+### Notes for others
+
+- No LRO helpers: Distilled has none either (Operation results are plain data).
+- No `User-Agent` set: Distilled's GCP/Workspace protocols set none.
+- `verify/features/parity.md` not regenerated (shared): `dl parity` shows
+  `gcp 13901 13290 315/0 611` — the 611 are TS files without a stable model (explained in
+  `verify/features/gcp.md`); `google-workspace 708 708`. parity.lua counts stable only.
+- `verify/features/README.md` should list `gcp.md` (task 21).
+- `clients/gcp` is 187 MB; `dl gen-diff gcp` takes ~2.5 min.
+- Contract additions for `docs/interfaces.md`: provider spec keys `discovery` and option
+  `type = "table"`; error field `rpc_status` (envelope status; Distilled `status`).
