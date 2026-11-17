@@ -87,6 +87,7 @@ local NAMES = {
   "argocd",
   "auth0",
   "axiom",
+  "azure", -- task 20 (protocol distilled.protocol.azure)
   "boat_dev",
   "celld",
   "chronosphere",
