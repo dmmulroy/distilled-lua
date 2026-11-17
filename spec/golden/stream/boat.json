@@ -1,0 +1,368 @@
+[
+ {
+  "name": "exec: started, output, exit",
+  "op": "execute_sandbox_command",
+  "mode": "stream",
+  "input": {
+   "sandboxId": "sb1",
+   "command": "echo hi",
+   "cwd": "/w",
+   "timeoutSeconds": 30
+  },
+  "reply": {
+   "status": 200,
+   "headers": {
+    "content-type": "application/x-ndjson"
+   },
+   "chunks": [
+    "{\"type\":\"started\",\"commandId\":\"c1\"}\n",
+    "{\"type\":\"stdout\",\"data\":\"hi\\n\"}\n{\"type\":\"stderr\",",
+    "\"data\":\"warn\"}\r\n\n",
+    "{\"type\":\"exit\",\"exitCode\":0,\"success\":true,\"signal\":null,\"timedOut\":false}\n"
+   ]
+  },
+  "sent": [
+   {
+    "method": "POST",
+    "url": "https://boat.test/api/v1/sandboxes/sb1/commands",
+    "headers": {
+     "authorization": "Bearer boat_key",
+     "content-type": "application/json",
+     "content-length": "66",
+     "b3": "ab7923549d69bc7898f0775d9aa4573e-f1e61de7a0ad0f97-1",
+     "traceparent": "00-ab7923549d69bc7898f0775d9aa4573e-f1e61de7a0ad0f97-01"
+    },
+    "body": "{\"command\":\"echo hi\",\"cwd\":\"/w\",\"timeoutSeconds\":30,\"stream\":true}"
+   }
+  ],
+  "items": [
+   {
+    "type": "started",
+    "commandId": "c1"
+   },
+   {
+    "type": "stdout",
+    "data": "hi\n"
+   },
+   {
+    "type": "stderr",
+    "data": "warn"
+   },
+   {
+    "type": "exit",
+    "exitCode": 0,
+    "success": true,
+    "signal": null,
+    "timedOut": false
+   }
+  ]
+ },
+ {
+  "name": "exec: error frame, unknown member kept",
+  "op": "execute_sandbox_command",
+  "mode": "stream",
+  "input": {
+   "sandboxId": "sb1",
+   "command": "x",
+   "stream": false
+  },
+  "reply": {
+   "status": 200,
+   "headers": {
+    "content-type": "application/x-ndjson"
+   },
+   "chunks": [
+    "{\"type\":\"error\",\"error\":\"boom\",\"message\":\"failed\",\"retryable\":false,\"extra\":1}"
+   ]
+  },
+  "sent": [
+   {
+    "method": "POST",
+    "url": "https://boat.test/api/v1/sandboxes/sb1/commands",
+    "headers": {
+     "authorization": "Bearer boat_key",
+     "content-type": "application/json",
+     "content-length": "29",
+     "b3": "5ad4681769bd5f27f441358ee58b86f0-3a99da566346c378-1",
+     "traceparent": "00-5ad4681769bd5f27f441358ee58b86f0-3a99da566346c378-01"
+    },
+    "body": "{\"command\":\"x\",\"stream\":true}"
+   }
+  ],
+  "items": [
+   {
+    "type": "error",
+    "error": "boom",
+    "message": "failed",
+    "retryable": false,
+    "extra": 1
+   }
+  ]
+ },
+ {
+  "name": "exec: a line that is not JSON",
+  "op": "execute_sandbox_command",
+  "mode": "stream",
+  "input": {
+   "sandboxId": "sb1",
+   "command": "echo hi",
+   "cwd": "/w",
+   "timeoutSeconds": 30
+  },
+  "reply": {
+   "status": 200,
+   "headers": {
+    "content-type": "application/x-ndjson"
+   },
+   "chunks": [
+    "{\"type\":\"started\"}\n",
+    "oops\n",
+    "{\"type\":\"exit\"}\n"
+   ]
+  },
+  "sent": [
+   {
+    "method": "POST",
+    "url": "https://boat.test/api/v1/sandboxes/sb1/commands",
+    "headers": {
+     "authorization": "Bearer boat_key",
+     "content-type": "application/json",
+     "content-length": "66",
+     "b3": "7cc4ca4abdea2b4468343b52cdf7d230-5dd3fff062b447e5-1",
+     "traceparent": "00-7cc4ca4abdea2b4468343b52cdf7d230-5dd3fff062b447e5-01"
+    },
+    "body": "{\"command\":\"echo hi\",\"cwd\":\"/w\",\"timeoutSeconds\":30,\"stream\":true}"
+   }
+  ],
+  "items": [
+   {
+    "type": "started"
+   }
+  ],
+  "error": {
+   "tag": "BoatParseError",
+   "message": "",
+   "categories": [
+    "ParseError"
+   ],
+   "fields": {}
+  }
+ },
+ {
+  "name": "exec: 409 sandbox not running",
+  "op": "execute_sandbox_command",
+  "mode": "stream",
+  "input": {
+   "sandboxId": "sb1",
+   "command": "echo hi",
+   "cwd": "/w",
+   "timeoutSeconds": 30
+  },
+  "reply": {
+   "status": 409,
+   "headers": {
+    "content-type": "application/json"
+   },
+   "chunks": [
+    "{\"code\":\"sandbox_not_running\",\"message\":\"stopped\"}"
+   ]
+  },
+  "sent": [
+   {
+    "method": "POST",
+    "url": "https://boat.test/api/v1/sandboxes/sb1/commands",
+    "headers": {
+     "authorization": "Bearer boat_key",
+     "content-type": "application/json",
+     "content-length": "66",
+     "b3": "61b366bdf629dfeacf281eb1ba267706-27649ca43a2c114e-1",
+     "traceparent": "00-61b366bdf629dfeacf281eb1ba267706-27649ca43a2c114e-01"
+    },
+    "body": "{\"command\":\"echo hi\",\"cwd\":\"/w\",\"timeoutSeconds\":30,\"stream\":true}"
+   }
+  ],
+  "items": [],
+  "error": {
+   "tag": "Conflict",
+   "message": "stopped",
+   "categories": [
+    "ConflictError"
+   ],
+   "fields": {
+    "code": 0
+   }
+  }
+ },
+ {
+  "name": "exec: 404",
+  "op": "execute_sandbox_command",
+  "mode": "stream",
+  "input": {
+   "sandboxId": "sb1",
+   "command": "echo hi",
+   "cwd": "/w",
+   "timeoutSeconds": 30
+  },
+  "reply": {
+   "status": 404,
+   "headers": {
+    "content-type": "application/json"
+   },
+   "chunks": [
+    "{\"code\":\"not_found\",\"message\":\"no sandbox\"}"
+   ]
+  },
+  "sent": [
+   {
+    "method": "POST",
+    "url": "https://boat.test/api/v1/sandboxes/sb1/commands",
+    "headers": {
+     "authorization": "Bearer boat_key",
+     "content-type": "application/json",
+     "content-length": "66",
+     "b3": "4ec7aaa73e898a94c4680d68eb198a23-291db60cf4b9b46d-1",
+     "traceparent": "00-4ec7aaa73e898a94c4680d68eb198a23-291db60cf4b9b46d-01"
+    },
+    "body": "{\"command\":\"echo hi\",\"cwd\":\"/w\",\"timeoutSeconds\":30,\"stream\":true}"
+   }
+  ],
+  "items": [],
+  "error": {
+   "tag": "NotFound",
+   "message": "no sandbox",
+   "categories": [
+    "BadRequestError"
+   ],
+   "fields": {
+    "code": 0
+   }
+  }
+ },
+ {
+  "name": "attach: attached, chunks, exit",
+  "op": "attach_command",
+  "mode": "stream",
+  "input": {
+   "sandboxId": "sb1",
+   "processId": 7,
+   "stdoutOffset": 10
+  },
+  "reply": {
+   "status": 200,
+   "headers": {
+    "content-type": "application/x-ndjson"
+   },
+   "chunks": [
+    "{\"type\":\"attached\",\"processId\":7,\"stdoutOffset\":10,\"stderrOffset\":0}\n",
+    "{\"type\":\"stdout\",\"data\":\"x\",\"nextOffset\":11}\n",
+    "{\"type\":\"heartbeat\"}\n{\"type\":\"exit\",\"status\":\"exited\",\"exitCode\":0,\"signal\":null}\n"
+   ]
+  },
+  "sent": [
+   {
+    "method": "GET",
+    "url": "https://boat.test/api/v1/sandboxes/sb1/commands/7/stream?stdoutOffset=10",
+    "headers": {
+     "authorization": "Bearer boat_key",
+     "b3": "ccf0b622896bad626a6cce5fa6c8268b-ecb5e240252af6de-1",
+     "traceparent": "00-ccf0b622896bad626a6cce5fa6c8268b-ecb5e240252af6de-01"
+    },
+    "body": null
+   }
+  ],
+  "items": [
+   {
+    "type": "attached",
+    "processId": 7,
+    "stdoutOffset": 10,
+    "stderrOffset": 0
+   },
+   {
+    "type": "stdout",
+    "data": "x",
+    "nextOffset": 11
+   },
+   {
+    "type": "heartbeat"
+   },
+   {
+    "type": "exit",
+    "status": "exited",
+    "exitCode": 0,
+    "signal": null
+   }
+  ]
+ },
+ {
+  "name": "attach: plain call collects the lines",
+  "op": "attach_command",
+  "mode": "call",
+  "input": {
+   "sandboxId": "sb1",
+   "processId": 7,
+   "stdoutOffset": 10
+  },
+  "reply": {
+   "status": 200,
+   "headers": {
+    "content-type": "application/x-ndjson"
+   },
+   "chunks": [
+    "{\"type\":\"attached\",\"processId\":7}\n",
+    "{\"type\":\"reconnect\",\"stdoutOffset\":99}\n"
+   ]
+  },
+  "sent": [
+   {
+    "method": "GET",
+    "url": "https://boat.test/api/v1/sandboxes/sb1/commands/7/stream?stdoutOffset=10",
+    "headers": {
+     "authorization": "Bearer boat_key"
+    },
+    "body": null
+   }
+  ],
+  "value": {
+   "items": [
+    {
+     "type": "attached",
+     "processId": 7
+    },
+    {
+     "type": "reconnect",
+     "stdoutOffset": 99
+    }
+   ]
+  }
+ },
+ {
+  "name": "attach: empty stream",
+  "op": "attach_command",
+  "mode": "stream",
+  "input": {
+   "sandboxId": "sb1",
+   "processId": 7,
+   "stdoutOffset": 10
+  },
+  "reply": {
+   "status": 200,
+   "headers": {
+    "content-type": "application/x-ndjson"
+   },
+   "chunks": []
+  },
+  "sent": [
+   {
+    "method": "GET",
+    "url": "https://boat.test/api/v1/sandboxes/sb1/commands/7/stream?stdoutOffset=10",
+    "headers": {
+     "authorization": "Bearer boat_key",
+     "b3": "7832c36317af6c955ad43e6ae9763748-39ed011444b2ab28-1",
+     "traceparent": "00-7832c36317af6c955ad43e6ae9763748-39ed011444b2ab28-01"
+    },
+    "body": null
+   }
+  ],
+  "items": []
+ }
+]
