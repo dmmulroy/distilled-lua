@@ -28,6 +28,17 @@
 ---@field filename? string Defaults to the member's wire name
 ---@field content_type? string Defaults to application/octet-stream
 
+---A streaming response (`<op>_stream`): items as they arrive; `iter()` yields
+---`item, nil` per item and `false, err` once on a failure.
+---@class distilled.Stream<T>
+---@field status integer
+---@field headers table<string, string>
+---@field err? distilled.Error
+---@field next fun(self: distilled.Stream<T>): T?, distilled.Error?
+---@field iter fun(self: distilled.Stream<T>): fun(): T|false?, distilled.Error?
+---@field collect fun(self: distilled.Stream<T>, limit?: integer): T[]?, distilled.Error?
+---@field close fun(self: distilled.Stream<T>)
+
 ---JSON null (`distilled.null`): a value that is present and null, unlike nil.
 ---@class distilled.Null
 
@@ -3024,6 +3035,20 @@ function Client:add_environment_repo(input) end
 ---@return distilled.Error? err
 function Client:attach_command(input) end
 
+---Attach to a detached command
+---
+---The output of a detached command as it is written, one JSON object per line, until the command ends. After 10 minutes the stream ends with a `reconnect` line: open it again with its offsets to continue with no gap. One open stream replaces polling. Needs the `exec` key scope.
+---
+---Each item as it arrives (`ndjson`); `opts` = { timeout?, idle_timeout? } in seconds.
+---
+---`GET /sandboxes/{sandboxId}/commands/{processId}/stream`
+---Errors: BadRequest, NotFound, Conflict, SandboxNotRunning.
+---@param input boat_dev.AttachCommandRequest
+---@param opts? { timeout?: number, idle_timeout?: number }
+---@return distilled.Stream<boat_dev.CommandAttachFrame>? stream
+---@return distilled.Error? err
+function Client:attach_command_stream(input, opts) end
+
 ---List the command and process history
 ---
 ---Every command run through `POST /sandboxes/{sandboxId}/commands` in the last 90 days, and every other process that wrote to its stdout/stderr in the last 72 hours (mode `process`), newest first. Works while the sandbox is stopped.
@@ -3361,6 +3386,20 @@ function Client:download_sandbox_artifact(input) end
 ---@return boat_dev.ExecuteSandboxCommandResponseBody? value
 ---@return distilled.Error? err
 function Client:execute_sandbox_command(input) end
+
+---Execute a command in a sandbox
+---
+---Runs the command synchronously by default (timeout configurable via `timeoutSeconds`, 600s cap). With `detached: true` the command starts in the background and a process id is returned immediately; poll `/sandboxes/{sandboxId}/commands/{processId}` for status and logs. With `stream: true` the output arrives as the command writes it, as newline-delimited JSON (`application/x-ndjson`): `{"type":"started"}`, then `{"type":"stdout"|"stderr","data":"..."}` per chunk, and last `{"type":"exit",...}` (the synchronous result without stdout/stderr) or `{"type":"error","error":"...","message":"..."}`. Returns 400 invalid_timeout when `timeoutSeconds` is not an integer in 1-600. A command sent while the sandbox is still starting (right after a resume) waits up to 60s for it to be ready instead of failing; 409 boat_starting (retryable) is returned only if it is still not ready by then. A sandbox that is not starting (`error`, `stopped`) returns 409 sandbox_not_ready with `retryable: false` and its `state` at once: resume or recover it first. Command execution is never retried automatically: a 502 boat_direct_failed means the command may already be running on the sandbox. Every command and its output are kept 90 days in the command history (`/sandboxes/{sandboxId}/command-history`), readable while the sandbox is stopped.
+---
+---Each item as it arrives (`ndjson`); `opts` = { timeout?, idle_timeout? } in seconds.
+---
+---`POST /sandboxes/{sandboxId}/commands`
+---Errors: BadRequest, NotFound, Conflict, SandboxNotRunning.
+---@param input boat_dev.ExecuteSandboxCommandRequest
+---@param opts? { timeout?: number, idle_timeout?: number }
+---@return distilled.Stream<boat_dev.CommandStreamFrame>? stream
+---@return distilled.Error? err
+function Client:execute_sandbox_command_stream(input, opts) end
 
 ---Find text in sandbox files
 ---

@@ -600,6 +600,7 @@ function proto.streaming(ctx, op, unsupported, err)
     if item == nil then
       return false, op.id .. ": a server stream's output needs an `items` list of messages"
     end
+    op.stream_item_target = item -- types.lua: the `_stream` item type (task 29)
     op.stream = { framing = "grpc", item = emit.call("S.ref", naming.local_name(item)) }
     return nil, nil
   end

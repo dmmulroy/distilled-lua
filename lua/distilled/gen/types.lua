@@ -62,6 +62,19 @@ local RUNTIME_TYPES = [[
 ---@field close fun(self: distilled.Iterator<T>)
 ---@operator call: T?]]
 
+local STREAM_CLASS = [[
+---A streaming response (`<op>_stream`): items as they arrive; `iter()` yields
+---`item, nil` per item and `false, err` once on a failure.
+---@class distilled.Stream<T>
+---@field status integer
+---@field headers table<string, string>
+---@field err? distilled.Error
+---@field next fun(self: distilled.Stream<T>): T?, distilled.Error?
+---@field iter fun(self: distilled.Stream<T>): fun(): T|false?, distilled.Error?
+---@field collect fun(self: distilled.Stream<T>, limit?: integer): T[]?, distilled.Error?
+---@field close fun(self: distilled.Stream<T>)
+]]
+
 -- AWS documentation is HTML: gen/aws.lua's doc_text makes it a short plain text
 local doc_filter
 
@@ -332,6 +345,7 @@ function types.render(plan)
   b:line("function Client:close() end")
   b:blank()
 
+  local uses_stream = false
   for _, op in ipairs(plan.ops) do
     local input_t = prefix .. "." .. naming.type_name(ctx, op.input)
     local has_required = false
@@ -353,7 +367,7 @@ function types.render(plan)
     for i, tag in ipairs(op.error_tags) do
       errs[i] = tag
     end
-    local function method(name, ret, extra_doc)
+    local function method(name, ret, extra_doc, with_opts)
       b:lines_of(doc_lines(doc))
       if extra_doc then
         if doc then
@@ -367,14 +381,18 @@ function types.render(plan)
         b:line("---Errors: " .. compat.concat(errs, ", ") .. ".")
       end
       b:line(param)
+      if with_opts then
+        b:line("---@param opts? { timeout?: number, idle_timeout?: number }")
+      end
       for _, r in ipairs(ret) do
         b:line("---@return " .. r)
       end
-      local signature = "function Client:" .. name .. "(input) end"
+      local args = with_opts and "input, opts" or "input"
+      local signature = "function Client:" .. name .. "(" .. args .. ") end"
       if #signature > emit.WIDTH then
         -- stylua's layout for a signature past the width (long operation names)
         b:line("function Client:" .. name .. "(")
-        b:line(emit.INDENT .. "input")
+        b:line(emit.INDENT .. args)
         b:line(")")
         b:line("end")
       else
@@ -384,6 +402,20 @@ function types.render(plan)
     end
     local out_ret = needs_parens(output_t) and ("(" .. output_t .. ")?") or (output_t .. "?")
     method(op.method_name, { out_ret .. " value", "distilled.Error? err" })
+    if op.stream then
+      -- task 29: client:<op>_stream(input [, opts]) -> distilled.Stream
+      local target = op.stream_item_target
+      local item_t = target and types.type_of(ctx, prefix, target, false) or "any"
+      method(
+        op.method_name .. "_stream",
+        { "distilled.Stream<" .. item_t .. ">? stream", "distilled.Error? err" },
+        "Each item as it arrives (`"
+          .. tostring(op.stream.framing)
+          .. "`); `opts` = { timeout?, idle_timeout? } in seconds.",
+        true
+      )
+      uses_stream = true
+    end
     if op.pagination then
       method(
         require("distilled.gen.ops").page_method(op, "pages"),
@@ -399,7 +431,14 @@ function types.render(plan)
     end
   end
   b:line("return Module")
-  return b:text()
+  local text = b:text()
+  if uses_stream then
+    -- the Stream class, only in modules that have streaming operations
+    text = string.gsub(text, "\n%-%-%-JSON null %(", function(m)
+      return "\n" .. STREAM_CLASS .. m
+    end, 1)
+  end
+  return text
 end
 
 return types

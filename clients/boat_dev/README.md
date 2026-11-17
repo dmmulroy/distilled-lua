@@ -37,7 +37,7 @@ a built-in tag, `UnknownBoatError` (nothing matched) or `BoatParseError` (an unp
 | --- | --- | --- |
 | `add_credential_account` | `POST /credential-profiles/{profile}/accounts/{credential}` | Add another API key to a credential |
 | `add_environment_repo` | `POST /environments/{environmentId}/repos` | Add a repository to an environment |
-| `attach_command` | `GET /sandboxes/{sandboxId}/commands/{processId}/stream` | Attach to a detached command |
+| `attach_command` (+ `_stream`) | `GET /sandboxes/{sandboxId}/commands/{processId}/stream` | Attach to a detached command |
 | `command_history` | `GET /sandboxes/{sandboxId}/command-history` | List the command and process history |
 | `command_logs` | `GET /sandboxes/{sandboxId}/command-history/{commandId}/logs` | Read a command's stored output |
 | `configure_ssh_key` | `POST /sandboxes/{sandboxId}/sshkey` | Configure sandbox SSH key |
@@ -67,7 +67,7 @@ a built-in tag, `UnknownBoatError` (nothing matched) or `BoatParseError` (an unp
 | `delete_telemetry` | `DELETE /telemetry` | Remove OpenTelemetry export |
 | `delete_webhook` | `DELETE /webhooks/{webhookId}` | Delete webhook |
 | `download_sandbox_artifact` | `GET /sandboxes/{sandboxId}/artifacts` | Download a sandbox artifact |
-| `execute_sandbox_command` | `POST /sandboxes/{sandboxId}/commands` | Execute a command in a sandbox |
+| `execute_sandbox_command` (+ `_stream`) | `POST /sandboxes/{sandboxId}/commands` | Execute a command in a sandbox |
 | `find_in_files` | `GET /sandboxes/{sandboxId}/files/find` | Find text in sandbox files |
 | `fork_sandbox` | `POST /sandboxes/{sandboxId}/fork` | Fork sandbox |
 | `get_ai_proxy` | `GET /ai-proxy` | Get AI credentials proxy |

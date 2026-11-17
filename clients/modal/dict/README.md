@@ -35,7 +35,7 @@ a built-in tag, `UnknownModalError` (nothing matched) or `ModalParseError` (an u
 | `clear_dict` | `POST /modal.client.ModalClient/DictClear` | Dicts |
 | `delete_dict` | `POST /modal.client.ModalClient/DictDelete` |  |
 | `dict_contains` | `POST /modal.client.ModalClient/DictContains` |  |
-| `dict_contents` | `POST /modal.client.ModalClient/DictContents` |  |
+| `dict_contents` (+ `_stream`) | `POST /modal.client.ModalClient/DictContents` |  |
 | `dict_get_by_id` | `POST /modal.client.ModalClient/DictGetById` |  |
 | `dict_get_or_create` | `POST /modal.client.ModalClient/DictGetOrCreate` |  |
 | `dict_heartbeat` | `POST /modal.client.ModalClient/DictHeartbeat` |  |

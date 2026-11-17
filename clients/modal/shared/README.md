@@ -38,7 +38,7 @@ a built-in tag, `UnknownModalError` (nothing matched) or `ModalParseError` (an u
 | `shared_volume_get_or_create` | `POST /modal.client.ModalClient/SharedVolumeGetOrCreate` |  |
 | `shared_volume_heartbeat` | `POST /modal.client.ModalClient/SharedVolumeHeartbeat` |  |
 | `shared_volume_list_files` | `POST /modal.client.ModalClient/SharedVolumeListFiles` |  |
-| `shared_volume_list_files_stream` | `POST /modal.client.ModalClient/SharedVolumeListFilesStream` |  |
+| `shared_volume_list_files_stream` (+ `_stream`) | `POST /modal.client.ModalClient/SharedVolumeListFilesStream` |  |
 | `shared_volume_put_file` | `POST /modal.client.ModalClient/SharedVolumePutFile` |  |
 | `shared_volume_remove_file` | `POST /modal.client.ModalClient/SharedVolumeRemoveFile` |  |
 

@@ -38,7 +38,7 @@ a built-in tag, `UnknownModalError` (nothing matched) or `ModalParseError` (an u
 | `image_from_id` | `POST /modal.client.ModalClient/ImageFromId` |  |
 | `image_get_by_tag` | `POST /modal.client.ModalClient/ImageGetByTag` |  |
 | `image_get_or_create` | `POST /modal.client.ModalClient/ImageGetOrCreate` |  |
-| `image_join_streaming` | `POST /modal.client.ModalClient/ImageJoinStreaming` |  |
+| `image_join_streaming` (+ `_stream`) | `POST /modal.client.ModalClient/ImageJoinStreaming` |  |
 | `image_list_tags` (+ `_pages`, `_items`) | `POST /modal.client.ModalClient/ImageListTags` |  |
 | `image_tag_revisions` (+ `_pages`, `_items`) | `POST /modal.client.ModalClient/ImageTagRevisions` |  |
 | `publish_image` | `POST /modal.client.ModalClient/ImagePublish` |  |

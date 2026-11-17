@@ -38,8 +38,8 @@ a built-in tag, `UnknownModalError` (nothing matched) or `ModalParseError` (an u
 | `function_bind_params` | `POST /modal.client.ModalClient/FunctionBindParams` |  |
 | `function_call_count` | `POST /modal.client.ModalClient/FunctionCallCount` |  |
 | `function_call_from_id` | `POST /modal.client.ModalClient/FunctionCallFromId` |  |
-| `function_call_get_data_in` | `POST /modal.client.ModalClient/FunctionCallGetDataIn` |  |
-| `function_call_get_data_out` | `POST /modal.client.ModalClient/FunctionCallGetDataOut` |  |
+| `function_call_get_data_in` (+ `_stream`) | `POST /modal.client.ModalClient/FunctionCallGetDataIn` |  |
+| `function_call_get_data_out` (+ `_stream`) | `POST /modal.client.ModalClient/FunctionCallGetDataOut` |  |
 | `function_call_get_info` | `POST /modal.client.ModalClient/FunctionCallGetInfo` |  |
 | `function_call_put_data_out` | `POST /modal.client.ModalClient/FunctionCallPutDataOut` |  |
 | `function_finish_inputs` | `POST /modal.client.ModalClient/FunctionFinishInputs` | For map RPCs, to signal that all inputs have been sent |

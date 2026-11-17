@@ -28,6 +28,17 @@
 ---@field filename? string Defaults to the member's wire name
 ---@field content_type? string Defaults to application/octet-stream
 
+---A streaming response (`<op>_stream`): items as they arrive; `iter()` yields
+---`item, nil` per item and `false, err` once on a failure.
+---@class distilled.Stream<T>
+---@field status integer
+---@field headers table<string, string>
+---@field err? distilled.Error
+---@field next fun(self: distilled.Stream<T>): T?, distilled.Error?
+---@field iter fun(self: distilled.Stream<T>): fun(): T|false?, distilled.Error?
+---@field collect fun(self: distilled.Stream<T>, limit?: integer): T[]?, distilled.Error?
+---@field close fun(self: distilled.Stream<T>)
+
 ---JSON null (`distilled.null`): a value that is present and null, unlike nil.
 ---@class distilled.Null
 
@@ -396,6 +407,15 @@ function Client:sandbox_stdin_write_v2(input) end
 ---@return distilled.Error? err
 function Client:sandbox_stdio_read_v2(input) end
 
+---Each item as it arrives (`grpc`); `opts` = { timeout?, idle_timeout? } in seconds.
+---
+---`POST /modal.task_command_router.TaskCommandRouter/SandboxStdioReadV2`
+---@param input? modal.task_command_router.SandboxStdioReadV2Request
+---@param opts? { timeout?: number, idle_timeout?: number }
+---@return distilled.Stream<modal.task_command_router.SandboxStdioReadV2Response>? stream
+---@return distilled.Error? err
+function Client:sandbox_stdio_read_v2_stream(input, opts) end
+
 ---
 ---`POST /modal.task_command_router.TaskCommandRouter/SandboxWaitUntilReady`
 ---@param input? modal.task_command_router.SandboxWaitUntilReadyRequest
@@ -442,6 +462,17 @@ function Client:task_exec_stdin_write(input) end
 ---@return modal.task_command_router.TaskExecStdioReadStream? value
 ---@return distilled.Error? err
 function Client:task_exec_stdio_read(input) end
+
+---Get a stream of output from the stdout or stderr stream of an exec'd command.
+---
+---Each item as it arrives (`grpc`); `opts` = { timeout?, idle_timeout? } in seconds.
+---
+---`POST /modal.task_command_router.TaskCommandRouter/TaskExecStdioRead`
+---@param input? modal.task_command_router.TaskExecStdioReadRequest
+---@param opts? { timeout?: number, idle_timeout?: number }
+---@return distilled.Stream<modal.task_command_router.TaskExecStdioReadResponse>? stream
+---@return distilled.Error? err
+function Client:task_exec_stdio_read_stream(input, opts) end
 
 ---Wait for an exec'd command to exit and return the exit code.
 ---

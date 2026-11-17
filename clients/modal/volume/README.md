@@ -43,8 +43,8 @@ a built-in tag, `UnknownModalError` (nothing matched) or `ModalParseError` (an u
 | `volume_get_file2` | `POST /modal.client.ModalClient/VolumeGetFile2` |  |
 | `volume_get_or_create` | `POST /modal.client.ModalClient/VolumeGetOrCreate` |  |
 | `volume_heartbeat` | `POST /modal.client.ModalClient/VolumeHeartbeat` |  |
-| `volume_list_files` | `POST /modal.client.ModalClient/VolumeListFiles` |  |
-| `volume_list_files2` | `POST /modal.client.ModalClient/VolumeListFiles2` |  |
+| `volume_list_files` (+ `_stream`) | `POST /modal.client.ModalClient/VolumeListFiles` |  |
+| `volume_list_files2` (+ `_stream`) | `POST /modal.client.ModalClient/VolumeListFiles2` |  |
 | `volume_put_files` | `POST /modal.client.ModalClient/VolumePutFiles` |  |
 | `volume_put_files2` | `POST /modal.client.ModalClient/VolumePutFiles2` |  |
 | `volume_reload` | `POST /modal.client.ModalClient/VolumeReload` |  |

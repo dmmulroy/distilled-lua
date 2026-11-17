@@ -888,6 +888,9 @@ function ops.streaming(ctx, op)
   if not found then
     return nil
   end
+  if ctx.provider.stream_framing and not ctx.provider.proto then
+    return ops.rest_stream(ctx, op)
+  end
   if not ctx.provider.allow_unsupported.streaming then
     return false,
       op.id
@@ -901,6 +904,73 @@ function ops.streaming(ctx, op)
     return nil
   end
   return "streaming"
+end
+
+--- ops.rest_stream(ctx, op) -> nil | false, message: sets op.stream for a REST
+-- streaming operation of a provider with stream_framing (task 29), as Distilled's
+-- generator.ts emits API.makeStreaming (paginated ops excepted, as there):
+--   streamWhen { input, items }: op.stream = { framing, item = S.ref(items),
+--     set_input = { <user member name> = value } } (the plain call keeps its output)
+--   serverStreaming: op.stream = { framing, item = S.ref(<items element>) }; the plain
+--     call collects the frames into { items } (rest decode, ndjson.collect)
+-- clientStreaming has no REST form and fails generation.
+function ops.rest_stream(ctx, op)
+  local traits = op.def.traits or {}
+  if traits["com.distilled.grpc#clientStreaming"] ~= nil then
+    return false, op.id .. ": client streaming has no REST form"
+  end
+  if op.pagination then
+    return nil -- generator.ts: `!paginated && streamsOutput(...)`
+  end
+  local framing = ctx.provider.stream_framing
+  local when = traits["com.distilled.openapi#streamWhen"]
+  if when ~= nil then
+    local items = type(when) == "table" and when.items
+    if type(items) ~= "string" or ctx.model.shapes[items] == nil then
+      return false,
+        op.id .. ": com.distilled.openapi#streamWhen items " .. tostring(items) .. " is not a shape"
+    end
+    local set = {}
+    local members = shapes.members(ctx, ctx.model.shapes[op.input] or {}, op.input)
+    for _, wire in ipairs(ctx.model:keys(when.input or {})) do
+      local found
+      for _, m in ipairs(members) do
+        if m.smithy == wire then
+          found = m
+        end
+      end
+      if not found then
+        return false,
+          op.id
+            .. ": com.distilled.openapi#streamWhen input member "
+            .. wire
+            .. " is not in the input"
+      end
+      set[found.name] = when.input[wire]
+    end
+    op.stream_item_target = items
+    op.stream = {
+      framing = framing,
+      item = emit.call("S.ref", naming.local_name(items)),
+      set_input = set,
+    }
+    return nil
+  end
+  -- serverStreaming: one element of the output's `items`
+  local def = op.output and ctx.model.shapes[op.output]
+  local item
+  for _, m in ipairs(def and ctx.model:members(def) or {}) do
+    if m.name == "items" then
+      local list = ctx.model.shapes[m.target]
+      item = list and list.member and list.member.target
+    end
+  end
+  if item == nil or ctx.model.shapes[item] == nil then
+    return false, op.id .. ": a server-streaming output needs an `items` list of a shape"
+  end
+  op.stream_item_target = item
+  op.stream = { framing = framing, item = emit.call("S.ref", naming.local_name(item)) }
+  return nil
 end
 
 ---------------------------------------------------------------------------------------

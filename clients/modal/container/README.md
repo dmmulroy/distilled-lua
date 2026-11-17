@@ -33,7 +33,7 @@ a built-in tag, `UnknownModalError` (nothing matched) or `ModalParseError` (an u
 | Method | HTTP | Summary |
 | --- | --- | --- |
 | `container_checkpoint` | `POST /modal.client.ModalClient/ContainerCheckpoint` | Container |
-| `container_exec_get_output` | `POST /modal.client.ModalClient/ContainerExecGetOutput` |  |
+| `container_exec_get_output` (+ `_stream`) | `POST /modal.client.ModalClient/ContainerExecGetOutput` |  |
 | `container_exec_put_input` | `POST /modal.client.ModalClient/ContainerExecPutInput` |  |
 | `container_exec_wait` | `POST /modal.client.ModalClient/ContainerExecWait` |  |
 | `container_heartbeat` | `POST /modal.client.ModalClient/ContainerHeartbeat` |  |

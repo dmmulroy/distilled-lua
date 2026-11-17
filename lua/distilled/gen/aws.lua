@@ -229,6 +229,7 @@ function aws.event_stream(ctx, op)
     }
   end
   op.stream = stream
+  op.stream_item_target = out_union -- types.lua: the `_stream` item type (task 29)
   local seen = {}
   for _, e in ipairs(op.errors) do
     seen[e] = true

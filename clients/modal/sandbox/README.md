@@ -47,7 +47,7 @@ a built-in tag, `UnknownModalError` (nothing matched) or `ModalParseError` (an u
 | `sandbox_get_exit_snapshot_v2` | `POST /modal.client.ModalClient/SandboxGetExitSnapshotV2` |  |
 | `sandbox_get_from_name` | `POST /modal.client.ModalClient/SandboxGetFromName` |  |
 | `sandbox_get_from_name_v2` | `POST /modal.client.ModalClient/SandboxGetFromNameV2` |  |
-| `sandbox_get_logs` | `POST /modal.client.ModalClient/SandboxGetLogs` |  |
+| `sandbox_get_logs` (+ `_stream`) | `POST /modal.client.ModalClient/SandboxGetLogs` |  |
 | `sandbox_get_resource_usage` | `POST /modal.client.ModalClient/SandboxGetResourceUsage` |  |
 | `sandbox_get_stats` | `POST /modal.client.ModalClient/SandboxGetStats` | Statistics over available usage samples; ingestion can lag execution. |
 | `sandbox_get_stats_v2` | `POST /modal.client.ModalClient/SandboxGetStatsV2` |  |

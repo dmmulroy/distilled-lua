@@ -36,7 +36,7 @@ a built-in tag, `UnknownModalError` (nothing matched) or `ModalParseError` (an u
 | `list_workspace_members` | `POST /modal.client.ModalClient/WorkspaceMembersList` |  |
 | `lookup_workspace_name` | `POST /modal.client.ModalClient/WorkspaceNameLookup` |  |
 | `workspace_billing_rates` | `POST /modal.client.ModalClient/WorkspaceBillingRates` | Workspaces |
-| `workspace_billing_report` | `POST /modal.client.ModalClient/WorkspaceBillingReport` |  |
+| `workspace_billing_report` (+ `_stream`) | `POST /modal.client.ModalClient/WorkspaceBillingReport` |  |
 | `workspace_billing_summary` | `POST /modal.client.ModalClient/WorkspaceBillingSummary` |  |
 | `workspace_set_default_environment` | `POST /modal.client.ModalClient/WorkspaceSetDefaultEnvironment` |  |
 | `workspace_set_default_environment_settings` | `POST /modal.client.ModalClient/WorkspaceSetDefaultEnvironmentSettings` |  |

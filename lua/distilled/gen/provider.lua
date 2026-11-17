@@ -34,6 +34,11 @@
 --     allow_unsupported = { "streaming" },   -- emit operations the runtime refuses at
 --                                            -- call time (SdkError) instead of failing
 --                                            -- (provider.UNSUPPORTED)
+--     stream_framing = "ndjson",             -- REST server-streaming ops (streamWhen,
+--                                            -- serverStreaming): op.stream with this
+--                                            -- framing ("ndjson" | "sse"), a client
+--                                            -- `<op>_stream` method (task 29; Distilled:
+--                                            -- `streams: true` + `framing: T.ndjson`)
 --     models = {                             -- packages with several models (one module
 --                                            -- each, `require("hetzner.servers")`)
 --       skip = { "pricing" },                -- models not generated (Lua model names)
@@ -144,6 +149,7 @@ local TOP = {
   naming = true,
   pagination = true,
   allow_unsupported = true,
+  stream_framing = true, -- REST streaming operations' body framing (task 29)
   models = true,
   -- Google discovery models (gcp, google-workspace): gen/discovery.lua (task 21)
   discovery = true,
@@ -651,6 +657,14 @@ function provider.validate(spec, opts)
           out.allow_unsupported[v] = true
         end
       end
+    end
+  end
+
+  if spec.stream_framing ~= nil then
+    if spec.stream_framing ~= "ndjson" and spec.stream_framing ~= "sse" then
+      p[#p + 1] = 'provider spec: stream_framing must be "ndjson" or "sse"'
+    else
+      out.stream_framing = spec.stream_framing
     end
   end
 

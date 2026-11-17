@@ -36,13 +36,13 @@ a built-in tag, `UnknownModalError` (nothing matched) or `ModalParseError` (an u
 | `get_task_container` | `POST /modal.task_command_router.TaskCommandRouter/TaskContainerGet` | Get the latest container associated with a logical name. |
 | `list_task_container` | `POST /modal.task_command_router.TaskCommandRouter/TaskContainerList` | List containers associated with the task. |
 | `sandbox_stdin_write_v2` | `POST /modal.task_command_router.TaskCommandRouter/SandboxStdinWriteV2` |  |
-| `sandbox_stdio_read_v2` | `POST /modal.task_command_router.TaskCommandRouter/SandboxStdioReadV2` |  |
+| `sandbox_stdio_read_v2` (+ `_stream`) | `POST /modal.task_command_router.TaskCommandRouter/SandboxStdioReadV2` |  |
 | `sandbox_wait_until_ready` | `POST /modal.task_command_router.TaskCommandRouter/SandboxWaitUntilReady` |  |
 | `task_exec_poll` | `POST /modal.task_command_router.TaskCommandRouter/TaskExecPoll` | Poll for the exit status of an exec'd command. |
 | `task_exec_start` | `POST /modal.task_command_router.TaskCommandRouter/TaskExecStart` | Execute a command in the task. |
 | `task_exec_stdin_status` | `POST /modal.task_command_router.TaskCommandRouter/TaskExecStdinStatus` | Get the current stdin write status for an exec'd command. Used to resume a TaskExecStdinWriteStream after a stream failure. Evicts any in-flight TaskExecStdinWriteStream for this exec, so it is not safe to call for read-only observability. |
 | `task_exec_stdin_write` | `POST /modal.task_command_router.TaskCommandRouter/TaskExecStdinWrite` | Write to the stdin stream of an exec'd command. |
-| `task_exec_stdio_read` | `POST /modal.task_command_router.TaskCommandRouter/TaskExecStdioRead` | Get a stream of output from the stdout or stderr stream of an exec'd command. |
+| `task_exec_stdio_read` (+ `_stream`) | `POST /modal.task_command_router.TaskCommandRouter/TaskExecStdioRead` | Get a stream of output from the stdout or stderr stream of an exec'd command. |
 | `task_exec_wait` | `POST /modal.task_command_router.TaskCommandRouter/TaskExecWait` | Wait for an exec'd command to exit and return the exit code. |
 | `task_mount_directory` | `POST /modal.task_command_router.TaskCommandRouter/TaskMountDirectory` | Mount an image at a directory in the container. |
 | `task_reload_volumes` | `POST /modal.task_command_router.TaskCommandRouter/TaskReloadVolumes` | Reload all Volumes mounted in the task to reflect their latest committed state. |

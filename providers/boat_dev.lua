@@ -16,8 +16,9 @@ return {
   auth = { kind = "bearer", from = "api_key", env = "BOAT_API_KEY" },
   options = { org = { env = "BOAT_ORG", doc = "organization (X-Boat-Org)" } },
   headers = { ["X-Boat-Org"] = "{org}" },
-  -- the streaming operations (command attach and output) fail with SdkError when called
-  allow_unsupported = { "streaming" },
+  -- Boat streams application/x-ndjson (Distilled: `streams: true`, `framing: T.ndjson`):
+  -- attach_command_stream, and execute_sandbox_command_stream (stream = true)
+  stream_framing = "ndjson",
   unknown_tag = "UnknownBoatError",
   parse_tag = "BoatParseError",
 }

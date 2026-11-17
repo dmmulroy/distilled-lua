@@ -39,7 +39,7 @@ a built-in tag, `UnknownModalError` (nothing matched) or `ModalParseError` (an u
 | `app_get_info` | `POST /modal.client.ModalClient/AppGetInfo` |  |
 | `app_get_layout` | `POST /modal.client.ModalClient/AppGetLayout` |  |
 | `app_get_lifecycle` | `POST /modal.client.ModalClient/AppGetLifecycle` |  |
-| `app_get_logs` | `POST /modal.client.ModalClient/AppGetLogs` |  |
+| `app_get_logs` (+ `_stream`) | `POST /modal.client.ModalClient/AppGetLogs` |  |
 | `app_get_objects` | `POST /modal.client.ModalClient/AppGetObjects` |  |
 | `app_get_or_create` | `POST /modal.client.ModalClient/AppGetOrCreate` |  |
 | `app_get_tags` | `POST /modal.client.ModalClient/AppGetTags` |  |

@@ -4536,7 +4536,7 @@ ops.attach_command = {
   output = S.ref("AttachCommandResponse"),
   errors = { "BadRequest", "NotFound", "Conflict", "SandboxNotRunning" },
   span = "AttachCommand",
-  unsupported = "streaming",
+  stream = { item = S.ref("CommandAttachFrame"), framing = "ndjson" },
 }
 ops.command_history = {
   name = "CommandHistory",
@@ -4860,6 +4860,11 @@ ops.execute_sandbox_command = {
   output_raw = true,
   errors = { "BadRequest", "NotFound", "Conflict", "SandboxNotRunning" },
   span = "ExecuteSandboxCommand",
+  stream = {
+    item = S.ref("CommandStreamFrame"),
+    framing = "ndjson",
+    set_input = { stream = true },
+  },
 }
 ops.find_in_files = {
   name = "FindInFiles",

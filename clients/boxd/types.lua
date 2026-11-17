@@ -28,6 +28,17 @@
 ---@field filename? string Defaults to the member's wire name
 ---@field content_type? string Defaults to application/octet-stream
 
+---A streaming response (`<op>_stream`): items as they arrive; `iter()` yields
+---`item, nil` per item and `false, err` once on a failure.
+---@class distilled.Stream<T>
+---@field status integer
+---@field headers table<string, string>
+---@field err? distilled.Error
+---@field next fun(self: distilled.Stream<T>): T?, distilled.Error?
+---@field iter fun(self: distilled.Stream<T>): fun(): T|false?, distilled.Error?
+---@field collect fun(self: distilled.Stream<T>, limit?: integer): T[]?, distilled.Error?
+---@field close fun(self: distilled.Stream<T>)
+
 ---JSON null (`distilled.null`): a value that is present and null, unlike nil.
 ---@class distilled.Null
 
@@ -2027,6 +2038,17 @@ function Client:download_file(input) end
 ---@return distilled.Error? err
 function Client:download_file_stream(input) end
 
+---Streaming download: the sibling of UploadFileStream, lifting the 4 MiB single-message gRPC cap of DownloadFile. The first response chunk carries `total_size`; every chunk (the first included) carries a slice of the file's bytes in order. The client concatenates them and MUST verify the received byte count against `total_size` — a short stream is an error, not a truncated file.
+---
+---Each item as it arrives (`grpc`); `opts` = { timeout?, idle_timeout? } in seconds.
+---
+---`POST /boxd.api.v1.BoxdApi/DownloadFileStream`
+---@param input? boxd.DownloadFileStreamRequest
+---@param opts? { timeout?: number, idle_timeout?: number }
+---@return distilled.Stream<boxd.DownloadFileChunk>? stream
+---@return distilled.Error? err
+function Client:download_file_stream_stream(input, opts) end
+
 ---
 ---`POST /boxd.api.v1.BoxdApi/ExposePort`
 ---@param input? boxd.ExposePortRequest
@@ -2057,6 +2079,17 @@ function Client:fork_vm(input) end
 ---@return distilled.Error? err
 function Client:fs_list(input) end
 
+---FsList streams a directory's entries, one level, in batches. There is no cap on how many it returns.
+---
+---Each item as it arrives (`grpc`); `opts` = { timeout?, idle_timeout? } in seconds.
+---
+---`POST /boxd.api.v1.BoxdApi/FsList`
+---@param input? boxd.FsListRequest
+---@param opts? { timeout?: number, idle_timeout?: number }
+---@return distilled.Stream<boxd.FsListChunk>? stream
+---@return distilled.Error? err
+function Client:fs_list_stream(input, opts) end
+
 ---FsMkdir creates a directory and any missing parents. An existing directory is not an error; a file in the way is `file_exists`.
 ---
 ---`POST /boxd.api.v1.BoxdApi/FsMkdir`
@@ -2072,6 +2105,17 @@ function Client:fs_mkdir(input) end
 ---@return boxd.FsReadStream? value
 ---@return distilled.Error? err
 function Client:fs_read(input) end
+
+---Filesystem: read, write, stat, list, mkdir, remove, rename and realpath inside a machine, for programs that work with its files (the SDKs' `machines.fs`). Each call runs as the machine's user, in the same filesystem view `Exec` commands see, and wakes a sleeping machine first. Paths are raw bytes, so any filename works, including ones that are not valid UTF-8. A relative path resolves from the user's home directory. Errors use the gRPC code that matches the failure (NOT_FOUND, PERMISSION_DENIED, ALREADY_EXISTS, INVALID_ARGUMENT, FAILED_PRECONDITION) and name the exact reason in the `x-boxd-error-reason` trailer: `not_found`, `permission_denied`, `file_exists`, `is_a_directory`, `not_a_directory`, `directory_not_empty`, `not_a_regular_file`, `symlink_loop`, `name_too_long`, `invalid_path`, `no_space`, `read_only`, `busy`, `cross_device`, `size_mismatch`, `io_error`, or `agent_outdated` for a machine started before these calls existed (rebooting it updates it). FsRead streams a file: the first chunk carries its entry, then data, and the last chunk has `eof` set and the byte count sent. Only regular files can be read; a FIFO or device is `not_a_regular_file`.
+---
+---Each item as it arrives (`grpc`); `opts` = { timeout?, idle_timeout? } in seconds.
+---
+---`POST /boxd.api.v1.BoxdApi/FsRead`
+---@param input? boxd.FsReadRequest
+---@param opts? { timeout?: number, idle_timeout?: number }
+---@return distilled.Stream<boxd.FsReadChunk>? stream
+---@return distilled.Error? err
+function Client:fs_read_stream(input, opts) end
 
 ---FsRealpath resolves symlinks and `.`/`..` like Python's `os.path.realpath(path)`: missing components are kept as written, and a symlink loop is `symlink_loop`.
 ---
@@ -2711,6 +2755,15 @@ function Client:stop_vm(input) end
 ---@return boxd.StreamLogsStream? value
 ---@return distilled.Error? err
 function Client:stream_logs(input) end
+
+---Each item as it arrives (`grpc`); `opts` = { timeout?, idle_timeout? } in seconds.
+---
+---`POST /boxd.api.v1.BoxdApi/StreamLogs`
+---@param input? boxd.StreamLogsRequest
+---@param opts? { timeout?: number, idle_timeout?: number }
+---@return distilled.Stream<boxd.LogChunk>? stream
+---@return distilled.Error? err
+function Client:stream_logs_stream(input, opts) end
 
 ---A fresh, available auto-generated VM name — used by the interactive CLI to pre-fill the "name" prompt for `machine new`.
 ---

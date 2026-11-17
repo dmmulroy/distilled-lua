@@ -1004,6 +1004,9 @@ function writer.readme(plan)
     local summary = naming.summary(op.def.traits and op.def.traits["smithy.api#documentation"])
       or ""
     local method = "`" .. op.method_name .. "`"
+    if op.stream then
+      method = method .. " (+ `_stream`)"
+    end
     if op.pagination then
       local ops_mod = require("distilled.gen.ops")
       local pages, items = ops_mod.page_method(op, "pages"), ops_mod.page_method(op, "items")
