@@ -91,6 +91,8 @@ ext.HOOKS = {
   classify_success = "fn(info) -> err | nil: a failure reported in a 2xx body",
   transform_response = "fn(body, op) -> body",
   unknown_error = "fn(info) -> err: the error nothing else matched",
+  sign = "fn(request, settings, { host, op, base_url }) -> request | nil, err: sign the built request",
+  accept_failure = "fn{ status, headers, body, non_json, op } -> true: decode a >= 400 answer as success",
 }
 
 local CATEGORIES = {}
@@ -798,7 +800,9 @@ function ext.validate(raw, out, p, opts)
     else
       for _, name in ipairs(sorted_keys(raw.headers)) do
         local where = "provider spec headers[" .. tostring(name) .. "]"
-        if type(name) ~= "string" or not string.find(name, "^[A-Za-z0-9-]+$") then
+        -- an RFC 9110 token without the rare symbols: letters, digits, "-", "_", "."
+        -- (Polymarket's RELAYER_API_KEY header has underscores)
+        if type(name) ~= "string" or not string.find(name, "^[A-Za-z0-9_.-]+$") then
           p[#p + 1] = where .. ": not a header name"
         else
           local lower = string.lower(name)
