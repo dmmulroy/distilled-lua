@@ -17,7 +17,7 @@
 --          -- kind "none"
 --     unknown_tag = "UnknownNeonError",       -- tag of the error nothing else matched
 --     parse_tag = "NeonParseError",           -- tag of an unparseable success body
---     error_envelope = { code = "/code", message = "/message" },   -- JSON pointers, optional
+--     error_envelope = { code = "/code", message = { "/message", "/error" } },  -- pointer(s)
 --     error_fields_at = "/error",             -- where error class fields live, optional
 --     status_map = { [418] = "Teapot" },      -- status -> tag entries over errors.STATUS_MAP;
 --                                             -- a tag is a built-in error or a model error
@@ -30,9 +30,9 @@
 --       operations = { GetThing = "fetch_thing" },   -- per-operation method names
 --     },
 --     pagination = { items_fallback = "items" },     -- items path when the trait has none
---     allow_unsupported = { "<gap>" },       -- emit operations the runtime refuses at
+--     allow_unsupported = { "streaming" },   -- emit operations the runtime refuses at
 --                                            -- call time (SdkError) instead of failing
---                                            -- (provider.UNSUPPORTED; empty today)
+--                                            -- (provider.UNSUPPORTED)
 --     models = {                             -- packages with several models (one module
 --                                            -- each, `require("hetzner.servers")`)
 --       skip = { "pricing" },                -- models not generated (Lua model names)
@@ -44,8 +44,13 @@
 --       },
 --     },
 --   }
+--
+-- More keys (options, headers, templated base URLs, basic auth, OAuth, error classes,
+-- transforms, hand-written glue): see gen/provider_ext.lua and docs/generating.md.
 local compat = require("distilled.compat")
 local naming = require("distilled.gen.naming")
+-- keys beyond the classic ones (options, headers, templates, envelopes, glue, ...): task 13
+local ext = require("distilled.gen.provider_ext")
 
 local provider = {}
 
@@ -135,11 +140,19 @@ local TOP = {
   allow_unsupported = true,
   models = true,
 }
+for k in pairs(ext.TOP) do
+  TOP[k] = true
+end
 
--- Runtime gaps a provider may acknowledge (see allow_unsupported above). None today:
--- multipart bodies were the only one, and request.build encodes them since task 08. The
--- mechanism stays for the next gap; a spec may add an entry to exercise it.
-provider.UNSUPPORTED = {}
+-- Runtime gaps a provider may acknowledge (see allow_unsupported above). Multipart bodies
+-- were the first; request.build encodes them since task 08 (CLOSED_GAPS below).
+provider.UNSUPPORTED = {
+  -- Operations with a streaming trait (gen/traits.lua traits.STREAMING: gRPC server or
+  -- client streaming, com.distilled.openapi#streamWhen). Server/client streaming ones
+  -- are emitted with op.unsupported = "streaming" and fail with SdkError at call time;
+  -- a streamWhen one is emitted as its plain (non-streaming) call.
+  streaming = "streaming operations (no streaming in the runtime yet)",
+}
 
 -- Gaps that were closed: listing one is a stale provider spec, reported as such.
 provider.CLOSED_GAPS = {
@@ -215,17 +228,25 @@ function provider.for_model(spec, model_name)
   out.name = spec.name .. "." .. model_name
   out.title = ov.title or (string.gsub(spec.title, "[^%w_]", "") .. pascal)
   out.base_url = ov.base_url or spec.base_url
+  if out.runtime and ov.base_url then
+    ext.override_base_url(out)
+  end
   return out
 end
 
---- provider.validate(spec) -> normalized spec | nil, message
+--- provider.validate(spec [, opts]) -> normalized spec | nil, message
 -- Normalized: base_url is always a table, auth always has kind; defaults filled in.
-function provider.validate(spec)
+-- opts.dir: the directory a relative `glue` path is read from (provider.load sets it).
+function provider.validate(spec, opts)
   local p = {}
   if type(spec) ~= "table" then
     return nil, "provider spec: expected a table, got " .. type(spec)
   end
   check_keys("provider spec", spec, TOP, p)
+  -- the classic checks below see the spec without the extended keys (ext.reduce); the
+  -- originals are checked by ext.validate at the end
+  local raw = spec
+  spec = ext.reduce(raw)
 
   local out = {}
   if not naming.is_identifier(spec.name) or string.find(spec.name, "%u") then
@@ -274,7 +295,7 @@ function provider.validate(spec)
       p[#p + 1] = "provider spec auth: kind none takes no other keys"
     end
   else
-    p[#p + 1] = "provider spec auth.kind must be bearer, header or none, got "
+    p[#p + 1] = "provider spec auth.kind must be bearer, header, basic or none, got "
       .. tostring(auth.kind)
   end
   out.auth = {
@@ -295,26 +316,7 @@ function provider.validate(spec)
     out[key] = spec[key]
   end
 
-  if spec.error_envelope ~= nil then
-    if type(spec.error_envelope) ~= "table" then
-      p[#p + 1] = "provider spec: error_envelope must be { code = <pointer>, message = <pointer> }"
-    else
-      check_keys(
-        "provider spec error_envelope",
-        spec.error_envelope,
-        { code = true, message = true },
-        p
-      )
-      for _, k in ipairs({ "code", "message" }) do
-        local v = spec.error_envelope[k]
-        if v ~= nil and not is_pointer(v) then
-          p[#p + 1] = "provider spec error_envelope." .. k .. " must be a JSON pointer (/a/b)"
-        end
-      end
-      out.error_envelope =
-        { code = spec.error_envelope.code, message = spec.error_envelope.message }
-    end
-  end
+  -- error_envelope: checked and normalized by ext.validate (pointer lists)
   if spec.error_fields_at ~= nil and not is_pointer(spec.error_fields_at) then
     p[#p + 1] = "provider spec: error_fields_at must be a JSON pointer"
   end
@@ -499,6 +501,8 @@ function provider.validate(spec)
     end
   end
 
+  ext.validate(raw, out, p, opts)
+
   if #p > 0 then
     return nil, compat.concat(p, "\n")
   end
@@ -522,7 +526,7 @@ function provider.load(path)
   if not ok then
     return nil, "provider spec " .. path .. " raised: " .. tostring(spec)
   end
-  local out, verr = provider.validate(spec)
+  local out, verr = provider.validate(spec, { dir = string.match(path, "^(.*)/[^/]*$") or "." })
   if not out then
     return nil, path .. ":\n" .. verr
   end

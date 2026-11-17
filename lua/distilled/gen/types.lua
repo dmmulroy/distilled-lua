@@ -248,7 +248,30 @@ function types.render(plan)
 
   -- options and the client
   b:line("---@class " .. prefix .. ".Options")
-  if spec.auth.kind ~= "none" then
+  if spec.runtime then
+    -- provider specs with options (task 13): one field per declared option
+    local SECRET =
+      "string|distilled.Secret|fun(host: table): (string|distilled.Secret|nil, distilled.Error?)"
+    for _, d in ipairs(spec.option_docs) do
+      local note = {}
+      if d.required then
+        note[#note + 1] = "Required"
+      end
+      if #d.env > 0 then
+        note[#note + 1] = "from $" .. compat.concat(d.env, " or $")
+      end
+      if d.default ~= nil and d.default ~= "" then
+        note[#note + 1] = "default " .. d.default
+      end
+      b:line(
+        "---@field "
+          .. d.name
+          .. "? "
+          .. (d.secret and SECRET or "string")
+          .. (#note > 0 and (" " .. compat.concat(note, "; ")) or "")
+      )
+    end
+  elseif spec.auth.kind ~= "none" then
     b:line(
       "---@field "
         .. spec.auth.from
@@ -256,13 +279,15 @@ function types.render(plan)
         .. (spec.auth.env and (" Required; default from $" .. spec.auth.env) or " Required")
     )
   end
-  b:line(
-    "---@field "
-      .. spec.base_url.option
-      .. "? string Default "
-      .. spec.base_url.default
-      .. (spec.base_url.env and (" (or $" .. spec.base_url.env .. ")") or "")
-  )
+  if not spec.runtime then
+    b:line(
+      "---@field "
+        .. spec.base_url.option
+        .. "? string Default "
+        .. spec.base_url.default
+        .. (spec.base_url.env and (" (or $" .. spec.base_url.env .. ")") or "")
+    )
+  end
   b:line("---@field host? table The host seams: transport, sleep, now, exec, random, getenv, epoch")
   b:line("---@field transport? fun(request: table): (table?, distilled.Error?)")
   b:line("---@field sleep? fun(seconds: number)")
@@ -346,13 +371,13 @@ function types.render(plan)
     method(op.method_name, { out_ret .. " value", "distilled.Error? err" })
     if op.pagination then
       method(
-        op.method_name .. "_pages",
+        require("distilled.gen.ops").page_method(op, "pages"),
         { "distilled.Iterator<" .. output_t .. ">" },
         "Every page, fetched as the loop asks for it."
       )
       local item_t = op.item_target and types.type_of(ctx, prefix, op.item_target, false) or "any"
       method(
-        op.method_name .. "_items",
+        require("distilled.gen.ops").page_method(op, "items"),
         { "distilled.Iterator<" .. item_t .. ">" },
         "Every item of every page (`" .. tostring(op.pagination.items) .. "`)."
       )

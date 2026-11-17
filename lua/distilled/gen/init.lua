@@ -38,6 +38,16 @@ gen.VERSION = "1"
 gen.model = model_mod
 gen.provider = provider_mod
 
+-- A warning the CLI prints after generating (model.warnings), once per message.
+local function warn(m, message)
+  for _, w in ipairs(m.warnings) do
+    if w == message then
+      return
+    end
+  end
+  m.warnings[#m.warnings + 1] = message
+end
+
 local function fail(problems)
   if type(problems) == "string" then
     return nil, problems
@@ -212,7 +222,7 @@ function gen.plan(args)
       paginated = op.def.traits ~= nil and op.def.traits["smithy.api#paginated"] ~= nil,
     }
   end
-  local method_names, nerr = naming.operation_names(entries, {
+  local method_names, nerr, page_methods = naming.operation_names(entries, {
     words = spec.naming.words,
     overrides = spec.naming.operations,
   })
@@ -224,7 +234,9 @@ function gen.plan(args)
     for _, op in ipairs(m.operations) do
       known = known or op.name == k
     end
-    if not known then
+    -- one model of a multi-model package: the operation may be another model's (exa's
+    -- ListWebsetsItems is in exa.api only), which this model cannot check
+    if not known and not spec.model_name then
       return nil, "provider spec naming.operations names an unknown operation " .. k
     end
   end
@@ -296,13 +308,25 @@ function gen.plan(args)
                 .. " is bound to the response status"
             end
           end
+          -- A placeholder no member fills (proxmox `{url_seq}`): Distilled emits the
+          -- operation all the same and sends the placeholder as is. We emit it too, and
+          -- request.build fills it from an input key of that name or refuses the call.
+          local unbound = {}
           for name in pairs(placeholder) do
-            problems[#problems + 1] = op.id
-              .. ": {"
-              .. name
-              .. "} in "
-              .. http.uri
-              .. " has no label member"
+            unbound[#unbound + 1] = name
+          end
+          table.sort(unbound)
+          for _, name in ipairs(unbound) do
+            warn(
+              m,
+              op.id
+                .. ": {"
+                .. name
+                .. "} in "
+                .. http.uri
+                .. " has no label member; the caller must pass input."
+                .. name
+            )
           end
         end
         plan_ops[#plan_ops + 1] = {
@@ -314,6 +338,7 @@ function gen.plan(args)
           output = op.output,
           errors = op.errors,
           http = http,
+          page_methods = page_methods[op.id],
         }
       end
     end
@@ -360,8 +385,11 @@ function gen.plan(args)
     else
       op.retry = retry
     end
-    if op.def.traits and op.def.traits["com.distilled.openapi#streamWhen"] ~= nil then
-      problems[#problems + 1] = op.id .. ": streaming operations are not supported"
+    local unsupported, uerr = ops_mod.streaming(ctx, op)
+    if unsupported == false then
+      problems[#problems + 1] = uerr
+    else
+      op.unsupported = unsupported
     end
   end
   if #problems > 0 then
@@ -406,13 +434,37 @@ function gen.plan(args)
     error_tags_set[d.tag] = true
   end
   local builtin = require("distilled.errors").classes
+  -- provider spec error_classes (task 13): tags of their own, usable in status_map. A
+  -- model that declares an error of the same tag uses its own class for it (Vercel's
+  -- PaymentRequired is in some models only); a built-in or reserved tag is an error.
+  local provider_tags = {}
+  for _, c in ipairs(spec.error_classes or {}) do
+    provider_tags[c.tag] = true
+    if builtin[c.tag] or reserved_tags[c.tag] then
+      problems[#problems + 1] = "provider spec error_classes."
+        .. c.tag
+        .. " has the tag of "
+        .. (builtin[c.tag] and "a built-in error" or ("the provider's " .. reserved_tags[c.tag]))
+    end
+  end
+  for _, name in ipairs(spec.public_operations or {}) do
+    local known = false
+    for _, op in ipairs(m.operations) do
+      known = known or op.name == name
+    end
+    if not known then
+      problems[#problems + 1] = "provider spec public_operations names an unknown operation "
+        .. name
+    end
+  end
   for status, tag in pairs(spec.status_map or {}) do
-    if not error_tags_set[tag] and not builtin[tag] then
+    if not error_tags_set[tag] and not builtin[tag] and not provider_tags[tag] then
       problems[#problems + 1] = "provider spec status_map["
         .. status
         .. "] names "
         .. tag
-        .. ", which is neither a built-in error nor an error of the selected operations"
+        .. ", which is neither a built-in error, a provider error class nor an error of the"
+        .. " selected operations"
     end
   end
   if spec.unknown_tag == spec.parse_tag then
@@ -436,12 +488,15 @@ function gen.plan(args)
             if type(b) ~= "table" or type(b.status) ~= "number" or type(b.target) ~= "string" then
               problems[#problems + 1] = op.id
                 .. ": distilled.errors#bodies entries need status and target"
-            elseif m.shapes[b.target] == nil then
+            elseif m.shapes[b.target] == nil and not naming.is_prelude(b.target) then
               problems[#problems + 1] = op.id
                 .. ": distilled.errors#bodies target "
                 .. b.target
                 .. " is not a shape"
-            else
+            elseif m.shapes[b.target] ~= nil then
+              -- A prelude target (a plain smithy.api#String or #Double body, coinflow)
+              -- is skipped: there is no shape to document or register, and Distilled
+              -- skips a target that is not a model shape the same way.
               for _, s in ipairs(statuses) do
                 if s == b.status then
                   bodies[target] = bodies[target] or {}
@@ -569,6 +624,10 @@ function gen.generate(args)
     files[name] = text
   end
   files["init.lua"] = writer.client(plan)
+  if plan.provider.glue then
+    -- the provider's hand-written glue travels with the client (require(MODULE .. ".glue"))
+    files["glue.lua"] = plan.provider.glue.source
+  end
   files["types.lua"] = types_mod.render(plan)
   files["README.md"] = writer.readme(plan)
   local order = {}
