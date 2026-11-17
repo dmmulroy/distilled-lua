@@ -19,6 +19,7 @@ return {
   "gen_provider_spec.lua",
   "gen_shapes_spec.lua",
   "gen_traits_spec.lua",
+  "grpc_spec.lua",
   "harness_spec.lua",
   "host_popen_spec.lua",
   "init_spec.lua",
