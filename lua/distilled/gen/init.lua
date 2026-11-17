@@ -9,7 +9,8 @@
 --     model_name = "servers" | nil,              -- one model of a multi-model package:
 --   }                                            -- module <spec.name>.servers
 --   -- files = { ["init.lua"] = source, ["service.lua"] = ..., ["types.lua"] = ...,
---   --           ["README.md"] = ... }, plus files.order (the names, sorted)
+--   --           ["README.md"] = ... }, plus files.order (the names, sorted) and
+--   --           files.dirs (subdirectories: a large model has service/*.lua too)
 --   gen.write(files, "clients/neon")
 --
 -- Port of Distilled's `generateService` (dev/src/codegen/generator.ts). Its seven steps
@@ -594,7 +595,11 @@ function gen.generate(args)
     return nil, err
   end
   local files = {}
-  for name, text in pairs(writer.service(plan)) do
+  local service_files, werr = writer.service(plan)
+  if not service_files then
+    return nil, werr
+  end
+  for name, text in pairs(service_files) do
     files[name] = text
   end
   files["init.lua"] = writer.client(plan)
@@ -606,12 +611,22 @@ function gen.generate(args)
   end
   table.sort(order)
   files.order = order
+  -- subdirectories the files need (a large model's service/, gen/writer.lua), sorted
+  local dirs, seen = {}, {}
+  for _, name in ipairs(order) do
+    local dir = string.match(name, "^(.*)/[^/]*$")
+    if dir and not seen[dir] then
+      seen[dir] = true
+      dirs[#dirs + 1] = dir
+    end
+  end
+  files.dirs = dirs
   return files, nil, plan
 end
 
 --- gen.write(files, dir) -> true | nil, message
--- Writes every file into dir, which must exist (the CLI creates it: the library itself
--- never runs a process).
+-- Writes every file into dir. dir and its subdirectories files.dirs must exist (the CLI
+-- creates them: the library itself never runs a process).
 function gen.write(files, dir)
   for _, name in ipairs(files.order) do
     local path = dir .. "/" .. name
