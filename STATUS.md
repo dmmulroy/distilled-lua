@@ -1081,10 +1081,10 @@ requests byte for byte, 39 responses, the error module.
 
 ### Problems found for others
 
-- `verify/lib/parity.lua` counts `^ops.X = ` in `service.lua` only; since task 18 a
-  split service keeps its ops in `service/ops_NNN.lua`, so parity under-counts (azure
-  shows 9,282 instead of 13,869). Proposed: count those files too. I did not commit
-  `verify/features/parity.md`.
+- Parity (`verify/features/parity.md`, regenerated after merging task 26's split-service
+  count): azure 13,869 of 13,887. The 18 "missing" are `planetarycomputer.ts` (6) and
+  `portal.ts` (12): stale TS service files with no model in `.generated-specs` (the
+  convert no longer emits them). Every TS operation of the 223 models exists by name.
 - `t.pending(...)` called inside a running `t.it` does nothing (the test passes
   silently): `spec/tencentcloud_protocol_spec.lua`'s HTTP case does this. Check
   `serve.url()` at describe time and call `t.pending` there (as `azure_protocol_spec`).
