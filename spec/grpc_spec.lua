@@ -1009,13 +1009,10 @@ t.describe("gen.proto", function()
   t.it("emits only the reachable descriptors, and a gRPC client module", function()
     local files = assert(gen.generate({ model = tiny_model(), provider = tiny_spec() }))
     local d = assert(require("distilled.compat").load(files["descriptors.lua"], "descriptors"))()
-    t.same(
-      d.methods,
-      {
-        ["/t.Svc/Get"] = { "t.GetReq", "t.Thing" },
-        ["/t.Svc/Watch"] = { "t.GetReq", "t.Thing", 1 },
-      }
-    )
+    t.same(d.methods, {
+      ["/t.Svc/Get"] = { "t.GetReq", "t.Thing" },
+      ["/t.Svc/Watch"] = { "t.GetReq", "t.Thing", 1 },
+    })
     t.same(d.messages["t.Thing"][2], { 2, "state", "enum", "t.State" })
     t.truthy(d.messages["t.Child"])
     t.eq(d.messages["t.Unused"], nil)
