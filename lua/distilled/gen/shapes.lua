@@ -255,6 +255,10 @@ function shapes.member_value(ctx, info)
   if info.string_encoded then
     v.string_encoded = true
   end
+  if ctx.aws then
+    -- AWS serialization traits (xmlName, ec2QueryName, timestampFormat, ...): gen/aws.lua
+    require("distilled.gen.aws").member(ctx, info, v)
+  end
   return v
 end
 
@@ -324,6 +328,10 @@ function shapes.node(ctx, id)
   end
   if def.traits and def.traits[T_SENSITIVE] ~= nil then
     node.sensitive = true
+  end
+  if ctx.aws then
+    -- AWS: XML names and namespaces, timestamp formats, unions as tagged structs
+    node = require("distilled.gen.aws").node(ctx, id, def, node)
   end
   return node
 end

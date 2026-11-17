@@ -224,6 +224,12 @@ function http.bind_input(op, node, input, env)
   local payload_member, payload_value
   local query_params
   local registry = env.registry
+  -- timestamps default to http-date in headers and date-time in the query and path
+  local header_env, text_env = {}, {}
+  for k, v in pairs(env) do
+    header_env[k], text_env[k] = v, v
+  end
+  header_env.timestamp, text_env.timestamp = "http-date", "date-time"
   for _, m in ipairs(node.members or {}) do
     local raw = input[m.name]
     if raw ~= nil and raw ~= json.null then
@@ -237,7 +243,11 @@ function http.bind_input(op, node, input, env)
         end
       else
         local f
-        value, f = codec.encode_member(m, raw, env)
+        local b = m.bind or "body"
+        local menv = (b == "header" or b == "prefix_headers") and header_env
+          or ((b == "query" or b == "label" or b == "query_params") and text_env)
+          or env
+        value, f = codec.encode_member(m, raw, menv)
         if f then
           return nil, http.encode_failure(f, m.name, env)
         end
