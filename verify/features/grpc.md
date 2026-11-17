@@ -30,7 +30,19 @@ namespacelabs (Connect JSON, which is plain REST) use the REST provider specs of
     - Message frames with no status count as OK.
   - **Errors:** a non-zero status becomes the body `{ code, status, message, details }` under grpc-gateway's HTTP status (NOT_FOUND→404, UNAVAILABLE→503, …).
     - The REST decoder then classifies it, so model error matchers on `code` and the retry policy both apply.
-  - **Streams:** a server-streaming method (descriptor `[3] = 1`) returns `{ items = { ... } }`, the whole stream collected from one response.
+  - **Streams:** a server-streaming method (descriptor `[3] = 1`) keeps its collected form: the plain call returns `{ items = { ... } }`, the whole stream from one response.
+  - **Incremental streams (task 30):** `protocol.stream(ctx, op, input)` sends through the transport's `stream` entry point and decodes each message as soon as its 5-byte-prefixed frame has arrived (`distilled.stream.grpc`, a port of `FrameReader` pulled one frame at a time). The client method is `client:<op>_stream(input)` (task 29's Stream; ops carry `op.stream = { framing = "grpc", item }`).
+    - A non-gRPC reply and a trailers-only reply's non-zero status fail before the first item (`nil, err`), so they can be retried.
+    - The status in HTTP trailers (the transport's, once the body ended) or a gRPC-Web trailer frame ends the stream; non-zero gives the operation's typed error from the iterator.
+    - A dropped connection ends the stream with the transport's error. A truncated last frame is INTERNAL once the status is OK (the status wins, as in Distilled). A compressed frame is INTERNAL.
+    - Each item goes through the output schema as `{ items = { message } }`, as `streamReply` does, so sensitive members are wrapped per item.
+- **`distilled.stream.connect`** and **`connect.stream`** (task 30): Connect streaming envelopes (flags byte, 4-byte length, JSON; `0x02` marks end-of-stream with `{ error?, metadata? }`), ported from e2b's `connect.ts`.
+  - The request is the REST protocol's (URL, headers, JSON body), the body sent as one envelope with `content-type: application/connect+json`.
+  - A non-2xx reply is a unary Connect error body; the end-of-stream `error` ends the stream; both go through a `fail(info)` hook.
+  - `connect.stream_method{ op, fail, decode }` makes a client method for an RPC no model declares.
+- **e2b envd streams** (task 30): `require("e2b.process")` clients have `start_process_stream` and `connect_process_stream`, `require("e2b.filesystem")` has `watch_dir_stream`. They come from the provider glue (`providers/glue/e2b_envd.lua`, `glue.methods`), which ports `connect.ts`: `decodeProcessEvent`, `decodeWatchDirEvent`, `connectError` and the pre-stream mapping (502 SandboxNotRunning, 5xx without a code InternalServerError, 404 without a code NotFound).
+  - Items: `{ _tag = "Start", pid }`, `{ _tag = "Stdout" | "Stderr" | "Pty", data = <bytes> }`, `{ _tag = "End", exitCode, exited, status, error? }`, `{ _tag = "KeepAlive" }`; watch: `{ _tag = "Start" }`, `{ _tag = "Filesystem", name, type, entry? }`, `{ _tag = "KeepAlive" }`.
+  - The generator's glue hook `methods = fn(service) -> { [name] = fn(client, input) }` installs them (`gen/writer.lua`, `gen/provider_ext.lua`).
 - **Transport** (`transport/curl_common.lua`):
   - `request.http2` becomes `--http2-prior-knowledge` for http:// URLs and `--http2` for https://.
   - HTTP trailers come back in `response.trailers`, with names lowercased. The body is located with curl's `%{size_header}`.
@@ -64,9 +76,13 @@ local app, err = Modal.new({}):app_get_or_create({ appName = "x" })   -- err.tag
 
 local Boxd = require("boxd")                 -- BOXD_API_KEY or BOXD_TOKEN
 local logs = Boxd.new({}):stream_logs({ vmId = "vm-1" })              -- logs.items
+local s = Boxd.new({}):stream_logs_stream({ vmId = "vm-1", follow = true })
+for chunk, err in s:iter() do ... end                                  -- each LogChunk
 
 local Process = require("e2b.process")       -- envd: one sandbox
 local ps = Process.new({ sandbox_id = id, access_token = tok }):list_processes({})
+local run = Process.new({ sandbox_id = id }):start_process_stream({ process = { cmd = "ls" } })
+for ev, err in run:iter() do ... end                     -- ev._tag: Start, Stdout, ..., End
 
 local Compute = require("namespacelabs.compute")                      -- NSC_TOKEN, NSC_REGION
 local inst = Compute.new({}):create_instance({ ... })   -- https://<region>.compute.namespaceapis.com
@@ -84,6 +100,7 @@ local inst = Compute.new({}):create_instance({ ... })   -- https://<region>.comp
   - every generated client: modal, boxd, e2b control plane, envd and volume content, and namespacelabs host routing and errors;
   - `gen.proto` (descriptor parsing, validation, reachable subset, failing early).
   - With `--http`, the same cases also run against `dl serve` through curl.
+- `verify/dl test grpc_stream_spec` (frames, statuses, errors, close), `connect_stream_spec` (envelopes, e2b envd streams), `grpc_stream_conform_spec`: 20 cases compared with Distilled's TS (`spec/golden/grpc_stream/conform.json`, regenerated with `node --conditions=bun --experimental-transform-types --no-warnings verify/lib/grpc_stream_conform.mjs spec/golden/grpc_stream/conform.json`).
 - `verify/dl gen-diff modal|boxd|e2b|namespacelabs`: a fresh generation matches `clients/`, and the clients load in all three runtimes.
 - `verify/dl parity`: modal 304/304, boxd 135/135, e2b 97/97, namespacelabs 182/182.
 
@@ -93,8 +110,10 @@ local inst = Compute.new({}):create_instance({ ... })   -- https://<region>.comp
   - the HTTP/2 and chunked HTTP/1.1 trailer parsing was checked by hand against a Node `http2` server (see the done file);
   - the spec covers trailers through the scripted transport.
 - **Modal over plain HTTP/1.1** works because Modal's envoy bridges it. Only the task command router (`bearer_token`) asks for HTTP/2.
-- **Server streams are collected, not incremental.** Bound a following stream with the request's timeout.
-  - Client streaming and the Connect server streams (e2b `connect.ts`) are not ported.
+- **Server streams:** the plain call collects (bound a following stream with the request's timeout); `<op>_stream` delivers incrementally and needs a transport with a `stream` entry point (task 29).
+  - Client streaming is not ported (e2b `Process.StreamInput` neither: `send_process_input` is unary).
+  - A Connect envelope cut short by the end of the body is a ParseError here; `connect.ts` silently drops it.
+  - `<op>_stream` names: a stream-only RPC (e2b's) also ends in `_stream`, so every method returning a Stream does.
 - **proto3 defaults:** a decoded message has every scalar at its default (`""`, `0`, `false`), as in Distilled. An absent field is not `nil`.
 - **Trailing slashes:** `rpc.base_url` trims a trailing `/` from the base URL. Distilled does not, and task 13's REST specs do not either (`${baseUrl}${uri}`).
 - **Not ported:**
