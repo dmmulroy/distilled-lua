@@ -136,6 +136,73 @@ t.describe("aws client: requests", function()
   end)
 end)
 
+t.describe("aws client: pagination", function()
+  t.it("awsJson: a string token, then a map token (DynamoDB Scan's LastEvaluatedKey)", function()
+    local c, host = client(DynamoDB, {
+      json_res(200, '{"TableNames":["a","b"],"LastEvaluatedTableName":"b"}'),
+      json_res(200, '{"TableNames":["c"]}'),
+      json_res(200, '{"Items":[{"id":{"S":"1"}}],"LastEvaluatedKey":{"id":{"S":"1"}}}'),
+      json_res(200, '{"Items":[{"id":{"S":"2"}}]}'),
+    })
+    local names = {}
+    local it = c:list_tables_items({})
+    for name in it do
+      names[#names + 1] = name
+    end
+    t.eq(it.err, nil)
+    t.same(names, { "a", "b", "c" })
+    t.same(json.decode(host.requests[2].body), { ExclusiveStartTableName = "b" })
+    local ids = {}
+    local it2 = c:scan_items({ TableName = "t" })
+    for item in it2 do
+      ids[#ids + 1] = item.id.S
+    end
+    t.eq(it2.err, nil)
+    t.same(ids, { "1", "2" })
+    t.same(json.decode(host.requests[4].body).ExclusiveStartKey, { id = { S = "1" } })
+  end)
+
+  t.it("ec2Query (NextToken in the form) and restJson1 (Marker in the query)", function()
+    local EC2 = require("aws.ec2")
+    local xml = { ["content-type"] = "text/xml" }
+    local c, host = client(EC2, {
+      {
+        status = 200,
+        headers = xml,
+        body = "<R><reservationSet><item><reservationId>r-1</reservationId></item></reservationSet>"
+          .. "<nextToken>tok 2</nextToken></R>",
+      },
+      {
+        status = 200,
+        headers = xml,
+        body = "<R><reservationSet><item><reservationId>r-2</reservationId></item></reservationSet></R>",
+      },
+    })
+    local ids = {}
+    for r in c:describe_instances_items({}) do
+      ids[#ids + 1] = r.ReservationId
+    end
+    t.same(ids, { "r-1", "r-2" })
+    t.match(host.requests[2].body, "NextToken=tok%202", true)
+    local Lambda = require("aws.lambda")
+    local jh = { ["content-type"] = "application/json" }
+    local l, lhost = client(Lambda, {
+      {
+        status = 200,
+        headers = jh,
+        body = '{"Functions":[{"FunctionName":"f"}],"NextMarker":"m/2"}',
+      },
+      { status = 200, headers = jh, body = '{"Functions":[{"FunctionName":"g"}]}' },
+    })
+    local fns = {}
+    for f in l:list_functions_items({}) do
+      fns[#fns + 1] = f.FunctionName
+    end
+    t.same(fns, { "f", "g" })
+    t.match(lhost.requests[2].url, "Marker=m%2F2", true)
+  end)
+end)
+
 t.describe("aws client: long lists (gopher-lua's table.concat limit)", function()
   t.it("4,000 ec2Query list items and a 3,000-record restXml batch serialise", function()
     local EC2 = require("aws.ec2")
