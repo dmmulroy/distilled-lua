@@ -831,6 +831,105 @@ See `tasks/15-xml.done.md`.
   after the generator row.
 - STATUS.md itself has leftover merge markers (`
 
+## 17 aws
+
+**Done.** See `tasks/17-aws.done.md` and `verify/features/aws.md`. `clients/aws`: 433
+services, 19,429 operations (Distilled 19,631; the 202 missing belong to the 7 services
+AWS retired from its spec mirror). Smithy AWS protocol tests 715/715; `dl conform aws`
+36/36; every endpointTests case (14,066); every operation called end to end with 0
+raised; lua, luajit and Rex.
+
+### What others can use
+
+- `distilled.aws.protocol`:
+  - `new(service, args)` gives `{ name, args, encode, decode, call }`. `name` is the
+    wire protocol (`awsJson1_0`, `restXml`, ...).
+  - `options(auth)` gives the client options `region`, `endpoint` (`AWS_ENDPOINT_URL`),
+    `credentials` (default: the provider chain) and `token` (bearer).
+  - `xray_header(trace_id, span_id, sampled)`.
+- `distilled.aws.credentials`:
+  - sources: `chain{ profile, mfa_code }`, `default`, `static{...}`, `env()`,
+    `profile{...}`, `process(name)`, `token_file{...}`, `web_token{...}`, `container()`,
+    `instance_metadata()`;
+  - `region(host, profile)`, `parse_ini`, `load_profiles`, `expired(creds, now)`;
+  - the error classes `CredentialsError` (`AwsCredentialsError`) and `MissingRegion`.
+  - A source is `fn(host) -> { access_key_id, secret_access_key, session_token?,
+    expiration?, account_id?, region? } | nil, err`.
+- `distilled.aws.endpoint.resolve(rule_set, params)` gives `{ url, properties, headers }`
+  or `nil, message`. `distilled.aws.partitions` holds the partition data.
+- `distilled.aws.{json_protocols, query, rest_xml, http, codec}`: the protocol modules.
+  They share one interface: `encode(p, op, input)`, `read(p, op, res)` and
+  `read_error(p, op, res)`.
+- `distilled.aws.errors`:
+  - `COMMON` (COMMON_ERRORS, with Distilled's categories), `UnknownAwsError`,
+    `EndpointError`, `InternalError`;
+  - `table_for(op, service, facts)` and `match(tbl, code, status, message)`.
+- `distilled.aws.gzip.compress` and `distilled.aws.sigv2.sign`.
+- `verify/lib/aws_protocol_tests.lua`, a runner others can reuse for any AWS Smithy
+  protocol-test model: `run{ path, services, filter, case }`, `canonical`,
+  `canonical_xml`.
+
+### Decisions
+
+- **Endpoint rules are interpreted at run time**, not compiled into code as Distilled
+  does. Each client ships its rule set as JSON in `endpoints.lua`, which is decoded on
+  first use. Every endpointTests case passes.
+- **The protocol** is the model's first `aws.protocols#*` trait that the runtime
+  implements; rpcv2Cbor is ignored (as Distilled). For CloudWatch that is awsJson1_0.
+- **Map order:** Lua tables have none, so map entries go out in sorted key order.
+  Distilled uses insertion order. The runners compare maps without regard to order.
+- **Error classes:**
+  - The tag is `aws.codegen#errorTag`, and the operations' `errors` lists use it.
+  - Categories come from `gen/errors.lua` (traits), then `awsRetryCategories`, then the
+    name rules.
+  - A `@retryable` class in the ThrottlingError category is marked `throttling`.
+  - The runtime's ParseError has no category, as in Distilled.
+- **Required input members** fail before anything is sent, whatever they bind to. The
+  message withholds the value (`"[REDACTED]"`) when the input can hold a secret; the same
+  rule applies to output and error bodies (`redact.holds_sensitive`, cached on the op).
+- **optionalAuth operations are signed** and need credentials, as in Distilled.
+- **SimpleDB** comes from Distilled's `manual-specs/`: `dl models sync` copies them, and
+  the client signs with SigV2.
+
+### Edits outside my list (orchestrator: note for merges)
+
+- `lua/distilled/gen/{init,model,ops,shapes,types,traits}.lua`: small hooks, each
+  gated on `m.is_aws` / `ctx.aws`. The logic is in the new `gen/aws.lua`. In
+  `gen/init.lua`:
+  - the AWS context;
+  - the RPC body binds;
+  - the event_stream check;
+  - the error_class hook, with ops naming errors by tag;
+  - only the unknown tag reserved;
+  - error body roots for JSON errors with fields;
+  - the AWS `init.lua`, `endpoints.lua` and README files.
+- `verify/dl`:
+  - `models sync` also copies `<pkg>/manual-specs/*.json`;
+  - `conform aws` runs `verify/conform/node/aws.mjs` and `verify/conform/aws_compare.lua`
+    (with `--replay`, on all three runtimes).
+- `spec/provider_spec.lua`: NAMES gains `aws`.
+- **Task 25's "For task 17" list is all fixed:**
+  - raw blob payloads read by name;
+  - an empty streaming payload is `""`;
+  - `s3UnwrappedXmlOutput` is read from the op;
+  - a missing required label fails;
+  - the error categories;
+  - InternalError and ParseError have Distilled's categories.
+
+  As a result I regenerated `clients/s3` with the current generator (2 files changed) and
+  edited `spec/s3_conform_spec.lua`: its KNOWN list is now empty, and an empty expected
+  body is normalised like an empty actual body. All 169 S3 specs pass on the three
+  runtimes.
+
+### Proposed (files I do not own)
+
+- `verify/features/README.md`: a row for `aws.md` ("AWS clients", task 17), after the
+  generator row.
+- `providers/s3.lua` can use `parse_tag = "ParseError"` now. For an AWS model only the
+  unknown tag is reserved, so the model's own `ParseError` shape no longer conflicts.
+- `docs/interfaces.md`: a `distilled.aws.*` section; "What others can use" above is the
+  contract.
+
 ## 13 providers
 
 Done (see `tasks/13-providers.done.md`).
