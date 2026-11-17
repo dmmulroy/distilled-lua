@@ -10,6 +10,7 @@ return {
   "errors_spec.lua",
   "gen_emit_spec.lua",
   "gen_errors_spec.lua",
+  "gen_input_spec.lua",
   "gen_layout_spec.lua",
   "gen_model_spec.lua",
   "gen_naming_spec.lua",
