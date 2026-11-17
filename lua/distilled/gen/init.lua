@@ -31,6 +31,7 @@ local ops_mod = require("distilled.gen.ops")
 local types_mod = require("distilled.gen.types")
 local writer = require("distilled.gen.writer")
 local emit = require("distilled.gen.emit")
+local proto = require("distilled.gen.proto")
 
 local gen = {}
 
@@ -384,6 +385,10 @@ function gen.plan(args)
       op.retry = retry
     end
     local unsupported, uerr = ops_mod.streaming(ctx, op)
+    if spec.rpc then
+      -- gRPC server streams are collected from one response (task 23)
+      unsupported, uerr = proto.streaming(ctx, op, unsupported, uerr)
+    end
     if unsupported == false then
       problems[#problems + 1] = uerr
     else
@@ -392,6 +397,10 @@ function gen.plan(args)
   end
   if #problems > 0 then
     return fail(problems)
+  end
+
+  if spec.rpc then
+    proto.prepare_model(m, spec) -- the provider's error matchers trait (task 23)
   end
 
   -- 4. errors: every error the selected operations name (collectOpErrorIds)
@@ -571,7 +580,7 @@ function gen.plan(args)
     return a.method_name < b.method_name
   end)
 
-  return {
+  local result = {
     ctx = ctx,
     model = m,
     provider = spec,
@@ -585,6 +594,14 @@ function gen.plan(args)
     selected_all = args.ops == nil,
     generator_version = gen.VERSION,
   }
+  if spec.rpc then
+    -- gRPC descriptors and the rpc settings (task 23)
+    local ok, perr = proto.plan(result)
+    if not ok then
+      return nil, perr
+    end
+  end
+  return result
 end
 
 --- gen.generate(args) -> files | nil, message
@@ -600,6 +617,20 @@ function gen.generate(args)
   files["init.lua"] = writer.client(plan)
   files["types.lua"] = types_mod.render(plan)
   files["README.md"] = writer.readme(plan)
+  if plan.provider.rpc then
+    -- proto-sourced providers (task 23): the gRPC / Connect client and its descriptors
+    local spec = plan.provider
+    files["init.lua"] = proto.client(
+      plan,
+      writer.header(plan, spec.title .. ' client: what require("' .. spec.name .. '") returns.')
+    )
+    if plan.proto.descriptors then
+      files["descriptors.lua"] =
+        proto.descriptors_file(plan, writer.header(plan, spec.title .. " gRPC descriptors."))
+    end
+    files["types.lua"] = proto.patch_types(plan, files["types.lua"])
+    files["README.md"] = files["README.md"] .. "\n" .. proto.readme(plan)
+  end
   local order = {}
   for name in pairs(files) do
     order[#order + 1] = name

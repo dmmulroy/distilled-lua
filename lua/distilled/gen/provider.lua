@@ -134,6 +134,7 @@ local TOP = {
   pagination = true,
   allow_unsupported = true,
   models = true,
+  rpc = true, -- proto-sourced providers: gen/proto.lua (task 23)
 }
 
 -- Runtime gaps a provider may acknowledge (see allow_unsupported above). Multipart bodies
@@ -502,6 +503,15 @@ function provider.validate(spec)
         end
       end
     end
+  end
+
+  -- proto-sourced providers (gRPC, gRPC-Web, Connect): validated by gen/proto.lua
+  if spec.rpc ~= nil then
+    local r, rp = require("distilled.gen.proto").validate(spec.rpc, out)
+    for _, problem in ipairs(rp or {}) do
+      p[#p + 1] = problem
+    end
+    out.rpc = r
   end
 
   if #p > 0 then
