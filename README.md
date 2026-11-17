@@ -1,100 +1,150 @@
 # distilled-lua
 
-Typed API clients for Lua, generated from API models. You get a Lua module per API
-(today: [Neon](https://neon.tech)'s 178 operations) that builds requests, retries,
-pages through lists, matches errors and keeps secrets out of logs, in pure Lua with no
-dependencies. The same files run on PUC Lua 5.1 to 5.5, LuaJIT and gopher-lua inside
+Lua API clients for 115 cloud and SaaS providers. The generator builds each client from
+the Smithy model that [Distilled](https://github.com/alchemy-run/distilled) produces for
+that provider, so each operation has a known input, a known output and a list of the errors it
+can return. The runtime and the generator are pure Lua with no dependencies. The same
+files run on PUC Lua 5.1 to 5.5, on LuaJIT and on gopher-lua inside
 [Rex](https://www.superlogical.com/rex/).
 
-## 30 seconds
+- **Errors are values.** A call returns its result, or `nil` and an error table. The
+  table has a `tag` such as `"NotFound"`, a set of categories, the HTTP status and the
+  message from the response body. A failed request never raises.
+- **Retries.** Throttling and transient failures retry with jittered backoff by default.
+  The client waits at least as long as `Retry-After` asks and stops at an optional
+  deadline.
+- **Pagination as an iterator.** A paginated operation has an `_items` method and a
+  `_pages` method. Both fetch the next page only after the loop has read the current one.
+- **Redacted secrets.** A field that the model marks sensitive prints as `<redacted>`.
+  `distilled.json.encode` refuses to encode it.
+- **Streams.** `client:<op>_stream` reads NDJSON, server-sent events, gRPC, Connect and
+  AWS event streams one item at a time.
+
+distilled-lua is not on LuaRocks. You copy the runtime and the clients you need into your
+project.
+
+## Install
+
+Copy the runtime and a client into a `vendor` directory:
+
+```sh
+lua bin/distilled-lua vendor --out vendor
+cp -R clients/neon vendor/
+```
+
+The `vendor` command copies `lua/distilled/` without the generator and the test helpers.
+Add the directory to `package.path`:
 
 ```lua
-local Neon = require("neon")                 -- the generated client (clients/neon)
-local neon = Neon.new({ host = require("distilled.host.popen")() })   -- NEON_API_KEY from the env
+package.path = "vendor/?.lua;vendor/?/init.lua;" .. package.path
+```
+
+Each client has a `README.md` in `clients/<provider>/`. It lists the client's options,
+the environment variables it reads for credentials and every operation.
+
+## Example
+
+Get a Neon project, return `nil` when it does not exist, and then list every project:
+
+```lua
+local Neon = require("neon")
+
+-- api_key falls back to NEON_API_KEY
+local neon = Neon.new({ host = require("distilled.host.popen")() })
 
 local res, err = neon:get_project({ project_id = "quiet-sun" })
 if err then
-  if err.tag == "NotFound" then return nil end          -- errors are values, not exceptions
+  if err.tag == "NotFound" then
+    return nil
+  end
   error(tostring(err), 0)
 end
 print(res.project.name)
 
-for project in neon:list_projects_items({ limit = 50 }) do   -- every page, lazily
+local it = neon:list_projects_items({ limit = 50 })
+for project in it do
   print(project.id)
+end
+if it.err then
+  error(tostring(it.err), 0)
 end
 ```
 
-That is `examples/plain_lua.lua`, which runs against a local fixture server (no key, no
-network):
+`distilled.host.popen` sends requests with `curl`. In Rex, `distilled.host.rex` sends
+them through `rex.exec`. A longer version of this example is `examples/plain_lua.lua`.
+It runs against a local fixture server, so it needs no key and no network:
 
 ```sh
 verify/dl serve run sh -c 'lua examples/serve_neon_fixture.lua &&
   NEON_API_KEY=fake NEON_API_BASE_URL=$DL_SERVE_URL/neon lua examples/plain_lua.lua'
 ```
 
-Calls return `value` or `nil, err`; nothing raises. `err` has a `tag` (`"NotFound"`),
-`categories` (`err.categories.AuthError`), `status`, `message` and `retryable`. Transient
-failures (429, 5xx, transport errors) are retried with backoff, honouring `Retry-After`,
-inside an optional deadline. Fields the model marks sensitive come back wrapped so they
-print as `<redacted>`.
+## Providers and protocols
 
-## Where it comes from: Distilled
+The generated clients cover 105,759 of the 106,595 operations in Distilled's TypeScript
+SDKs. `verify/features/parity.md` has the count for each provider.
 
-[Distilled](https://github.com/alchemy-run/distilled) is a TypeScript (Effect) SDK
-generator. It converts each provider's OpenAPI or Smithy spec into a *patched* Smithy
-model: error matchers learned from real responses, pagination traits, sensitive fields,
-telemetry names. distilled-lua reuses those models unchanged and has its own runtime and
-generator, written in Lua:
+The runtime implements these protocols:
 
-```text
-provider spec ─ Distilled convert (Node, once per spec update) ─▶ models/neon/neon.json
-models/neon/neon.json + providers/neon.lua ─ bin/distilled-lua generate ─▶ clients/neon/
-clients/neon/ + lua/distilled/ ─ require("neon") ─▶ your Lua program
-```
+- REST with JSON, with bearer, header or OAuth credentials
+- AWS, with SigV4 signing, the JSON, query and XML protocols, event streams and S3
+- Cloudflare's response envelope
+- Azure, GCP, Google Workspace and Tencent Cloud
+- GraphQL, for Linear, Railway, Expo EAS and GitHub
+- gRPC and Connect, for Modal, boxd, Namespace and E2B
+- Signed REST requests for Coinbase and Polymarket
 
-Behaviour follows Distilled's runtime closely and is checked against it:
-`verify/dl conform neon` feeds the same inputs and canned responses to both and diffs
-the requests and outcomes (2,095 cases, 0 mismatches; the few intended differences are
-listed in `docs/usage.md` and `verify/features/conformance.md`).
+## How it relates to Distilled
+
+Distilled converts each provider's OpenAPI or Smithy spec into a Smithy model and then
+patches it. The patches add error matchers observed on the live API, pagination traits,
+sensitive fields and telemetry names. distilled-lua reads those models without changes.
+Its own runtime and generator are Lua.
+
+Building a client takes three steps:
+
+1. Distilled's converter writes the model. This step needs Node and runs once per spec
+   update.
+2. `bin/distilled-lua` reads the model and a provider spec from `providers/` and writes
+   the client to `clients/<provider>/`.
+3. Your program loads the client and the runtime with `require`.
+
+The runtime follows Distilled's runtime and is tested against it. `verify/dl conform neon`
+sends the same inputs and canned responses through both runtimes and compares the
+requests and the results. The Neon run has 2,095 cases and 0 mismatches.
+`docs/usage.md` and `verify/features/conformance.md` list the intended differences.
 
 ## Documentation
 
-| | |
+| File | What it covers |
 | --- | --- |
-| [docs/usage.md](docs/usage.md) | clients, calls, errors, pagination, retry, secrets, validation, the host seam |
-| [docs/rex.md](docs/rex.md) | using a client from a Rex configuration |
-| [docs/generating.md](docs/generating.md) | producing a model, provider specs, `--ops`, vendoring, adding a provider |
-| [docs/tracing.md](docs/tracing.md) | OpenTelemetry spans, exporters, `dl trace`, Jaeger |
-| [docs/interfaces.md](docs/interfaces.md) | module contracts (for contributors) |
-| [verify/SKILL.md](verify/SKILL.md) | how to verify a change (`verify/dl`, the proof bar, the feature map) |
+| [docs/usage.md](docs/usage.md) | Clients, calls, errors, pagination, retries, secrets, validation and the host adapter |
+| [docs/rex.md](docs/rex.md) | Using a client from a Rex configuration |
+| [docs/generating.md](docs/generating.md) | Syncing models, provider specs, `--ops`, vendoring and adding a provider |
+| [docs/tracing.md](docs/tracing.md) | OpenTelemetry spans, exporters, `dl trace` and Jaeger |
+| [docs/interfaces.md](docs/interfaces.md) | The contracts between modules, for contributors |
+| [verify/SKILL.md](verify/SKILL.md) | How to verify a change with `verify/dl` |
 
-## Layout
+## Repository layout
 
-```text
-lua/distilled/      the runtime (copy it next to a client to use it; see docs/generating.md)
-lua/distilled/gen/  the generator (not needed at run time)
-bin/distilled-lua   generate | vendor
-providers/          provider specs (one small Lua table per API)
-models/             patched Smithy models produced by Distilled
-clients/neon/       the generated Neon client
-examples/           runnable examples used by the docs
-spec/               tests (run under all three runtimes)
-verify/             verification toolkit: verify/dl, conformance, feature map
-```
+| Path | What it holds |
+| --- | --- |
+| `lua/distilled/` | The runtime: protocols, errors, retries, pagination, credentials, streams, tracing |
+| `lua/distilled/gen/` | The generator. A program does not need it at run time |
+| `bin/distilled-lua` | The command line: `package`, `generate` and `vendor` |
+| `providers/` | One spec per provider. A spec is a Lua table with what the model does not say |
+| `models/` | Models synced from Distilled. Git tracks only `models/neon/neon.json` |
+| `clients/` | The generated clients, one directory per provider |
+| `examples/` | Runnable examples that the docs refer to |
+| `spec/` | Tests, run under Lua, LuaJIT and Rex |
+| `verify/` | `verify/dl`, the conformance test against Distilled and the feature map |
 
-## Status
-
-- REST/JSON APIs with bearer or header auth (Neon). AWS signing, Cloudflare's envelope,
-  GraphQL and gRPC are not supported yet.
-- Neon: all 178 operations generated and compared request-for-request with Distilled,
-  including the multipart upload (`require("distilled.multipart").file{...}`).
-- The core is synchronous; streaming responses are not supported.
-- Not on LuaRocks: clients are vendored into the consuming project.
+## Development
 
 ```sh
-verify/dl doctor     # toolchain check
-verify/dl test       # all specs under lua, luajit and rex
-verify/dl help       # everything else
+verify/dl doctor     # check the interpreters, curl, Rex, stylua and node
+verify/dl test       # run every spec under lua, luajit and rex
+verify/dl help       # list the other commands
 ```
 
 ## License
