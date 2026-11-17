@@ -1,4 +1,4 @@
--- Unary (and collected server-streaming) gRPC over the transport. Port of Distilled's
+-- Unary gRPC and server streams (collected or incremental) over the transport. Port of Distilled's
 -- core protocol-grpc.ts (makeGrpcProtocol).
 --
 -- Proto clients are generated as REST-shaped operations: each RPC is
@@ -25,9 +25,17 @@
 --   typed error matches.
 -- * Response: protobuf messages are transcoded back to proto3 JSON and decoded by the
 --   operation's output schema through the REST decoder, so schemas, sensitive values and
---   validation behave exactly as for REST. A server-streaming method's output is
---   `{ items = { message, ... } }`: the call collects the whole stream (one HTTP
---   response), as Distilled's plain call does; there is no incremental `.stream`.
+--   validation behave exactly as for REST. A server-streaming method's plain call
+--   returns `{ items = { message, ... } }`: the whole stream collected from one HTTP
+--   response, as Distilled's plain call does.
+-- * Streams (task 30): `protocol.stream(ctx, op, input)` sends the call through the
+--   transport's `stream` entry point and returns parts whose next() decodes one message
+--   as soon as its frame has arrived (distilled.stream.grpc; Distilled's streamReply):
+--   each item is read by the output schema as `{ items = { message } }`. Failures known
+--   before the first message (a non-gRPC reply, a trailers-only status) are returned at
+--   once; the status in HTTP trailers or a gRPC-Web trailer frame ends the stream, with
+--   the operation's typed error when it is not OK; a dropped connection ends it with the
+--   transport's error; a truncated last frame is INTERNAL once the status is OK.
 --
 --   local protocol = grpc.new{
 --     descriptors = require("modal.app.descriptors"),
@@ -38,8 +46,8 @@
 --   }
 --
 -- Not ported: Distilled's `Deadline` (grpc-timeout and its own timer; the client's
--- deadline_s bounds the transport instead), `.stream`, the HTTP/2 transports (curl is
--- ours) and hpack.
+-- deadline_s bounds the transport instead), the HTTP/2 transports (curl is ours) and
+-- hpack.
 local compat = require("distilled.compat")
 local errors = require("distilled.errors")
 local json = require("distilled.json")
