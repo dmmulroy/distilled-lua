@@ -926,6 +926,7 @@ conformance with Distilled: 16 signer vectors, 17 requests, 85 responses, 0 mism
 - `gen/types.lua`: Options fields from `rpc.option_fields` instead of the base_url line.
 - `gen/traits.lua`: `com.tencentcloud#action` marked handled.
 - `verify/dl`: `tencentcloud-ref` command (+ help line).
+- `spec/provider_spec.lua` (task 13): `tencentcloud` added to its list of provider files.
 
 ### Notes for others
 
