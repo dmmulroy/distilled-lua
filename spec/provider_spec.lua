@@ -111,7 +111,9 @@ local NAMES = {
   "exa",
   "fly_io",
   "forgejo",
+  "gcp", -- task 21 (discovery spec)
   "github",
+  "google_workspace", -- task 21 (discovery spec)
   "grafana",
   "growthbook",
   "gusto",

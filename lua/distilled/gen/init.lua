@@ -205,6 +205,15 @@ function gen.plan(args)
     end
     spec = provider_mod.for_model(spec, args.model_name)
   end
+  if spec.discovery then
+    -- Google discovery models (gcp, google-workspace): gen/discovery.lua (task 21)
+    local discovery = require("distilled.gen.discovery")
+    local ok, derr = discovery.prepare(m, spec.discovery)
+    if not ok then
+      return nil, derr
+    end
+    spec = discovery.spec_for_model(spec, m)
+  end
   local telemetry = args.telemetry ~= false
   local ctx = {
     model = m,
@@ -238,7 +247,8 @@ function gen.plan(args)
   for _, op in ipairs(m.operations) do
     entries[#entries + 1] = {
       id = op.id,
-      name = op.name,
+      -- a discovery operation renamed with a trailing _ keeps its plain method name
+      name = spec.discovery and require("distilled.gen.discovery").op_name(op.name) or op.name,
       paginated = op.def.traits ~= nil and op.def.traits["smithy.api#paginated"] ~= nil,
     }
   end
@@ -796,6 +806,10 @@ function gen.index(args)
     return fail(problems)
   end
   local name, title = spec.name, spec.title
+  -- the variable the usage examples bind the index to (task 21: gcp.unstable is a module
+  -- name, not a Lua name, so its examples say gcp_unstable)
+  local var = args.local_name or name
+  local dir = (string.gsub(name, "%.", "/"))
   local function field(n)
     return naming.is_identifier(n) and ("." .. n) or ("[" .. emit.string(n) .. "]")
   end
@@ -829,17 +843,17 @@ function gen.index(args)
   b:lines_of(
     emit.comment(
       "Each service is its own client class in "
-        .. name
+        .. dir
         .. "/<service>/, loaded on first use. See README.md next to this file."
     )
   )
   b:line("--")
-  b:line("--   local " .. name .. ' = require("' .. name .. '")')
+  b:line("--   local " .. var .. ' = require("' .. name .. '")')
   b:line(
     "--   local "
       .. class_title
       .. " = "
-      .. name
+      .. var
       .. field(example.name)
       .. ' -- = require("'
       .. name
@@ -849,7 +863,7 @@ function gen.index(args)
   )
   b:line("--   local client = " .. class_title .. ".new({ host = ... })")
   b:line("--   -- or one set of options for every service, each client built on first use:")
-  b:line("--   local clients = " .. name .. ".new({ host = ... })")
+  b:line("--   local clients = " .. var .. ".new({ host = ... })")
   b:line("--   clients" .. field(example.name) .. ":<operation>({ ... })")
   b:line("local MODULE = ... or " .. emit.string(name))
   b:blank()
@@ -919,19 +933,19 @@ function gen.index(args)
       .. " services, "
       .. total
       .. " operations), each in `"
-      .. name
+      .. dir
       .. "/<service>/`"
   )
   add('with its own README.md. `require("' .. name .. '")` is an index that loads a service on')
   add("first use.")
   add()
   add("```lua")
-  add("local " .. name .. ' = require("' .. name .. '")')
+  add("local " .. var .. ' = require("' .. name .. '")')
   add(
     "local "
       .. class_title
       .. " = "
-      .. name
+      .. var
       .. field(example.name)
       .. ' -- require("'
       .. name
@@ -942,10 +956,10 @@ function gen.index(args)
   add("local client = " .. class_title .. '.new({ host = require("distilled.host.popen")() })')
   add()
   add("-- one set of options for every service; each client is built on first use")
-  add("local clients = " .. name .. '.new({ host = require("distilled.host.popen")() })')
+  add("local clients = " .. var .. '.new({ host = require("distilled.host.popen")() })')
   add("```")
   add()
-  add("`" .. name .. ".services` lists the service names.")
+  add("`" .. var .. ".services` lists the service names.")
   add()
   add("| Service | Module | Operations | Model |")
   add("| --- | --- | --- | --- |")

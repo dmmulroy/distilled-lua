@@ -657,13 +657,18 @@ function Iterator:_next_page()
   return page
 end
 
--- the items of a page: the trait's items path, or the page itself when it is a list
+-- the items of a page: the trait's items path, or the page itself when it is a list,
+-- else the page as one item (a trait without items: Distilled's `.items()` is then the
+-- pages, api.ts `if (!p.items) return pagesOf(...)`; GCP list responses, task 21)
 local function items_of(page, trait)
   if trait.items then
     return get_items(page, trait.items)
   end
   if is_array(page) then
     return page
+  end
+  if type(page) == "table" and page ~= null then
+    return { page }
   end
   return {}
 end
