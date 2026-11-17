@@ -439,7 +439,8 @@ function jws.decode(token)
 end
 
 -- jws.verify(token, key [, algorithms]) -> header, payload | nil, err
--- algorithms: the list of acceptable alg values (default: what the key can verify)
+-- algorithms: the list of acceptable alg values. Default: what the key object can verify;
+-- for PEM text, the asymmetric algorithms. HS256/384/512 must always be listed.
 function jws.verify(token, key, algorithms)
   local parts, err = jws.decode(token)
   if not parts then
@@ -456,7 +457,9 @@ function jws.verify(token, key, algorithms)
   elseif keys.is(key) then
     allowed = check_alg(alg, key)
   else
-    allowed = alg ~= "none" and known(alg)
+    -- PEM text or a secret: never HMAC unless asked for, or a public key's PEM would
+    -- verify an HS256 token keyed with that (public) text (algorithm confusion)
+    allowed = known(alg) and not HMAC_HASH[alg]
   end
   if not allowed then
     return invalid("algorithm " .. tostring(alg) .. " is not accepted")

@@ -64,7 +64,7 @@ function pem.decode(text)
       return invalid("PEM: encrypted keys are not supported")
     end
     body = body:gsub("%s", "")
-    local der, err = base64.decode(body)
+    local der = base64.decode(body)
     if not der then
       return invalid("PEM: the " .. label .. " block is not base64")
     end

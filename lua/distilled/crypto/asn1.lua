@@ -127,8 +127,8 @@ function asn1.oid(node)
     if b < 128 then
       if #parts == 0 then
         local first = acc < 80 and floor(acc / 40) or 2
-        parts[1] = tostring(first)
-        parts[2] = tostring(acc - first * 40)
+        parts[1] = string.format("%d", first)
+        parts[2] = string.format("%d", acc - first * 40)
       else
         parts[#parts + 1] = string.format("%d", acc)
       end

@@ -645,6 +645,12 @@ t.describe("crypto_pk: JWS, JWT and JWK", function()
     local hs = assert(jwt.encode({ key = "shared", alg = "HS256", claims = { a = 1 } }))
     t.fails_with("InvalidInput", jwt.verify(hs, key("ed25519", "spki")))
     t.eq(jwt.verify(hs, secret("shared"), { algorithms = { "HS256" } }).a, 1)
+    t.fails_with("InvalidInput", jwt.verify(hs, secret("shared")))
+    -- algorithm confusion: an HS256 token keyed with a public key's PEM text
+    local pem_text = KEYS.ed25519.spki
+    local forged = assert(jwt.encode({ key = pem_text, alg = "HS256", claims = { a = 1 } }))
+    t.fails_with("InvalidInput", jwt.verify(forged, pem_text))
+    t.fails_with("InvalidInput", jwt.verify(forged, key("ed25519", "spki")))
   end)
 
   t.it("ordered JSON: order kept, nils dropped, nesting bounded", function()
