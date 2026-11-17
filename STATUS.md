@@ -779,3 +779,147 @@ See `tasks/15-xml.done.md`.
   flag of `dl test`, the `xml-bench` command and their help lines. Additions only.
 - `verify/features/README.md` should list `xml.md` (left for the orchestrator, to avoid
   conflicting edits).
+
+## 16 graphql
+
+**Done.** See `tasks/16-graphql.done.md` and `verify/features/graphql.md`.
+
+### What others can use
+
+- `require("distilled.graphql")`: the Query algebra (`map`, `filter`, `flat_map`, `of`,
+  `fn`), `compile`, `request_body`, `evaluate`, `result`, `classify`, `is_retryable` and
+  `pages`. Its error classes are `GqlError`, `UnknownGraphQLError`, `GraphQLFailure`,
+  `GraphQLTransportError` and `GraphQLPaginationError`.
+- `require("distilled.graphql.client").define{ name, transport, telemetry, options }`
+  builds on `Client.define` with no REST ops. Its methods are `run`, `pages`, `items`,
+  `compile`; `with` and `close` are inherited.
+- `require("distilled.graphql.sdk").build(spec)` is what a generated `init.lua` calls.
+- Generated clients:
+  - `clients/linear`, `clients/railway`, `clients/expo_eas`;
+  - `clients/github/graphql` (module `github.graphql`) and `clients/fly_io/graphql`
+    (module `fly_io.graphql`).
+
+### Decisions
+
+- **Mixed packages** (github, fly_io) keep their GraphQL client in `clients/<pkg>/graphql/`,
+  with the provider spec in `providers/graphql/<pkg>.lua`. The REST specs
+  (`providers/github.lua`, `fly_io.lua`; task 13) were not touched. `package` auto-detects
+  `models/<pkg>/graphql/<pkg>.json` and generates both parts.
+- Plan keys are visited sorted. Arguments are bound in schema order, and a page's
+  `after` last (as TS).
+- Combinators are free functions (`gql.map(q, fn)`), so no GraphQL field is shadowed.
+- Unknown fields and arguments raise (misuse).
+
+### Edits outside the obvious (orchestrator: note for merges)
+
+- In `bin/distilled-lua`:
+  - the `generate-graphql` command;
+  - the graphql auto-detect in `package`;
+  - `replaceable()` also accepts a directory holding only `graphql/init.lua`.
+- In `verify/dl`:
+  - `sync_graphql` (models sync plus `--convert`) and `has_models`;
+  - `spec_packages` includes GraphQL packages;
+  - gen-diff runs `verify/lib/graphql_check.lua` (new).
+- New files:
+  - `verify/conform/node/graphql_requests.mjs`;
+  - `spec/fixtures/graphql/cases.json`;
+  - `spec/golden/graphql/requests.json`.
+
+### Proposed (files I do not own)
+
+- `verify/features/README.md` should list `graphql.md` (area "GraphQL clients", task 16),
+  after the generator row.
+- STATUS.md itself has leftover merge markers (`
+
+## 13 providers
+
+Done (see `tasks/13-providers.done.md`).
+
+- Survey: `docs/providers-survey.md`, 106 packages: 18 A, 83 B, 5 C. 98 specs in
+  `providers/` (neon, hetzner (task 10) and 96 new; 23 with a glue module in `providers/glue/`). Not
+  written: hetzner (task 10 owns it), questrade (refresh token in a URL query), scaleway
+  and slack (reasons in the survey).
+- New spec keys (`lua/distilled/gen/provider_ext.lua`, called from `provider.validate`):
+  `options`, env lists, `headers`, `auth.kind = "basic"`, `auth.prefix`,
+  `auth.optional`, templated or required `base_url` with `trim_slash`, `ensure_suffix`,
+  `origin`; `require_one_of`, `public_operations`, `user_agent`, `oauth`,
+  `error_classes`, `unknown_fields`, `transform_response`, `empty_json_body`,
+  `query_style`, pointer lists in `error_envelope`, `glue`. A spec with none of them
+  generates exactly as before.
+- Runtime: `rest.new{ provider = ..., glue = ..., unknown_fields, transform_input,
+  classify_success }`, `rest.envelope`, `rest.transforms`, `rest.strip_nulls`,
+  `rest.compile_provider`. `credentials.from_env` takes a list of names.
+  `classify_error`'s info gained `now`; `classify_success` may return `true` (read the
+  2xx answer as a failure).
+
+Files outside my list that I had to change (orchestrator, please check on merge):
+
+- `lua/distilled/gen/writer.lua`: the protocol and options of `init.lua` are emitted
+  there, not in `gen/init.lua`; `writer.client` now emits `provider = ...` for task-13
+  specs (classic specs unchanged), `error_classes`, pointer-list envelopes, `glue`;
+  the README options table (`writer.option_rows`). Task 12 also edits this file.
+- `lua/distilled/gen/types.lua`: the `Options` fields of task-13 specs.
+- `spec/gen_provider_spec.lua`: one line, `kind = "basic"` is now valid (the case uses
+  `"digest"`).
+
+For task 10 (merge): `models.override` should be able to carry `auth`, `options` and
+`headers` (clerk, convex, digitalocean, e2b, exa, fly-io, mailchimp, onepassword have
+models with different auth; their spec comments say what). Apply an override to the raw
+spec *before* `provider.validate`: the runtime data (`spec.runtime`) is computed there,
+so changing `spec.base_url` after validation does not reach it. entire's Core models
+need only `base_url = { option = "core_base_url", env = "ENTIRE_CORE_BASE_URL",
+default = "https://us.console.entire.io" }`.
+
+Task 12 merged: a task-13 spec's base URL follows `rest.route_base_url`'s rule for an
+operation with `route.server` or its own `route.base_url` (`compile_provider`), and the
+writer declares task 12's `<server>_base_url` / template options for it too. stackit's
+glue reads `route.base_url` (the http trait's baseUrl), digitalocean's `route.server`.
+For task 10 (merged): `provider.for_model` passes a `models.override.<m>.base_url` on to
+the runtime data (`ext.override_base_url`).
+After the merge of main every package generates whole: `bin/distilled-lua package
+--models models/<pkg> --provider providers/<lua>.lua --out /tmp/...` for all 98 specs
+gives 1016 models ok, 0 failed, 2 skipped (models.skip). Two generator changes made that
+possible: an `error_classes` tag that a model also declares uses the model's class (Vercel,
+Whop, Starburst, Atlas declare PaymentRequired / PreconditionFailed in some models only),
+and `naming.operations` is not checked against a single model of a multi-model package (exa).
+
+## 18 big-models
+
+**Done.** See `tasks/18-big-models.done.md` and `verify/features/generator.md` ("Large
+models"). infisical's client now loads on luajit, and `require` takes 74 ms in Rex
+(was 10.6 s); every one of the 10 largest models loads in all three runtimes.
+
+### Contract update (for `docs/interfaces.md`, service descriptor)
+
+- A **split service** (generated when `service.lua` would pass 512 KB or ~20,000
+  constants) has `service.shape_chunks`: a list of module names, each returning
+  `{ [name] = node }`. Then `service.shapes` is a registry with an `__index` metamethod
+  that loads a shape's whole file on first lookup: **indexing works as before,
+  `pairs(service.shapes)` only sees loaded shapes.** Code that needs every shape
+  iterates `shape_chunks` (gen_check does). Unknown names are nil; a missing file raises.
+- `service.ops` and `service.errors` stay plain complete tables (loaded eagerly from
+  `service/ops_NNN.lua` / `errors_NNN.lua`). `client.lua` needed no change.
+- `gen.generate` returns `files.dirs` (subdirectories, sorted; `{}` for one-file
+  clients). File names may contain `/` (`service/shapes_001.lua`). `gen.write` still runs
+  no process: the caller creates `files.dirs`.
+- Neon and Hetzner are byte-identical; nothing regenerated.
+
+### Edits outside my file list
+
+- `bin/distilled-lua`: `write_files` creates `files.dirs` and removes a generated
+  client's old `service/` directory before writing (generate and package). Needed for the
+  layout; no other change.
+- New verify scripts (measurement only): `verify/lib/load_bench.lua`,
+  `verify/lib/big_models.sh`, `verify/lib/bench_sanitize.mjs`, `verify/lib/big_synth.lua`,
+  `verify/lib/lua_limits.lua`. Proposed (orchestrator): `dl big-models` / `dl lua-limits`
+  wrappers in `verify/dl`.
+
+### For the AWS / Azure / Cloudflare / GCP / Tencent tasks
+
+- Nothing to do: any model the generator accepts is split when needed. ~33 ms of Rex
+  `require` per 1,000 operations remains (op descriptors are eager); shapes cost only
+  when used (~10-60 ms for a first call in Rex).
+- One shape with tens of thousands of enum values or members cannot be split: gopher-lua
+  compiles a 100,000-string constructor in 17 s. Generation fails past 60,000 constants
+  in one statement (LuaJIT's 65,536 limit).
+- `types.lua` is not split (12 MB for infisical); it is only read by LuaLS.

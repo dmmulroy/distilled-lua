@@ -9,7 +9,8 @@
 --     model_name = "servers" | nil,              -- one model of a multi-model package:
 --   }                                            -- module <spec.name>.servers
 --   -- files = { ["init.lua"] = source, ["service.lua"] = ..., ["types.lua"] = ...,
---   --           ["README.md"] = ... }, plus files.order (the names, sorted)
+--   --           ["README.md"] = ... }, plus files.order (the names, sorted) and
+--   --           files.dirs (subdirectories: a large model has service/*.lua too)
 --   gen.write(files, "clients/neon")
 --
 -- Port of Distilled's `generateService` (dev/src/codegen/generator.ts). Its seven steps
@@ -242,7 +243,9 @@ function gen.plan(args)
     for _, op in ipairs(m.operations) do
       known = known or op.name == k
     end
-    if not known then
+    -- one model of a multi-model package: the operation may be another model's (exa's
+    -- ListWebsetsItems is in exa.api only), which this model cannot check
+    if not known and not spec.model_name then
       return nil, "provider spec naming.operations names an unknown operation " .. k
     end
   end
@@ -448,13 +451,37 @@ function gen.plan(args)
     error_tags_set[d.tag] = true
   end
   local builtin = require("distilled.errors").classes
+  -- provider spec error_classes (task 13): tags of their own, usable in status_map. A
+  -- model that declares an error of the same tag uses its own class for it (Vercel's
+  -- PaymentRequired is in some models only); a built-in or reserved tag is an error.
+  local provider_tags = {}
+  for _, c in ipairs(spec.error_classes or {}) do
+    provider_tags[c.tag] = true
+    if builtin[c.tag] or reserved_tags[c.tag] then
+      problems[#problems + 1] = "provider spec error_classes."
+        .. c.tag
+        .. " has the tag of "
+        .. (builtin[c.tag] and "a built-in error" or ("the provider's " .. reserved_tags[c.tag]))
+    end
+  end
+  for _, name in ipairs(spec.public_operations or {}) do
+    local known = false
+    for _, op in ipairs(m.operations) do
+      known = known or op.name == name
+    end
+    if not known then
+      problems[#problems + 1] = "provider spec public_operations names an unknown operation "
+        .. name
+    end
+  end
   for status, tag in pairs(spec.status_map or {}) do
-    if not error_tags_set[tag] and not builtin[tag] then
+    if not error_tags_set[tag] and not builtin[tag] and not provider_tags[tag] then
       problems[#problems + 1] = "provider spec status_map["
         .. status
         .. "] names "
         .. tag
-        .. ", which is neither a built-in error nor an error of the selected operations"
+        .. ", which is neither a built-in error, a provider error class nor an error of the"
+        .. " selected operations"
     end
   end
   if spec.unknown_tag == spec.parse_tag then
@@ -610,10 +637,18 @@ function gen.generate(args)
     return nil, err
   end
   local files = {}
-  for name, text in pairs(writer.service(plan)) do
+  local service_files, werr = writer.service(plan)
+  if not service_files then
+    return nil, werr
+  end
+  for name, text in pairs(service_files) do
     files[name] = text
   end
   files["init.lua"] = writer.client(plan)
+  if plan.provider.glue then
+    -- the provider's hand-written glue travels with the client (require(MODULE .. ".glue"))
+    files["glue.lua"] = plan.provider.glue.source
+  end
   files["types.lua"] = types_mod.render(plan)
   files["README.md"] = writer.readme(plan)
   local order = {}
@@ -622,12 +657,22 @@ function gen.generate(args)
   end
   table.sort(order)
   files.order = order
+  -- subdirectories the files need (a large model's service/, gen/writer.lua), sorted
+  local dirs, seen = {}, {}
+  for _, name in ipairs(order) do
+    local dir = string.match(name, "^(.*)/[^/]*$")
+    if dir and not seen[dir] then
+      seen[dir] = true
+      dirs[#dirs + 1] = dir
+    end
+  end
+  files.dirs = dirs
   return files, nil, plan
 end
 
 --- gen.write(files, dir) -> true | nil, message
--- Writes every file into dir, which must exist (the CLI creates it: the library itself
--- never runs a process).
+-- Writes every file into dir. dir and its subdirectories files.dirs must exist (the CLI
+-- creates them: the library itself never runs a process).
 function gen.write(files, dir)
   for _, name in ipairs(files.order) do
     local path = dir .. "/" .. name

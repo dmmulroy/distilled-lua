@@ -1,0 +1,316 @@
+{
+ "linear.viewer": {
+  "requests": [
+   {
+    "query": "query Gql {\n  viewer {\n    email\n    name\n  }\n}",
+    "variables": {},
+    "operationName": "Gql"
+   }
+  ]
+ },
+ "linear.teams_nested": {
+  "requests": [
+   {
+    "query": "query Gql($v0: Int, $v1: Boolean, $v2: Int) {\n  teams(first: $v0, includeArchived: $v1) {\n    edges {\n      node {\n        id\n        key\n        members(first: $v2) {\n          edges {\n            node {\n              name\n            }\n          }\n        }\n      }\n    }\n  }\n}",
+    "variables": {
+     "v0": 5,
+     "v1": false,
+     "v2": 3
+    },
+    "operationName": "Gql"
+   }
+  ]
+ },
+ "linear.issue_aliases": {
+  "requests": [
+   {
+    "query": "query Gql($v0: String!, $v1: String!) {\n  issue(id: $v0) {\n    title\n    assignee {\n      email\n    }\n  }\n  issue_0: issue(id: $v1) {\n    title\n  }\n}",
+    "variables": {
+     "v0": "ISS-1",
+     "v1": "ISS-2"
+    },
+    "operationName": "Gql"
+   }
+  ]
+ },
+ "linear.scalar_args": {
+  "requests": [
+   {
+    "query": "query Gql($v0: String!, $v1: Boolean) {\n  team(id: $v0) {\n    issueCount(includeArchived: $v1)\n    issueCount_0: issueCount\n  }\n}",
+    "variables": {
+     "v0": "T1",
+     "v1": true
+    },
+    "operationName": "Gql"
+   }
+  ]
+ },
+ "linear.filter": {
+  "requests": [
+   {
+    "query": "query Gql($v0: Int) {\n  teams(first: $v0) {\n    edges {\n      node {\n        private\n        name\n      }\n    }\n  }\n}",
+    "variables": {
+     "v0": 10
+    },
+    "operationName": "Gql"
+   }
+  ]
+ },
+ "linear.issue_create": {
+  "requests": [
+   {
+    "query": "mutation Gql($v0: IssueCreateInput!) {\n  issueCreate(input: $v0) {\n    issue {\n      identifier\n    }\n  }\n}",
+    "variables": {
+     "v0": {
+      "teamId": "T1",
+      "title": "Bug",
+      "labelIds": [
+       "L1",
+       "L2"
+      ],
+      "priority": 2,
+      "description": null
+     }
+    },
+    "operationName": "Gql"
+   }
+  ]
+ },
+ "linear.teams_pages": {
+  "requests": [
+   {
+    "query": "query Gql($v0: Int) {\n  teams(first: $v0) {\n    edges {\n      node {\n        id\n      }\n    }\n    pageInfo {\n      hasNextPage\n      endCursor\n    }\n  }\n}",
+    "variables": {
+     "v0": 2
+    },
+    "operationName": "Gql"
+   },
+   {
+    "query": "query Gql($v0: Int, $v1: String) {\n  teams(first: $v0, after: $v1) {\n    edges {\n      node {\n        id\n      }\n    }\n    pageInfo {\n      hasNextPage\n      endCursor\n    }\n  }\n}",
+    "variables": {
+     "v0": 2,
+     "v1": "c1"
+    },
+    "operationName": "Gql"
+   }
+  ]
+ },
+ "linear.literal_and_root": {
+  "requests": [
+   {
+    "query": "query Gql {\n  viewer {\n    id\n  }\n}",
+    "variables": {},
+    "operationName": "Gql"
+   }
+  ]
+ },
+ "railway.project_services": {
+  "requests": [
+   {
+    "query": "query Gql($v0: String!, $v1: Int) {\n  project(id: $v0) {\n    name\n    services(first: $v1) {\n      edges {\n        node {\n          name\n        }\n      }\n    }\n  }\n}",
+    "variables": {
+     "v0": "p1",
+     "v1": 20
+    },
+    "operationName": "Gql"
+   }
+  ]
+ },
+ "railway.variables_secret": {
+  "requests": [
+   {
+    "query": "mutation Gql($v0: VariableCollectionUpsertInput!, $v1: VariableCollectionUpsertInput!) {\n  variableCollectionUpsert(input: $v0)\n  variableCollectionUpsert_0: variableCollectionUpsert(input: $v1)\n}",
+    "variables": {
+     "v0": {
+      "environmentId": "e1",
+      "projectId": "p1",
+      "variables": {
+       "S3_SECRET": "first-secret"
+      }
+     },
+     "v1": {
+      "environmentId": "e1",
+      "projectId": "p1",
+      "variables": {
+       "S3_SECRET": "second-secret"
+      }
+     }
+    },
+    "operationName": "Gql"
+   }
+  ]
+ },
+ "railway.token_leaf": {
+  "requests": [
+   {
+    "query": "mutation Gql($v0: ApiTokenCreateInput!) {\n  apiTokenCreate(input: $v0)\n}",
+    "variables": {
+     "v0": {
+      "name": "ci"
+     }
+    },
+    "operationName": "Gql"
+   }
+  ]
+ },
+ "railway.bucket_credentials": {
+  "requests": [
+   {
+    "query": "query Gql($v0: String!, $v1: String!, $v2: String!) {\n  bucketS3Credentials(bucketId: $v0, environmentId: $v1, projectId: $v2) {\n    accessKeyId\n    secretAccessKey\n  }\n}",
+    "variables": {
+     "v0": "b1",
+     "v1": "e1",
+     "v2": "p1"
+    },
+    "operationName": "Gql"
+   }
+  ]
+ },
+ "railway.project_services_pages": {
+  "requests": [
+   {
+    "query": "query Gql($v0: String!, $v1: Int) {\n  project(id: $v0) {\n    services(first: $v1) {\n      edges {\n        node {\n          name\n        }\n      }\n      pageInfo {\n        hasNextPage\n        endCursor\n      }\n    }\n  }\n}",
+    "variables": {
+     "v0": "p1",
+     "v1": 2
+    },
+    "operationName": "Gql"
+   },
+   {
+    "query": "query Gql($v0: String!, $v1: Int, $v2: String) {\n  project(id: $v0) {\n    services(first: $v1, after: $v2) {\n      edges {\n        node {\n          name\n        }\n      }\n      pageInfo {\n        hasNextPage\n        endCursor\n      }\n    }\n  }\n}",
+    "variables": {
+     "v0": "p1",
+     "v1": 2,
+     "v2": "c1"
+    },
+    "operationName": "Gql"
+   }
+  ]
+ },
+ "railway.projects_pages_after": {
+  "requests": [],
+  "error": {
+   "tag": "GqlError",
+   "message": "field \"node\" has no sub-selection"
+  }
+ },
+ "expo_eas.app_by_id": {
+  "requests": [
+   {
+    "query": "query Gql($v0: String!, $v1: AppProfileImageWidth) {\n  app {\n    byId(appId: $v0) {\n      profileImageUrl(width: $v1)\n      fullName\n    }\n  }\n}",
+    "variables": {
+     "v0": "a1",
+     "v1": "SIZE_64"
+    },
+    "operationName": "Gql"
+   }
+  ]
+ },
+ "expo_eas.viewer": {
+  "requests": [
+   {
+    "query": "query Gql {\n  viewer {\n    username\n  }\n}",
+    "variables": {},
+    "operationName": "Gql"
+   }
+  ]
+ },
+ "github.repository": {
+  "requests": [
+   {
+    "query": "query Gql($v0: String!, $v1: String!, $v2: Int, $v3: [IssueState!], $v4: Int!) {\n  repository(name: $v0, owner: $v1) {\n    issues(first: $v2, states: $v3) {\n      edges {\n        node {\n          number\n          title\n        }\n      }\n    }\n    pullRequest(number: $v4) {\n      title\n    }\n  }\n}",
+    "variables": {
+     "v0": "r",
+     "v1": "o",
+     "v2": 10,
+     "v3": [
+      "OPEN"
+     ],
+     "v4": 7
+    },
+    "operationName": "Gql"
+   }
+  ]
+ },
+ "github.node_and_draft": {
+  "requests": [
+   {
+    "query": "mutation Gql($v0: ConvertPullRequestToDraftInput!) {\n  convertPullRequestToDraft(input: $v0) {\n    pullRequest {\n      isDraft\n    }\n  }\n}",
+    "variables": {
+     "v0": {
+      "pullRequestId": "PR_1"
+     }
+    },
+    "operationName": "Gql"
+   }
+  ]
+ },
+ "github.search_union": {
+  "requests": [
+   {
+    "query": "query Gql($v0: Int, $v1: String!, $v2: SearchType!) {\n  search(first: $v0, query: $v1, type: $v2) {\n    edges {\n      node {\n        __typename\n      }\n    }\n  }\n}",
+    "variables": {
+     "v0": 3,
+     "v1": "is:open",
+     "v2": "ISSUE"
+    },
+    "operationName": "Gql"
+   }
+  ]
+ },
+ "github.avatar_sizes": {
+  "requests": [
+   {
+    "query": "query Gql($v0: Int) {\n  viewer {\n    avatarUrl(size: $v0)\n    avatarUrl_0: avatarUrl\n    login\n  }\n}",
+    "variables": {
+     "v0": 64
+    },
+    "operationName": "Gql"
+   }
+  ]
+ },
+ "fly_io.apps_pages": {
+  "requests": [
+   {
+    "query": "query Gql($v0: Int, $v1: Boolean) {\n  apps(first: $v0, active: $v1) {\n    edges {\n      node {\n        name\n        organization {\n          slug\n        }\n      }\n    }\n    pageInfo {\n      hasNextPage\n      endCursor\n    }\n  }\n}",
+    "variables": {
+     "v0": 2,
+     "v1": true
+    },
+    "operationName": "Gql"
+   },
+   {
+    "query": "query Gql($v0: Int, $v1: Boolean, $v2: String) {\n  apps(first: $v0, active: $v1, after: $v2) {\n    edges {\n      node {\n        name\n        organization {\n          slug\n        }\n      }\n    }\n    pageInfo {\n      hasNextPage\n      endCursor\n    }\n  }\n}",
+    "variables": {
+     "v0": 2,
+     "v1": true,
+     "v2": "c1"
+    },
+    "operationName": "Gql"
+   }
+  ]
+ },
+ "fly_io.addon_sensitive": {
+  "requests": [
+   {
+    "query": "query Gql($v0: String) {\n  addOn(name: $v0) {\n    environment\n    password\n  }\n}",
+    "variables": {
+     "v0": "bucket"
+    },
+    "operationName": "Gql"
+   }
+  ]
+ },
+ "fly_io.tos": {
+  "requests": [
+   {
+    "query": "query Gql($v0: String, $v1: String!) {\n  organization(slug: $v0) {\n    agreedToProviderTos(providerName: $v1)\n  }\n}",
+    "variables": {
+     "v0": "acme",
+     "v1": "tigris"
+    },
+    "operationName": "Gql"
+   }
+  ]
+ }
+}
