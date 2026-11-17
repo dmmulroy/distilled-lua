@@ -9,12 +9,14 @@
 --   plus " (field: message; ...)" for `errors`.
 -- - errors.ts: UnknownMailchimpError, MailchimpParseError.
 --
--- The transactional model (Mandrill: the key as a `key` body member from
--- MAILCHIMP_TRANSACTIONAL_API_KEY | MANDRILL_API_KEY, https://mandrillapp.com/api/1.0,
--- { status = "error", name, message } failures) needs task 10's per-model override once
--- it covers auth and options, and a transform_input glue.
--- Not mirrored: MailchimpApiError (the unknown error with a problem message) and the
--- unknown error's type, title and instance fields.
+-- - credentials.ts / protocol.ts (Transactional API, formerly Mandrill, model
+--   transactional): the key from MAILCHIMP_TRANSACTIONAL_API_KEY, else MANDRILL_API_KEY,
+--   sent as the `key` body member of every call; base URL
+--   https://mandrillapp.com/api/1.0 (trimmed); failures { status = "error", code, name,
+--   message } read as "name: message", MailchimpTransactionalError for a status nothing
+--   else maps (glue/mailchimp_transactional.lua).
+-- - errors.ts: a problem document nothing else maps is MailchimpApiError, any other
+--   failure UnknownMailchimpError, both with the problem's type, title and instance.
 return {
   name = "mailchimp",
   title = "Mailchimp",
@@ -29,6 +31,22 @@ return {
   },
   headers = { Authorization = { basic = "anystring:{api_key}" } },
   glue = "glue/mailchimp.lua",
+  models = {
+    override = {
+      transactional = {
+        base_url = { default = "https://mandrillapp.com/api/1.0" },
+        options = {
+          api_key = {
+            secret = true,
+            env = { "MAILCHIMP_TRANSACTIONAL_API_KEY", "MANDRILL_API_KEY" },
+            required = true,
+          },
+        },
+        headers = false,
+        glue = "glue/mailchimp_transactional.lua",
+      },
+    },
+  },
   unknown_tag = "UnknownMailchimpError",
   parse_tag = "MailchimpParseError",
 }
