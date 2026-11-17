@@ -65,6 +65,10 @@ function ops.http(ctx, op)
   local http = op.def.traits and op.def.traits["smithy.api#http"]
   local where = op.id
   if type(http) ~= "table" then
+    if ctx.provider.rpc then
+      -- an RPC model (provider spec rpc): one binding for every operation (gen/rpc.lua)
+      return require("distilled.gen.rpc").http(ctx, op)
+    end
     return nil, where .. ": no smithy.api#http trait (only HTTP bindings are supported)"
   end
   for _, k in ipairs(ctx.model:keys(http)) do
@@ -898,6 +902,7 @@ function ops.descriptor(ctx, op)
     server = op.http.server,
     raw_download = op.http.raw_download,
     unsupported = op.unsupported,
+    rpc = require("distilled.gen.rpc").field(ctx, op),
     input = emit.call("S.ref", naming.local_name(op.input)),
     output = op.out.value,
     output_raw = op.out.raw or nil,

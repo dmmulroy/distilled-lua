@@ -256,13 +256,20 @@ function types.render(plan)
         .. (spec.auth.env and (" Required; default from $" .. spec.auth.env) or " Required")
     )
   end
-  b:line(
-    "---@field "
-      .. spec.base_url.option
-      .. "? string Default "
-      .. spec.base_url.default
-      .. (spec.base_url.env and (" (or $" .. spec.base_url.env .. ")") or "")
-  )
+  if spec.rpc then
+    -- RPC models: the protocol module's options (gen/rpc.lua, task 22)
+    for _, line in ipairs(require("distilled.gen.rpc").option_fields(spec)) do
+      b:line(line)
+    end
+  else
+    b:line(
+      "---@field "
+        .. spec.base_url.option
+        .. "? string Default "
+        .. spec.base_url.default
+        .. (spec.base_url.env and (" (or $" .. spec.base_url.env .. ")") or "")
+    )
+  end
   b:line("---@field host? table The host seams: transport, sleep, now, exec, random, getenv, epoch")
   b:line("---@field transport? fun(request: table): (table?, distilled.Error?)")
   b:line("---@field sleep? fun(seconds: number)")
