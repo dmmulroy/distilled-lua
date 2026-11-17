@@ -958,6 +958,26 @@ cmd_gen_diff() {
       printf '%s\n' "$res" | grep -v '^"'
       [ "$code" -eq 0 ] || status=1
     fi
+    # unstable/ (task 21): the package's second index, <lua>.unstable
+    if [ -f "$check_dir/$lua/unstable/init.lua" ]; then
+      case $rt in
+        lua | luajit) res=$("$rt" "$LIB/gen_check.lua" "$ROOT" "$check_dir" "$lua.unstable" 2>&1) ;;
+        rex) res=$(rex do "$LIB/gen_check.lua" "root=$ROOT" "dir=$check_dir" "provider=$lua.unstable" 2>&1) ;;
+      esac
+      code=$?
+      printf '%s\n' "$res" | grep -v '^"' | grep -v '^note '
+      [ "$code" -eq 0 ] || status=1
+    fi
+    # a package on the GCP protocol (task 21): every op encoded by distilled.gcp.protocol
+    if grep -q 'protocol = "distilled\.gcp\.' "$spec"; then
+      case $rt in
+        lua | luajit) res=$("$rt" "$LIB/gcp_check.lua" "$ROOT" "$check_dir" "$lua" 2>&1) ;;
+        rex) res=$(rex do "$LIB/gcp_check.lua" "root=$ROOT" "dir=$check_dir" "package=$lua" 2>&1) ;;
+      esac
+      code=$?
+      printf '%s\n' "$res" | grep -v '^"'
+      [ "$code" -eq 0 ] || status=1
+    fi
     # the GraphQL client (task 16): every root built and compiled, every type parsed
     if [ -f "$ROOT/models/$pkg/graphql/$pkg.json" ]; then
       gmod=$lua

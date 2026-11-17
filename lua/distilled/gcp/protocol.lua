@@ -344,6 +344,32 @@ function protocol_mod.new(service, opts)
       end
     end
 
+    -- A placeholder no member fills (recaptchaenterprise `{+key}`: discovery's global
+    -- `key` parameter was filtered out): filled from the input key of that name, as
+    -- request.build does (rule 14); Distilled would send the placeholder as is.
+    for _, p in ipairs(url.placeholders(string.match(uri, "^[^?]*"))) do
+      local value = rawget(input, p.name)
+      if value == nil then
+        return nil,
+          invalid(
+            p.name,
+            "the path "
+              .. op.uri
+              .. " has a {"
+              .. p.name
+              .. "} that no input member fills; pass it as input."
+              .. p.name
+          )
+      end
+      local text = url.text(value)
+      local refused = bad_label(p.name, text, p.greedy)
+      if refused then
+        return nil, refused
+      end
+      local encoded = p.greedy and protocol_mod.encode_reserved(text) or url.encode_component(text)
+      uri = url.fill(uri, p.name, encoded, p.greedy)
+    end
+
     -- Distilled's forms for the regional rule: the path without its leading "/"
     local path = string.gsub(uri, "^/", "")
     local base_url, berr = base_for(creds, host, path)
