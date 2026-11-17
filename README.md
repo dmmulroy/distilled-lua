@@ -25,15 +25,18 @@ project.
 
 ## Install
 
-Copy the runtime and a client into a `vendor` directory:
+Copy the runtime and a client into a `vendor` directory. This copies the R2 service of
+the Cloudflare client:
 
 ```sh
 lua bin/distilled-lua vendor --out vendor
-cp -R clients/neon vendor/
+mkdir -p vendor/cloudflare
+cp -R clients/cloudflare/r2 vendor/cloudflare/
 ```
 
 The `vendor` command copies `lua/distilled/` without the generator and the test helpers.
-Add the directory to `package.path`:
+Copy `clients/cloudflare` whole to get all 130 Cloudflare services. Add the directory to
+`package.path`:
 
 ```lua
 package.path = "vendor/?.lua;vendor/?/init.lua;" .. package.path
@@ -44,40 +47,30 @@ the environment variables it reads for credentials and every operation.
 
 ## Example
 
-Get a Neon project, return `nil` when it does not exist, and then list every project:
+Get an R2 bucket, and create it when it does not exist:
 
 ```lua
-local Neon = require("neon")
+local R2 = require("cloudflare.r2")
 
--- api_key falls back to NEON_API_KEY
-local neon = Neon.new({ host = require("distilled.host.popen")() })
+local account_id = os.getenv("CLOUDFLARE_ACCOUNT_ID")
 
-local res, err = neon:get_project({ project_id = "quiet-sun" })
+-- api_token falls back to CLOUDFLARE_API_TOKEN
+local r2 = R2.new({ host = require("distilled.host.popen")() })
+
+local bucket, err = r2:get_bucket({ account_id = account_id, bucket_name = "uploads" })
+-- NoSuchBucket is one of get_bucket's declared errors
+if err and err.tag == "NoSuchBucket" then
+  bucket, err = r2:create_bucket({ account_id = account_id, name = "uploads" })
+end
 if err then
-  if err.tag == "NotFound" then
-    return nil
-  end
   error(tostring(err), 0)
 end
-print(res.project.name)
-
-local it = neon:list_projects_items({ limit = 50 })
-for project in it do
-  print(project.id)
-end
-if it.err then
-  error(tostring(it.err), 0)
-end
+print(bucket.name, bucket.location)
 ```
 
 `distilled.host.popen` sends requests with `curl`. In Rex, `distilled.host.rex` sends
-them through `rex.exec`. A longer version of this example is `examples/plain_lua.lua`.
-It runs against a local fixture server, so it needs no key and no network:
-
-```sh
-verify/dl serve run sh -c 'lua examples/serve_neon_fixture.lua &&
-  NEON_API_KEY=fake NEON_API_BASE_URL=$DL_SERVE_URL/neon lua examples/plain_lua.lua'
-```
+them through `rex.exec`. `examples/` has more programs that run against a local fixture
+server, so they need no key and no network.
 
 ## Providers and protocols
 
@@ -111,8 +104,10 @@ Building a client takes three steps:
 
 The runtime follows Distilled's runtime and is tested against it. `verify/dl conform neon`
 sends the same inputs and canned responses through both runtimes and compares the
-requests and the results. The Neon run has 2,095 cases and 0 mismatches.
-`docs/usage.md` and `verify/features/conformance.md` list the intended differences.
+requests and the results. The Neon run has 2,095 cases and 0 mismatches. The Cloudflare
+comparison in `verify/conform/cloudflare/` has 3,090 cases and 0 mismatches.
+`docs/usage.md`, `verify/features/conformance.md` and `verify/features/cloudflare.md` list
+the intended differences.
 
 ## Documentation
 
