@@ -169,6 +169,7 @@ local NAMES = {
   "tailscale",
   "technitium",
   "temporal",
+  "tencentcloud", -- task 22 (rpc spec)
   "trigger_dev",
   "turbopuffer",
   "turso",

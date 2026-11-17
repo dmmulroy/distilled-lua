@@ -90,3 +90,150 @@ Contracts: `docs/interfaces.md`, sections `distilled.crypto` and `distilled.sigv
   `string.format("%02x")` / table keys behave the same as on 5.1.
 - SigV4 header values are bytes: aws4fetch sees JavaScript strings, so its `\s+`
   collapsing also covers U+00A0; here only ASCII whitespace is collapsed.
+
+# Public-key crypto and JOSE (task 24)
+
+## Sub-features
+
+- `crypto/bigint.lua`: non-negative big integers in 22-bit limbs (doubles only) and
+  Montgomery arithmetic modulo any odd number up to 4,400 bits: `mod`, `mul`, `sqr`,
+  `pow` (4-bit windows), `inv` (Fermat), add/sub/neg.
+- `crypto/rsa.lua`: RSASSA-PKCS1-v1_5 sign/verify with SHA-256/384/512 (RS256/384/512),
+  CRT when the key has p, q (every PEM does), plain d otherwise. Each signature is checked
+  with e before it is returned. PSS is not implemented: no package uses it.
+- `crypto/ecdsa.lua`: P-256 (ES256) and secp256k1 (ES256K), RFC 6979 deterministic
+  nonces, raw `r || s` or DER output, optional low S, recovery ids and public-key
+  recovery (Ethereum-style signing has all it needs from here plus `keccak256`).
+- `crypto/ed25519.lua`: Ed25519 (RFC 8032) sign/verify, cofactorless verification with
+  S < L, as OpenSSL does.
+- `crypto/asn1.lua`, `crypto/pem.lua`: DER reading/writing and the key files the packages
+  take: PKCS #1 (`RSA PRIVATE KEY`, GitHub Apps), PKCS #8 (`PRIVATE KEY`: RSA for GCP
+  service accounts, EC, Ed25519), SEC1 (`EC PRIVATE KEY`: Coinbase CDP, AWS login DPoP),
+  SPKI and PKCS #1 public keys; PEM text, DER bytes or a `distilled.secret`; literal
+  `\n` in pasted keys; a leading `EC PARAMETERS` block. Encrypted keys fail.
+- `crypto/jws.lua`: compact and flattened JWS, ordered JSON (`jws.object`) so headers
+  and claims come out in the order the TypeScript object literals have, JWK import and
+  export, RFC 7638 thumbprints, HS256/384/512.
+- `crypto/jwt.lua`: `jwt.encode` (alg first, then the caller's header fields; default
+  `{"alg","typ":"JWT"}`), `jwt.decode`, `jwt.verify` (signature, alg, `exp`, `nbf`).
+- `crypto/key.lua`: key objects. Private fields live in the key's metatable (like
+  `distilled.secret`), so `pairs`, dumpers and `json.encode` see only public fields and
+  `tostring` is `<rsa private key, 2048 bits>`.
+
+**Not constant time.** Running time depends on the key and the message. An interpreter
+gives no timing guarantees anyway. This code signs requests from a client. Do not use it
+as a signing service where an attacker can time many signatures made with one key.
+
+## How a user reaches it
+
+```lua
+local pem = require("distilled.crypto.pem")
+local jws = require("distilled.crypto.jws")
+local jwt = require("distilled.crypto.jwt")
+
+-- GitHub App (github/src/app.ts): RS256, {"alg","typ"} then {"iss","iat","exp"}
+local key = assert(pem.private_key(distilled.secret(app_pem)))   -- parse once, keep
+local iat = os.time() - 60
+local token = assert(jwt.encode{ key = key,
+  claims = jws.object("iss", tostring(app_id), "iat", iat, "exp", iat + 600) })
+
+-- GCP service account (from-service-account-key.ts)
+jwt.encode{ key = sa_key, header = jws.object("typ", "JWT", "kid", private_key_id),
+  claims = jws.object("iss", email, "scope", scope, "aud", token_url,
+                      "iat", now, "exp", now + 3600) }
+
+-- Coinbase CDP: ES256 from an EC PEM, or EdDSA from the base64 seed || public secret
+local raw = crypto.base64.decode(secret_b64)
+local cdp = require("distilled.crypto.ed25519").private_key(raw:sub(1, 32))
+jwt.encode{ key = cdp, header = jws.object("kid", id, "typ", "JWT", "nonce", nonce),
+  claims = jws.object("sub", id, "iss", "cdp", "aud", { "cdp_service" },
+                      "nbf", now, "exp", now + 120, "uri", method .. " " .. host_path) }
+
+-- ACME (acme/src/jose.ts): flattened JWS; no payload = POST-as-GET
+jws.flattened{ key = account_key,
+  header = jws.object("nonce", nonce, "url", url, "jwk", jws.public_jwk(account_key)),
+  payload = jws.object("termsOfServiceAgreed", true) }
+jws.thumbprint(account_key)                      -- key authorizations, DNS-01
+
+-- secp256k1 with recovery (EIP-191/712 style; v = 27 + recid)
+local sig, recid = ecdsa.sign_digest(k, crypto.keccak256(msg), { low_s = true })
+```
+
+Errors are `InvalidInput` (bad key file, bad JWK, a key that cannot sign with the
+requested alg), and their messages name the format, never the content. Verification
+returns `false` (or `nil, InvalidInput` from `jws.verify`/`jwt.verify`). Wrong argument
+types raise.
+
+## Driving it with `dl`
+
+- `verify/dl test crypto_pk` (`spec/crypto_pk_spec.lua`, 34 tests, green under lua,
+  luajit and rex; Rex takes about 26 s):
+  - published vectors, extracted from the documents by `verify/lib/pk_published.mjs`
+    into `spec/golden/crypto_pk/published.lua`: RFC 6979 A.2.5 (P-256, SHA-1/224/256/
+    384/512, "sample"/"test", byte for byte), RFC 8032 7.1 (TEST 1, 2, 3, 1024, SHA(abc)),
+    RFC 7515 A.2 (the RS256 JWS, byte for byte) and A.3 (ES256, verified), RFC 8037 A
+    (Ed25519 JWK, thumbprint, EdDSA JWS byte for byte), and 32 tiny-secp256k1 RFC 6979
+    secp256k1 signatures with low S and recovery ids (signing all, recovering 8).
+  - node:crypto differential (`spec/golden/crypto_pk/vectors.lua` from
+    `verify/lib/pk_vectors.mjs`, for keys generated once into `keys.json`): RS256/384/512
+    with 1024-4096-bit keys and Ed25519, byte for byte. For ECDSA the script computes the
+    RFC 6979 signature from node primitives (HMAC, `createECDH` for k·G, BigInt) and checks
+    it with `crypto.verify` in P1363 and DER, so a Lua signature that is byte-equal to it
+    is one node:crypto accepts. Also JWKs and private JWKs as node exports them, and
+    thumbprints.
+  - the tokens Distilled mints, rebuilt in Lua and compared byte for byte: GitHub App
+    JWT, GCP assertion, Coinbase CDP ES256 and EdDSA, AWS login DPoP proof, ACME ES256
+    (jwk), RS256 POST-as-GET (kid), HS256 External Account Binding.
+  - failures: encrypted, truncated (every 7th prefix), mismatched and garbage keys,
+    off-curve and out-of-range points, S ≥ L, altered messages and signatures, `exp`,
+    `nbf`, alg/key mismatch, `none`, HMAC/public-key algorithm confusion, keys never in
+    `tostring`, JSON or error messages.
+  - bigint against BigInt; generated products against the loops for 2-100 limbs.
+- `verify/dl pk-vectors`: regenerates both vector files. It needs Node and, for the
+  published file, the network. The output is deterministic: a clean `git diff` after it
+  shows the committed vectors are Node's and the RFCs'.
+- `verify/dl pk-bench`: signing times per runtime, each signature checked against the
+  node:crypto vector. Measured on this machine ("first" includes parsing the PEM and setting up
+  the key; "again" reuses the key object):
+
+  | | lua 5.5 | luajit | rex (gopher-lua) |
+  | --- | --- | --- | --- |
+  | RS256, 2048-bit key, first / again | 0.080 / 0.057 s | 0.025 / 0.012 s | 0.40 / 0.29 s |
+  | RS256, 3072-bit key, again | 0.18 s | 0.029 s | 1.3 s |
+  | RS256, 4096-bit key, again | 0.40 s | 0.065 s | 2.8 s |
+  | RS256 verify, 2048 | 0.011 s | 0.003 s | 0.065 s |
+  | ES256 sign, first / again | 0.026 / 0.005 s | 0.012 / 0.002 s | 0.11 / 0.023 s |
+  | ES256 verify | 0.014 s | 0.006 s | 0.058 s |
+  | ES256K sign, again | 0.006 s | 0.002 s | 0.026 s |
+  | EdDSA sign, first / again | 0.027 / 0.010 s | 0.010 / 0.004 s | 0.11 / 0.043 s |
+
+  An RS256 token refresh in Rex (GitHub App, GCP) costs about 0.3-0.4 s.
+
+## Gotchas
+
+- **22-bit limbs, lazy carries.** A product of two 22-bit limbs is below 2^44, so 2^9 of
+  them can be summed exactly in a double. Each column of a product is accumulated
+  before any carry is taken. The bound is 200 limbs (4,400 bits).
+- **Generated code, but not on LuaJIT.** For a modulus of up to 60 limbs, Montgomery
+  `mul`/`sqr` are generated as straight-line Lua for that one modulus: limbs in locals,
+  the modulus as constants. Up to 100 limbs the generated code indexes tables instead.
+  That is 2-3x faster in lua 5.5 and gopher-lua. LuaJIT JIT-compiles the loops but not
+  functions this long, so the generated code is 6x slower there, and `bigint.GENERATE`
+  is off on LuaJIT. A context compiles after 256 products, or at once for a long
+  exponent. RSA public-exponent checks (about 35 products) stay on the loops.
+  `ctx:compile()` forces it. The spec compares both versions on every runtime.
+- **Fixed-base comb.** k·G uses a table of v·16^w·G in affine form (960 points per
+  curve). Building it costs about six scalar multiplications, so it is built on the
+  fourth use of G in a process (`ecdsa.COMB_AFTER`). A script that signs once does not
+  pay for it.
+- **RSA without CRT** (a JWK with only n, e, d) is about 3x slower and is supported.
+- **JSON order.** `json.encode` sorts keys, but JOSE needs the TypeScript insertion
+  order to reproduce tokens, so `jws.object(k, v, ...)` is an ordered object. Plain
+  tables inside it are still sorted. RFC 7638's canonical order happens to be sorted
+  order.
+- Recovery ids 2 and 3 (R.x ≥ n, probability about 2^-128) are implemented but no
+  published vector has one.
+- Randomness is not here. Key generation (ACME `generateAccountKey`), Coinbase's nonce
+  and DPoP's `jti` need random bytes from the host. `ecdsa.private_key(curve,
+  random_32_bytes)` makes a P-256 or secp256k1 key from them. RSA key generation is not
+  implemented.

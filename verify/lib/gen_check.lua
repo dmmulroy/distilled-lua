@@ -50,11 +50,40 @@ end
 
 local clock = os.clock
 local client_note
+-- the loaded client class of the module being checked (its protocol signs rpc ops)
+local client_class
 local shape_count, ref_count, ops_built, ops_skipped, op_count = 0, 0, 0, 0, 0
 local load_ms = 0
 
+-- check_rpc(op, name, input, service) -> ok: an RPC model's op (task 22, op.rpc) is also
+-- built through its client's protocol, signed with fixed dummy credentials, so every
+-- action's request is a complete POST with an authorization header
+local function check_rpc(op, name, input, service)
+  local protocol = client_class and client_class.protocol
+  if type(protocol) ~= "table" or type(protocol.encode) ~= "function" then
+    return true
+  end
+  local req, err = protocol.encode({
+    service = service,
+    host = {
+      epoch = function()
+        return 1700000000
+      end,
+    },
+  }, op, input, { secret_id = "AKIDcheck", secret_key = "check", region = "ap-guangzhou" })
+  if not req then
+    fail("op " .. name .. ": rpc protocol encode failed: " .. tostring(err))
+    return false
+  elseif req.method ~= "POST" or type(req.body) ~= "string" or not req.headers.authorization then
+    fail("op " .. name .. ": rpc request incomplete (" .. tostring(req.url) .. ")")
+    return false
+  end
+  return true
+end
+
 -- check_module(module, fail): one generated client (module, module.service)
 local function check_module(module, fail)
+  client_class = nil
   local t0 = clock()
   local ok_service, service = compat.pcall(require, module .. ".service")
   load_ms = load_ms + (clock() - t0) * 1000
@@ -74,6 +103,7 @@ local function check_module(module, fail)
         fail("client: " .. module .. " does not return a class with new")
       else
         client_note = "client loads"
+        client_class = Class
       end
     else
       client_note = "client not loaded (distilled.client missing)"
@@ -91,8 +121,36 @@ local function check_module(module, fail)
       end
     end
     local names = {}
-    for name in pairs(registry) do
-      names[#names + 1] = name
+    if service.shape_chunks then
+      -- a large model's split layout (task 18): shapes load on first use, one file at a
+      -- time. Nothing is loaded yet; an unknown name is nil; every file's shapes resolve
+      -- through the registry (which loads that file) to the same node.
+      for _, m in ipairs(service.shape_chunks) do
+        if package.loaded[m] ~= nil then
+          fail("service: requiring it loaded the shape file " .. m)
+        end
+      end
+      if registry["no such shape \0"] ~= nil then
+        fail("service: an unknown shape name is not nil")
+      end
+      for _, m in ipairs(service.shape_chunks) do
+        local ok, chunk = compat.pcall(require, m)
+        if not ok or type(chunk) ~= "table" then
+          fail("service: shape file " .. m .. " does not load: " .. tostring(chunk))
+        else
+          for name, node in pairs(chunk) do
+            names[#names + 1] = name
+            if registry[name] ~= node then
+              fail("service: shape " .. tostring(name) .. " of " .. m .. " is not registry's")
+            end
+          end
+        end
+      end
+      notes[#notes + 1] = #service.shape_chunks .. " shape files"
+    else
+      for name in pairs(registry) do
+        names[#names + 1] = name
+      end
     end
     table.sort(names)
     for _, name in ipairs(names) do
@@ -190,6 +248,8 @@ local function check_module(module, fail)
         then
           -- multipart (task 08): built like any other op, and the body is a closed form
           fail("op " .. name .. ": multipart body not built (content-type " .. ct .. ")")
+        elseif op.rpc ~= nil and not check_rpc(op, name, input, service) then
+          -- failure reported by check_rpc
         else
           ops_built = ops_built + 1
         end
