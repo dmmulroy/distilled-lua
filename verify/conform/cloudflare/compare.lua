@@ -3,7 +3,8 @@
 -- answers (ts.mjs).
 --
 --   local compare = require("verify.conform.cloudflare.compare")
---   local report = compare.run(root [, { filter = "kv.", skip_models = { zero_trust = "why" } }])
+--   local report = compare.run(root [, { filter = "kv.", skip_models = { zero_trust = "why" },
+--                                        patch_ref = fn(ref) }])
 --   -- report = { cases, compared, mismatches = { { id, what, lua, ts } }, intended = { [why] = n },
 --   --            skipped = { [reason] = n }, by_kind = { request = n, response = n, flow = n } }
 --
@@ -309,6 +310,9 @@ function compare.run(root, opts)
   local cases = read_lines(dir .. "cases.jsonl")
   local refs = {}
   for _, r in ipairs(read_lines(dir .. "ref.jsonl")) do
+    if opts.patch_ref then
+      opts.patch_ref(r) -- tests: a changed reference must show as a mismatch
+    end
     refs[r.id] = r
   end
   local report = {
