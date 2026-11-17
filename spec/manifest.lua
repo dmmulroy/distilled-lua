@@ -29,6 +29,7 @@ return {
   "operation_spec.lua",
   "otlp_http_spec.lua",
   "paginate_spec.lua",
+  "protobuf_spec.lua",
   "redact_spec.lua",
   "regex_spec.lua",
   "request_spec.lua",
