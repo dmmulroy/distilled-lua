@@ -40,6 +40,7 @@ return {
   "retry_spec.lua",
   "rex_host_spec.lua",
   "s3_checksum_spec.lua",
+  "s3_conform_spec.lua",
   "s3_presign_spec.lua",
   "schema_spec.lua",
   "scope_spec.lua",
