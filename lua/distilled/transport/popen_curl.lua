@@ -3,6 +3,9 @@
 --
 --   local transport = require("distilled.transport.popen_curl")([opts])
 --   opts = { curl = "curl", follow_redirects = false, tmpdir = nil ($TMPDIR or /tmp) }
+--   transport(request) -> response; transport.stream(request) -> { status, headers,
+--   body = reader }; transport.duplex(request) -> conn (see "Streams" in
+--   docs/interfaces.md). The result is a callable table.
 --
 -- io.popen gives one direction only: we can read curl's stdout or write its stdin, not
 -- both. Reading stdout matters more (the response may be megabytes), so the request goes
@@ -168,7 +171,7 @@ local function new(opts)
     return common.parse(out, req)
   end
 
-  return function(req)
+  local function transport(req)
     local ok, err = common.check(req)
     if not ok then
       return nil, err
@@ -177,6 +180,25 @@ local function new(opts)
       return send(scope, req)
     end)
   end
+  -- The streaming entry points (task 29 contract, docs/interfaces.md "Streams"):
+  -- transport.stream(request) -> { status, headers, body = reader } and
+  -- transport.duplex(request) -> conn. Both run curl in the background on FIFOs
+  -- (distilled.transport.popen_curl_duplex, built in task 31), loaded on first use.
+  local entries = {}
+  local function lazy(kind)
+    return function(req)
+      if entries[kind] == nil then
+        local pd = require("distilled.transport.popen_curl_duplex")
+        entries[kind] = kind == "stream" and pd.streaming(opts) or pd.duplex(opts)
+      end
+      return entries[kind](req)
+    end
+  end
+  return setmetatable({ stream = lazy("stream"), duplex = lazy("duplex") }, {
+    __call = function(_, req)
+      return transport(req)
+    end,
+  })
 end
 
 --- popen_curl.sleep(seconds): wait in a child `sleep` process (wall time; stock Lua has

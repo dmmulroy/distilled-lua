@@ -52,20 +52,17 @@ return function(opts)
     end
   end
 
-  local transport = exec_curl(rex_exec, opts)
-  -- streaming and full-duplex entry points over rex.exec.start (task 31: AWS event
-  -- streams): stdin kept open for h:write, stdout pieces drained with h:wait
-  local starter = type(exec) == "table" and rawget(exec, "start")
-  if starter then
-    local function start(argv, o)
-      return starter(argv, o)
-    end
-    local duplex_mod = require("distilled.transport.exec_curl_duplex")
-    transport = require("distilled.transport.curl_duplex").with_entries(transport, {
-      stream = duplex_mod.streaming(start, opts),
-      duplex = duplex_mod.new(start, opts),
-    })
+  -- transport.stream / transport.duplex over rex.exec.start (task 29 contract; the
+  -- process code is task 31's exec_curl_duplex): stdout pieces drained with h:wait
+  local topts = {}
+  for k, v in pairs(opts or {}) do
+    topts[k] = v
   end
+  local starter = type(exec) == "table" and rawget(exec, "start")
+  if starter and topts.start == nil then
+    topts.start = starter
+  end
+  local transport = exec_curl(rex_exec, topts)
   return {
     transport = transport,
     exec = rex_exec,

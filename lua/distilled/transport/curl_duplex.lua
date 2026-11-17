@@ -54,6 +54,23 @@ function M.config(req, body_path)
     end
   end
   lines[#lines + 1] = "no-buffer"
+  -- Timeouts of a streamed transfer (task 29): request.timeout bounds the connection
+  -- only (a stream lasts as long as the caller keeps it); request.max_time bounds the
+  -- whole transfer; request.idle_timeout stops a transfer that receives nothing for that
+  -- many seconds (curl: less than 1 byte/s averaged over idle_timeout seconds).
+  local function secs(v)
+    return string.format("%.3f", v > 0.001 and v or 0.001)
+  end
+  if type(req.timeout) == "number" and req.timeout == req.timeout then
+    lines[#lines + 1] = "connect-timeout = " .. secs(req.timeout)
+  end
+  if type(req.max_time) == "number" and req.max_time == req.max_time then
+    lines[#lines + 1] = "max-time = " .. secs(req.max_time)
+  end
+  if type(req.idle_timeout) == "number" and req.idle_timeout >= 1 then
+    lines[#lines + 1] = "speed-limit = 1"
+    lines[#lines + 1] = "speed-time = " .. tostring(math.ceil(req.idle_timeout))
+  end
   lines[#lines + 1] = "no-progress-meter"
   if not body_path then
     lines[#lines + 1] = 'upload-file = "."'

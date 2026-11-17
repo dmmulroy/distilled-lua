@@ -20,12 +20,8 @@ return function(opts)
     )
   end
   local popen_curl = require("distilled.transport.popen_curl")
-  -- streaming and full-duplex entry points (task 31: AWS event streams)
-  local pd = require("distilled.transport.popen_curl_duplex")
-  local transport = require("distilled.transport.curl_duplex").with_entries(popen_curl(opts), {
-    stream = pd.streaming(opts),
-    duplex = pd.duplex(opts),
-  })
+  -- popen_curl(opts) has the stream and duplex entry points (curl on FIFOs)
+  local transport = popen_curl(opts)
   return {
     transport = transport,
     sleep = popen_curl.sleep,

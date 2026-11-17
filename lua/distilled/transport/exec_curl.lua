@@ -4,7 +4,9 @@
 -- In Rex that is rex.exec (io.popen raises there); see distilled.host.rex.
 --
 --   local transport = require("distilled.transport.exec_curl")(rex.exec [, opts])
---   opts = { curl = "curl", margin_s = 2, follow_redirects = false }
+--   opts = { curl = "curl", margin_s = 2, follow_redirects = false, start = nil }
+--   With exec.start (rex.exec.start) or opts.start, the result is a callable table with
+--   transport.stream / transport.duplex (task 29; distilled.transport.exec_curl_duplex).
 --
 -- How the request reaches curl without a process argument or a temp file:
 -- * no body: argv is `curl -q --config -` and the config text is the whole stdin;
@@ -31,7 +33,7 @@ local function new(exec, opts)
   local config_opts =
     { follow_redirects = opts.follow_redirects, max_redirects = opts.max_redirects }
 
-  return function(req)
+  local function transport(req)
     local ok, err = common.check(req)
     if not ok then
       return nil, err
@@ -63,6 +65,27 @@ local function new(exec, opts)
     end
     return common.parse(result.stdout, req)
   end
+  -- The streaming entry points (task 29 contract) need exec.start (rex.exec.start: a
+  -- process whose stdout arrives in pieces); without it the transport cannot stream.
+  local start = opts.start
+  if start == nil and type(exec) == "table" then
+    start = rawget(exec, "start")
+  end
+  if start == nil then
+    return transport
+  end
+  local duplex_mod = require("distilled.transport.exec_curl_duplex")
+  local function start_fn(argv, o)
+    return start(argv, o)
+  end
+  return setmetatable({
+    stream = duplex_mod.streaming(start_fn, opts),
+    duplex = duplex_mod.new(start_fn, opts),
+  }, {
+    __call = function(_, req)
+      return transport(req)
+    end,
+  })
 end
 
 -- transport_module: distilled.host.check refuses this table as a transport (task 09)

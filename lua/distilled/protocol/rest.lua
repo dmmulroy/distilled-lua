@@ -65,7 +65,8 @@ local function contract_error(res)
   local what
   if res == nil then
     what = "returned nothing (neither a response table nor nil, err)"
-  elseif type(res) == "function" then
+  elseif type(res) == "function" or type(res) == "table" then
+    -- a callable table: popen_curl(opts) / exec_curl(exec) return one (task 29)
     what = "returned a function, so it is probably a transport constructor, not a transport"
   else
     what = "returned a " .. type(res) .. " instead of a response table or nil, err"
@@ -1507,7 +1508,15 @@ function rest.new(opts)
       end
       return r, e
     end)
-    if type(res) ~= "table" and (res ~= nil or terr == nil) then
+    if
+      (type(res) ~= "table" and (res ~= nil or terr == nil))
+      or (
+        type(res) == "table"
+        and res.status == nil
+        and getmetatable(res) ~= nil
+        and type(getmetatable(res).__call) == "function"
+      )
+    then
       return nil, contract_error(res)
     end
     if type(res) ~= "table" then
