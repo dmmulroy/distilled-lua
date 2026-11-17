@@ -16,6 +16,9 @@ traits.TABLE = {
       .. " baseUrl, server, accept, rawDownload, apiVersion (op.base_url, op.server,"
       .. " op.accept, op.raw_download, op.api_version)",
   },
+  ["com.tencentcloud#action"] = {
+    handled = "rpc.lua: op.rpc (service, version, action) when the provider spec has rpc",
+  },
   ["smithy.api#paginated"] = { handled = "ops.lua: pagination, validated against members" },
   ["smithy.api#documentation"] = { handled = "types.lua and README.md: descriptions" },
   ["com.distilled.openapi#apiVersion"] = {

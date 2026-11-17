@@ -139,6 +139,7 @@ local TOP = {
   pagination = true,
   allow_unsupported = true,
   models = true,
+  rpc = true, -- RPC models without http traits (gen/rpc.lua, task 22)
 }
 for k in pairs(ext.TOP) do
   TOP[k] = true
@@ -262,8 +263,11 @@ function provider.validate(spec, opts)
       and (string.upper(string.sub(spec.name, 1, 1)) .. string.sub(spec.name, 2))
     )
 
-  -- base_url
-  local base = normalize_base_url("provider spec base_url", spec.base_url, p)
+  -- base_url (an rpc model's protocol finds its hosts itself: no base URL needed)
+  local base = {}
+  if spec.rpc == nil or spec.base_url ~= nil then
+    base = normalize_base_url("provider spec base_url", spec.base_url, p)
+  end
   out.base_url = { default = base.default, option = base.option or "base_url", env = base.env }
 
   -- auth
@@ -477,6 +481,10 @@ function provider.validate(spec, opts)
         end
       end
     end
+  end
+
+  if spec.rpc ~= nil then
+    out.rpc = require("distilled.gen.rpc").validate(spec.rpc, p)
   end
 
   out.allow_unsupported = {}
