@@ -124,8 +124,13 @@ tracer, `Scope` and the harness all go through it; the noop tracer is its own mo
   coroutine too.
 - **Limit (all runtimes, not caused by compat.pcall):** a yield cannot cross a C/Go call
   boundary such as a `table.sort` comparator or a `string.gsub` callback. lua/luajit
-  raise "attempt to yield across a C-call boundary". **gopher-lua crashes the whole run**
-  ("invalid memory address or nil pointer dereference"), with or without compat.pcall.
+  raise "attempt to yield across a C-call boundary". **In gopher-lua the coroutine is
+  corrupted**: a Go "invalid memory address or nil pointer dereference" error escapes
+  `coroutine.resume`, which does not return it as `false, msg`. An outer `pcall` catches
+  it; uncaught, it ends the `rex do` run. This happens with or without compat.pcall.
+  A yield inside native `pcall` or a metamethod does the same in gopher-lua
+  (yuin/gopher-lua#545, PR #548), so never yield through native `pcall`. Details:
+  `../gopher-lua-research/REPORT.md`.
 - **Changed behaviour others may notice:** code under compat.pcall sees a different
   `coroutine.running()`. A raise keeps its message and position, but a traceback taken
   later only covers the stack from the re-raise.
