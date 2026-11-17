@@ -531,7 +531,12 @@ function aws.error_class(ctx, id, d)
     status = query.httpResponseCode
   end
   local seen, cats = {}, {}
-  for _, c in ipairs(d.categories or {}) do
+  -- d.categories is an emit.list (gen/errors.lua errorCategories of the traits)
+  local base = d.categories
+  if emit.is_list(base) then
+    base = base.items
+  end
+  for _, c in ipairs(base or {}) do
     if not seen[c] then
       seen[c] = true
       cats[#cats + 1] = c
@@ -548,6 +553,12 @@ function aws.error_class(ctx, id, d)
     end
   end
   d.categories = emit.list(cats)
+  -- Distilled's AWS retry backs off on the ThrottlingError category (awsRetryCategories,
+  -- AWS_THROTTLING_CODES): a @retryable class without `throttling: true` is throttling
+  -- too when its code says so (ThrottlingException, RequestLimitExceeded)
+  if seen.ThrottlingError and d.retryable then
+    d.throttling = true
+  end
   -- the message member is the instance's message (Message is folded onto it)
   local fields = {}
   for _, mem in ipairs(ctx.model:members(def)) do
@@ -623,6 +634,8 @@ function aws.doc_text(html)
     end
     return "&" .. e .. ";"
   end)
+  -- a UTF-8 no-break space counts as space (stylua trims it at line ends)
+  text = string.gsub(text, "\194\160", " ")
   text = string.gsub(string.gsub(text, "%s+", " "), "^ ", "")
   text = string.gsub(text, " $", "")
   if #text > aws.DOC_LIMIT then
