@@ -142,3 +142,11 @@ namespacelabs         182      182      29/29        0  yes
 - **Stale committed files on main:**
   - `verify/features/parity.md`: rerun `verify/dl parity`. I did not commit it because I do not own it.
   - `clients/hetzner`: it differs from a fresh generation on main's own tree, so `dl gen-diff hetzner` fails. Task-23 gives byte-identical output, so it is not from this task.
+
+## Later merges (orchestrator request)
+
+- **Merged main again** (tasks 17 and 27). In `gen/init.lua`, the proto hooks now sit beside the aws ones:
+  - `aws.event_stream`, then `proto.streaming`;
+  - the aws `init.lua` and README, then the proto override.
+- **e2b:** task 27 rewrote `providers/e2b.lua` with extended per-model overrides, as STATUS 23 proposed. I took its spec and `clients/e2b`, and the e2b cases in `spec/grpc_spec.lua` pass against it.
+- **`protocol/connect.lua`** is no longer used by a generated client. It remains the `proto` `connect` wire.

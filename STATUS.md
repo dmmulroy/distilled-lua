@@ -974,7 +974,8 @@ Decisions others should know:
 - **Merge with main (task 13):**
   - Main brought its own `providers/e2b.lua` and `providers/namespacelabs.lua`.
   - **namespacelabs:** I kept main's REST + glue spec. Task 13's keys cover it, and it is Connect JSON, which is plain REST. My `proto` variant is not needed.
-  - **e2b:** I kept mine. Task 13's `models.override` takes only `{ base_url, title }`, and envd and volume content need per-model options, headers and hosts (`proto.models`).
+  - **e2b:** I kept mine at first, because task 13's `models.override` took only `{ base_url, title }`. Task 27 then extended the overrides and rewrote `providers/e2b.lua` with them (plus `glue/e2b_envd.lua`). At that merge I took task 27's spec and `clients/e2b`, and my e2b client specs pass against them.
+  - **Result:** no generated client uses `proto` `wire = "connect"` (`protocol/connect.lua`) now. It stays supported and tested by `gen.proto`'s spec.
   - **Overlap to fold later:** `proto.options`, `proto.headers` and `proto.base_url` duplicate task 13's top-level `options`, `headers` and templated `base_url` for the grpc wires.
   - **Proposed follow-up:** let task 13's model overrides carry `options` and `headers`. `proto` could then keep only `wire`, `descriptors`, `http2` and `error_matchers_trait`.
 - **Outside my files:** I added `"boxd"` and `"modal"` to `NAMES` in `spec/provider_spec.lua`. It lists every `providers/*.lua`, and the merge broke it otherwise.
@@ -1128,7 +1129,6 @@ regenerated.
 - `clients/` is 231 MB in 4,629 files without tencentcloud (275 MB with it); `types.lua`
   files are 118 MB of the 231 (51%).
 
-
 ## 25 s3
 
 **Done** (see `tasks/25-s3.done.md`, `verify/features/s3.md`). Source:
@@ -1209,3 +1209,60 @@ fixed: remove <id> from KNOWN in spec/s3_conform_spec.lua"** - delete the entry 
   would let gen-diff and gen-all cover it; until then the done file runs gen_check.lua
   directly. `dl parity` already counts clients/s3 (112/112).
 - `verify/features/README.md`: a row for `s3.md`.
+
+## 27 provider-gaps
+
+**Done.** See `tasks/27-provider-gaps.done.md`. Clients committed (each passing
+`verify/dl gen-diff`, operation counts equal to `tasks/notes/ts-op-counts.txt`): clerk 320,
+convex 79, digitalocean 924, e2b 97, exa 72, fly_io 174, mailchimp 393, onepassword 33,
+slack 355, scaleway 1580, questrade 25.
+
+### What others can use
+
+- **`models.override.<model>` takes spec keys** (`provider.MODEL_SPEC_KEYS`): `auth`,
+  `options`, `headers`, `require_one_of`, `public_operations`, `oauth`, `user_agent`,
+  `error_envelope`, `unknown_fields`, `transform_response`, `empty_json_body`, `glue`.
+  Each replaces the package's key; `false` removes it; `base_url` merges field by field
+  (`false` removes a field). The merged raw spec is validated whole by `provider.validate`
+  (problems prefixed `provider spec models.override.<m>:`) and `for_model` returns it.
+  A title/classic-base_url-only override takes the old task 10 path (output unchanged).
+- **`pagination = { modes = { page = "total_count" } }`** (provider.lua): a trait mode ->
+  runtime strategy. New `distilled.paginate` mode `total_count` (Scaleway's
+  paginateByTotalCount: sized by the first page, stops after ceil(total / length) pages
+  or on an empty page).
+- `rest.lua`: glue/opts `transform_input(input, op, settings, service)` (was
+  `(input, op)`) and `transform_response(body, op, { status, headers })`; existing
+  two-argument functions are unaffected. An op with `raw_download = true` gets `dl=1`
+  (Scaleway `...Raw` downloads; task 12 emitted the flag, nothing used it).
+- A glue may call `host.transport` for credential exchanges the spec's `oauth` cannot
+  express (questrade's refresh-token redemption, fly_io sprites' token mint).
+- URLs with secrets: the curl transports already carried the URL in the config text
+  (exec_curl stdin, popen_curl 0600 file) and scrubbed the query from errors, so **no
+  transport change was needed**; task 13's note that popen_curl puts URLs in process
+  arguments was wrong. `spec/questrade_client_spec.lua` checks argv / the shell command
+  for both transports, and `verify/dl canary tasks/notes/27-questrade-canary.lua` passes
+  under all three runtimes (with a negative control that fails).
+
+### Edits outside my file list (orchestrator: please check on merge)
+
+- `lua/distilled/paginate.lua`: the `total_count` strategy and its `MODES` entry (additive).
+- `lua/distilled/gen/ops.lua`: one line in `ops.pagination`, the mode map
+  (`ctx.provider.pagination.modes`).
+- `spec/provider_spec.lua`: `NAMES` lists questrade, scaleway, slack.
+- `tasks/notes/27-questrade-canary.lua` (new): the canary script.
+
+### Proposed (files I do not own)
+
+- `lua/distilled/gen/provider_ext.lua` `ext.HOOKS` doc strings: `transform_input` is now
+  `fn(input, op, settings, service)`, `transform_response` `fn(body, op, { status, headers })`.
+- `docs/providers-survey.md` (task 13): the slack, scaleway and questrade rows still say
+  "not written"; the per-model rows can point at `models.override`.
+- `docs/interfaces.md`: the two glue signatures, `pagination.modes` and the `total_count`
+  mode, `provider.MODEL_SPEC_KEYS`, op `raw_download` -> `dl=1`.
+- An `on_refresh` hook for Questrade's rotated refresh tokens needs a function-typed
+  provider option (`provider_ext.check_option` allows string/number/boolean only); until
+  then they live in memory, as with Distilled's CredentialsFromEnv.
+- Task 23 also owns `providers/e2b.lua` and `clients/e2b/`: I added the envd /
+  filesystem / process overrides (EnvdProtocol: sandbox headers, host, empty JSON bodies,
+  `providers/glue/e2b_envd.lua`) and volume_content's (VolumeContentProtocol). The Connect
+  streaming parts are task 23's; expect a conflict there.

@@ -8,31 +8,35 @@
 -- local client = E2BVolumeContent.new({ transport = ... })
 -- See README.md next to this file for the options and operations.
 local Client = require("distilled.client")
-local connect = require("distilled.protocol.connect")
-local rpc = require("distilled.protocol.rpc")
+local rest = require("distilled.protocol.rest")
 
 -- The module's own name, so the client loads under whatever directory it was vendored as.
 local MODULE = ... or "e2b.volume_content"
 local service = require(MODULE .. ".service")
 
--- The client's options (provider spec proto.options): environment variables in order, then the
--- default, whose {name}s are other options.
-local settings = {
-  domain = { default = "e2b.app", env = { "E2B_DOMAIN" } },
-  token = { required = true, secret = true },
-}
-
-local protocol = connect.new({
-  prepare = rpc.prepare(settings),
-  base_url = rpc.base_url("https://api.{domain}"),
-  headers = rpc.headers({ { "authorization", "Bearer {token}" } }),
-  empty_json_body = false,
-  unknown_tag = "UnknownE2BError",
+local protocol = rest.new({
   parse_tag = "E2BParseError",
+  provider = {
+    headers = {
+      { name = "authorization", values = { { template = "Bearer {token}" } }, secret = true },
+    },
+    base_url = { default = "https://api.{domain}", option = "base_url" },
+    options = {
+      base_url = {},
+      domain = { default = "e2b.app" },
+      token = { required = true, secret = true },
+    },
+    title = "E2B",
+  },
+  unknown_tag = "UnknownE2BError",
 })
 
 return Client.define({
   service = service,
   protocol = protocol,
-  options = rpc.client_options(settings),
+  options = {
+    base_url = { type = "string" },
+    domain = { type = "string" },
+    token = { secret = true },
+  },
 })

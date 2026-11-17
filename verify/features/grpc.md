@@ -1,8 +1,9 @@
 # gRPC, gRPC-Web and Connect (`distilled.protobuf`, `distilled.protocol.grpc`, `distilled.protocol.connect`)
 
-Task 23 adds proto-sourced providers: modal and boxd over the binary gRPC wire (and gRPC-Web), and e2b
-over Connect JSON. namespacelabs (Connect JSON too) uses task 13's REST provider spec and glue
-(`providers/namespacelabs.lua`, merged from main); task 23 generated and tested its clients.
+Task 23 adds proto-sourced providers: modal (binary gRPC) and boxd (gRPC-Web). e2b and
+namespacelabs (Connect JSON, which is plain REST) use the REST provider specs of tasks 13 and 27
+(merged from main); task 23 generated and tests their clients. The `proto` wire `connect`
+(`distilled.protocol.connect`) stays available for a Connect provider that needs it.
 
 ## Sub-features
 
@@ -33,7 +34,7 @@ over Connect JSON. namespacelabs (Connect JSON too) uses task 13's REST provider
 - **Transport** (`transport/curl_common.lua`):
   - `request.http2` becomes `--http2-prior-knowledge` for http:// URLs and `--http2` for https://.
   - HTTP trailers come back in `response.trailers`, with names lowercased. The body is located with curl's `%{size_header}`.
-- **`distilled.protocol.connect`** (used by e2b) is `rest.new` with two additions:
+- **`distilled.protocol.connect`** (the `proto` wire `connect`; no generated client uses it now) is `rest.new` with two additions:
   - `empty_json_body` defaults to true;
   - a `prepare` hook derives the settings.
 - **`distilled.protocol.rpc`** is the runtime for a provider spec's `proto` section:

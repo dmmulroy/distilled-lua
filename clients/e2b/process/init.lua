@@ -8,42 +8,47 @@
 -- local client = E2BProcess.new({ transport = ... })
 -- See README.md next to this file for the options and operations.
 local Client = require("distilled.client")
-local connect = require("distilled.protocol.connect")
-local rpc = require("distilled.protocol.rpc")
+local rest = require("distilled.protocol.rest")
 
 -- The module's own name, so the client loads under whatever directory it was vendored as.
 local MODULE = ... or "e2b.process"
 local service = require(MODULE .. ".service")
 
--- The client's options (provider spec proto.options): environment variables in order, then the
--- default, whose {name}s are other options.
-local settings = {
-  access_token = { secret = true },
-  domain = { default = "e2b.app", env = { "E2B_DOMAIN" } },
-  envd_port = { default = "49983" },
-  sandbox_id = { required = true },
-}
+-- The provider's hand-written glue (provider spec glue), next to this file.
+local glue = require(MODULE .. ".glue")
 
-local protocol = connect.new({
-  prepare = rpc.prepare(settings),
-  base_url = rpc.base_url({
-    default = "https://{envd_port}-{sandbox_id}.{domain}",
-    cases = { ["e2b.app"] = "https://sandbox.{domain}" },
-    when = "domain",
-  }),
-  headers = rpc.headers({
-    { "e2b-sandbox-id", "{sandbox_id}" },
-    { "e2b-sandbox-port", "{envd_port}" },
-    { "connect-protocol-version", "1" },
-    { "x-access-token", "{access_token}" },
-  }),
+local protocol = rest.new({
   empty_json_body = true,
-  unknown_tag = "UnknownE2BError",
+  glue = glue,
   parse_tag = "E2BParseError",
+  provider = {
+    headers = {
+      { name = "connect-protocol-version", values = { { template = "1" } } },
+      { name = "e2b-sandbox-id", values = { { template = "{sandbox_id}" } } },
+      { name = "e2b-sandbox-port", values = { { template = "{port}" } } },
+      { name = "x-access-token", values = { { template = "{access_token}" } }, secret = true },
+    },
+    base_url = { default = "https://sandbox.{domain}", option = "base_url" },
+    options = {
+      access_token = { secret = true },
+      base_url = {},
+      domain = { default = "e2b.app" },
+      port = { default = "49983" },
+      sandbox_id = { required = true },
+    },
+    title = "E2B",
+  },
+  unknown_tag = "UnknownE2BError",
 })
 
 return Client.define({
   service = service,
   protocol = protocol,
-  options = rpc.client_options(settings),
+  options = {
+    access_token = { secret = true },
+    base_url = { type = "string" },
+    domain = { type = "string" },
+    port = { type = "string" },
+    sandbox_id = { type = "string" },
+  },
 })

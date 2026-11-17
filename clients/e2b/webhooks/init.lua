@@ -8,38 +8,46 @@
 -- local client = E2BWebhooks.new({ transport = ... })
 -- See README.md next to this file for the options and operations.
 local Client = require("distilled.client")
-local connect = require("distilled.protocol.connect")
-local rpc = require("distilled.protocol.rpc")
+local rest = require("distilled.protocol.rest")
 
 -- The module's own name, so the client loads under whatever directory it was vendored as.
 local MODULE = ... or "e2b.webhooks"
 local service = require(MODULE .. ".service")
 
--- The client's options (provider spec proto.options): environment variables in order, then the
--- default, whose {name}s are other options.
-local settings = {
-  access_token = { secret = true, env = { "E2B_ACCESS_TOKEN" } },
-  api_key = { secret = true, env = { "E2B_API_KEY" } },
-  base_url = { default = "https://api.{domain}", env = { "E2B_API_URL" } },
-  domain = { default = "e2b.app", env = { "E2B_DOMAIN" } },
-  team_id = { env = { "E2B_TEAM_ID" } },
-}
-
-local protocol = connect.new({
-  prepare = rpc.prepare(settings, { require_one_of = { "api_key", "access_token" } }),
-  base_url = rpc.base_url("{base_url}"),
-  headers = rpc.headers({
-    { "x-api-key", "{api_key}" },
-    { "authorization", "Bearer {access_token}" },
-    { "x-team-id", "{team_id}" },
-  }),
-  empty_json_body = false,
-  unknown_tag = "UnknownE2BError",
+local protocol = rest.new({
   parse_tag = "E2BParseError",
+  provider = {
+    headers = {
+      {
+        name = "authorization",
+        values = { { template = "Bearer {access_token}" } },
+        secret = true,
+      },
+      { name = "x-api-key", values = { { template = "{api_key}" } }, secret = true },
+      { name = "x-team-id", values = { { template = "{team_id}" } } },
+    },
+    base_url = { default = "https://api.{domain}", option = "base_url" },
+    options = {
+      access_token = { secret = true, env = { "E2B_ACCESS_TOKEN" } },
+      api_key = { secret = true, env = { "E2B_API_KEY" } },
+      base_url = { env = { "E2B_API_URL" } },
+      domain = { default = "e2b.app", env = { "E2B_DOMAIN" } },
+      team_id = { env = { "E2B_TEAM_ID" } },
+    },
+    require_one_of = { "api_key", "access_token" },
+    title = "E2B",
+  },
+  unknown_tag = "UnknownE2BError",
 })
 
 return Client.define({
   service = service,
   protocol = protocol,
-  options = rpc.client_options(settings),
+  options = {
+    access_token = { secret = true },
+    api_key = { secret = true },
+    base_url = { type = "string" },
+    domain = { type = "string" },
+    team_id = { type = "string" },
+  },
 })

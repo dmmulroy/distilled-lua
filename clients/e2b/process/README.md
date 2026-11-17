@@ -21,7 +21,11 @@ local client = E2BProcess.new({
 
 | Option | Meaning |
 | --- | --- |
-| `base_url` | base URL, default `https://api.e2b.app`; or from `E2B_API_URL` |
+| `access_token` | secret: a string, a secret, or `fn(host) -> value, err`; the sandbox's envdAccessToken |
+| `base_url` | base URL; default `https://sandbox.{domain}` |
+| `domain` | text; default `e2b.app`; the sandbox's domain |
+| `port` | text; default `49983`; envd's port |
+| `sandbox_id` | required text; the sandbox to address |
 | `host`, `transport`, `sleep`, ... | the host seams (see distilled's docs/interfaces.md) |
 | `retry`, `deadline_s`, `tracing`, `validation` | the common client options |
 
@@ -43,14 +47,3 @@ a built-in tag, `UnknownE2BError` (nothing matched) or `E2BParseError` (an unpar
 | Tag | Categories | Matchers |
 | --- | --- | --- |
 | `SandboxNotRunning` | ConflictError | `{ { status = 502 } }` |
-
-## Wire and options
-
-Connect unary calls over JSON (`distilled.protocol.connect`).
-
-| Option | Meaning |
-| --- | --- |
-| `access_token` | secret: the sandbox's envd access token (envdAccessToken from create or connect) |
-| `domain` | value; default `e2b.app`; or from `E2B_DOMAIN` |
-| `envd_port` | value: envd's port inside the sandbox; default `49983` |
-| `sandbox_id` | required value: the sandbox to address |

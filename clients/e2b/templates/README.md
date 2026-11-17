@@ -19,7 +19,11 @@ local client = E2BTemplates.new({
 
 | Option | Meaning |
 | --- | --- |
-| `base_url` | base URL, default `https://api.e2b.app`; or from `E2B_API_URL` |
+| `access_token` | secret: a string, a secret, or `fn(host) -> value, err`; from `E2B_ACCESS_TOKEN` |
+| `api_key` | secret: a string, a secret, or `fn(host) -> value, err`; from `E2B_API_KEY` |
+| `base_url` | base URL; from `E2B_API_URL`; default `https://api.{domain}` |
+| `domain` | text; from `E2B_DOMAIN`; default `e2b.app` |
+| `team_id` | text; from `E2B_TEAM_ID` |
 | `host`, `transport`, `sleep`, ... | the host seams (see distilled's docs/interfaces.md) |
 | `retry`, `deadline_s`, `tracing`, `validation` | the common client options |
 
@@ -47,17 +51,3 @@ a built-in tag, `UnknownE2BError` (nothing matched) or `E2BParseError` (an unpar
 | Tag | Categories | Matchers |
 | --- | --- | --- |
 | `TemplateInUse` | BadRequestError | `{ { status = 400, message = { includes = "running sandboxes using it" } } }` |
-
-## Wire and options
-
-Connect unary calls over JSON (`distilled.protocol.connect`).
-
-| Option | Meaning |
-| --- | --- |
-| `access_token` | secret: a personal access token (bearer), for api_keys and auth; or from `E2B_ACCESS_TOKEN` |
-| `api_key` | secret: the team API key (X-API-Key); or from `E2B_API_KEY` |
-| `base_url` | value; default `https://api.{domain}`; or from `E2B_API_URL` |
-| `domain` | value; default `e2b.app`; or from `E2B_DOMAIN` |
-| `team_id` | value: sent as X-Team-ID with the access token; or from `E2B_TEAM_ID` |
-
-One of api_key, access_token is required.

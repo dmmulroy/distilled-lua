@@ -11,9 +11,10 @@
 --   message }.
 -- - errors.ts: UnknownDigitalOceanError, DigitalOceanParseError.
 --
--- The functions model needs task 10's per-model override, once it covers auth and
--- options: Basic <user>:<secret>, the apiHost option (no environment variable, no
--- default), failures { error }.
+-- - functions.ts / protocol.ts FunctionsProtocol (model functions, one namespace's
+--   OpenWhisk API): Basic <user>:<secret> (FunctionsConfig user, secret), the base URL
+--   is the namespace's api_host (no environment variable, no default), failures
+--   { error, code } where code is a request id (message = error only).
 return {
   name = "digitalocean",
   title = "DigitalOcean",
@@ -33,6 +34,24 @@ return {
   },
   error_envelope = { code = { "/id", "/code" }, message = "/message" },
   glue = "glue/digitalocean.lua",
+  models = {
+    override = {
+      functions = {
+        base_url = { default = false, option = "api_host", env = false },
+        auth = { kind = "basic", username = "user", password = "secret" },
+        options = {
+          user = { required = true, doc = "access key id, or the namespace uuid" },
+          secret = {
+            secret = true,
+            required = true,
+            doc = "access key secret, or the namespace key",
+          },
+        },
+        error_envelope = { message = "/error" },
+        glue = false,
+      },
+    },
+  },
   unknown_tag = "UnknownDigitalOceanError",
   parse_tag = "DigitalOceanParseError",
 }

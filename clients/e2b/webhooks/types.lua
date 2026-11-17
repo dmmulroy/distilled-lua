@@ -180,11 +180,11 @@
 ---@alias e2b.webhooks.WebhookDetailEventsList string[]
 
 ---@class e2b.webhooks.Options
----@field access_token? string|distilled.Secret|fun(host: table): (string|distilled.Secret|nil, distilled.Error?) a personal access token (bearer), for api_keys and auth
----@field api_key? string|distilled.Secret|fun(host: table): (string|distilled.Secret|nil, distilled.Error?) the team API key (X-API-Key)
----@field domain? string|number|boolean
----@field team_id? string|number|boolean sent as X-Team-ID with the access token
----@field base_url? string Default https://api.e2b.app (or $E2B_API_URL)
+---@field access_token? string|distilled.Secret|fun(host: table): (string|distilled.Secret|nil, distilled.Error?) from $E2B_ACCESS_TOKEN
+---@field api_key? string|distilled.Secret|fun(host: table): (string|distilled.Secret|nil, distilled.Error?) from $E2B_API_KEY
+---@field base_url? string from $E2B_API_URL; default https://api.{domain}
+---@field domain? string from $E2B_DOMAIN; default e2b.app
+---@field team_id? string from $E2B_TEAM_ID
 ---@field host? table The host seams: transport, sleep, now, exec, random, getenv, epoch
 ---@field transport? fun(request: table): (table?, distilled.Error?)
 ---@field sleep? fun(seconds: number)

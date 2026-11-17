@@ -100,9 +100,9 @@
 ---@field body string
 
 ---@class e2b.volume_content.Options
----@field domain? string|number|boolean
----@field token? string|distilled.Secret|fun(host: table): (string|distilled.Secret|nil, distilled.Error?) the volume's content token (token from volumes.getVolume)
----@field base_url? string Default https://api.e2b.app (or $E2B_API_URL)
+---@field base_url? string default https://api.{domain}
+---@field domain? string default e2b.app
+---@field token? string|distilled.Secret|fun(host: table): (string|distilled.Secret|nil, distilled.Error?) Required
 ---@field host? table The host seams: transport, sleep, now, exec, random, getenv, epoch
 ---@field transport? fun(request: table): (table?, distilled.Error?)
 ---@field sleep? fun(seconds: number)

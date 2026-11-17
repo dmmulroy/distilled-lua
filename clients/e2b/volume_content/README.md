@@ -13,13 +13,16 @@ package.path = dir .. "/?.lua;" .. dir .. "/?/init.lua;" .. package.path
 
 local E2BVolumeContent = require("e2b.volume_content")
 local client = E2BVolumeContent.new({
+  token = key,
   host = require("distilled.host.popen")(), -- in Rex: require("distilled.host.rex")()
 })
 ```
 
 | Option | Meaning |
 | --- | --- |
-| `base_url` | base URL, default `https://api.e2b.app`; or from `E2B_API_URL` |
+| `base_url` | base URL; default `https://api.{domain}` |
+| `domain` | text; default `e2b.app`; the volume's domain |
+| `token` | required secret: a string, a secret, or `fn(host) -> value, err` |
 | `host`, `transport`, `sleep`, ... | the host seams (see distilled's docs/interfaces.md) |
 | `retry`, `deadline_s`, `tracing`, `validation` | the common client options |
 
@@ -42,12 +45,3 @@ a built-in tag, `UnknownE2BError` (nothing matched) or `E2BParseError` (an unpar
 
 | Tag | Categories | Matchers |
 | --- | --- | --- |
-
-## Wire and options
-
-Connect unary calls over JSON (`distilled.protocol.connect`).
-
-| Option | Meaning |
-| --- | --- |
-| `domain` | value; default `e2b.app`; or from `E2B_DOMAIN` |
-| `token` | required secret: the volume's content token (token from volumes.getVolume) |

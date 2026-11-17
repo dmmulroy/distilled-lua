@@ -106,11 +106,11 @@
 ---@field tag "SandboxNotRunning"
 
 ---@class e2b.process.Options
----@field access_token? string|distilled.Secret|fun(host: table): (string|distilled.Secret|nil, distilled.Error?) the sandbox's envd access token (envdAccessToken from create or connect)
----@field domain? string|number|boolean
----@field envd_port? string|number|boolean envd's port inside the sandbox
----@field sandbox_id? string|number|boolean the sandbox to address
----@field base_url? string Default https://api.e2b.app (or $E2B_API_URL)
+---@field access_token? string|distilled.Secret|fun(host: table): (string|distilled.Secret|nil, distilled.Error?)
+---@field base_url? string default https://sandbox.{domain}
+---@field domain? string default e2b.app
+---@field port? string default 49983
+---@field sandbox_id? string Required
 ---@field host? table The host seams: transport, sleep, now, exec, random, getenv, epoch
 ---@field transport? fun(request: table): (table?, distilled.Error?)
 ---@field sleep? fun(seconds: number)
