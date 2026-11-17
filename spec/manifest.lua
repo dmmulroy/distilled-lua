@@ -2,6 +2,9 @@
 -- Rex (gopher-lua) has no io.popen, so spec/run.lua reads this list instead.
 return {
   "azure_conform_spec.lua",
+  "azure_credentials_spec.lua",
+  "azure_gen_spec.lua",
+  "azure_protocol_spec.lua",
   "client_spec.lua",
   "compat_spec.lua",
   "conform_diff_spec.lua",
