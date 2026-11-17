@@ -5,7 +5,8 @@
 -- Per package: the TypeScript operation count (`API.make(`, `API.makePaginated(` and
 -- `API.makeStreaming(` in src/services/*.ts, the count of tasks/notes/ts-op-counts.txt),
 -- the Lua operation count (`ops.<name> = ` entries in clients/<lua>/service.lua or
--- clients/<lua>/*/service.lua), models generated / models with operations (Distilled
+-- clients/<lua>/*/service.lua, and in service/ops_NNN.lua of a split service, task 18),
+-- models generated / models with operations (Distilled
 -- skips models without any), the missing operations (TS - Lua) and whether a provider
 -- spec exists. Prints a table and writes verify/features/parity.md.
 --
@@ -46,6 +47,18 @@ local function exists(path)
   return false
 end
 
+-- ops_in(dir): the operations of the client in dir (service.lua, plus the
+-- service/ops_NNN.lua files of a split service, task 18)
+local function ops_in(dir)
+  return count(
+    "cat "
+      .. q(dir .. "/service.lua")
+      .. " "
+      .. q(dir .. "/service")
+      .. "/ops_*.lua 2>/dev/null | grep -c -E '^ops\\.[A-Za-z0-9_]+ =( |$)'"
+  )
+end
+
 local rows = {}
 local graphql = {}
 for _, pkg in ipairs(lines("ls -1 " .. q(packages) .. " | LC_ALL=C sort")) do
@@ -65,11 +78,11 @@ for _, pkg in ipairs(lines("ls -1 " .. q(packages) .. " | LC_ALL=C sort")) do
     local lua_ops, generated = 0, 0
     if exists(client .. "/service.lua") then
       generated = 1
-      lua_ops = count("grep -c -E '^ops\\.[A-Za-z0-9_]+ = ' " .. q(client .. "/service.lua"))
+      lua_ops = ops_in(client)
     else
       for _, svc in ipairs(lines("ls -1 " .. q(client) .. "/*/service.lua")) do
         generated = generated + 1
-        lua_ops = lua_ops + count("grep -c -E '^ops\\.[A-Za-z0-9_]+ = ' " .. q(svc))
+        lua_ops = lua_ops + ops_in((string.gsub(svc, "/service%.lua$", "")))
       end
     end
     rows[#rows + 1] = {

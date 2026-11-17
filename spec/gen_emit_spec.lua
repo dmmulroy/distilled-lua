@@ -59,6 +59,48 @@ t.describe("gen.emit: layout", function()
     end
   end)
 
+  -- stylua 2.6 measures code in bytes: huggingface/papers' emoji enum fits in 100
+  -- characters but not in 100 bytes, and stylua expands it (task 26)
+  t.it("measures code width in bytes, as stylua does, for non-ASCII strings", function()
+    local emoji = {
+      "🔥",
+      "🚀",
+      "👀",
+      "❤️",
+      "🤗",
+      "😎",
+      "➕",
+      "🧠",
+      "👍",
+      "🤝",
+      "😔",
+      "🤯",
+    }
+    local v = { t = "enum", base = "string", values = emit.list(emoji) }
+    local lines = emit.value(v, "", "x = ", "")
+    t.eq(lines[1], "x = {")
+    t.eq(lines[4], "  values = {")
+    t.eq(lines[5], '    "🔥",')
+    t.eq(#lines, 18)
+    -- 100 bytes (99 characters) stays on one line; 101 bytes (100 characters) expands.
+    -- Both layouts were checked with `stylua --check`.
+    local function enum(n)
+      return emit.assign(
+        "shapes.Y",
+        { t = "enum", values = emit.list({ string.rep("a", n) .. "é" }) }
+      )
+    end
+    t.eq(enum(80)[3], '  values = { "' .. string.rep("a", 80) .. 'é" },')
+    t.same(enum(81), {
+      "shapes.Y = {",
+      '  t = "enum",',
+      "  values = {",
+      '    "' .. string.rep("a", 81) .. 'é",',
+      "  },",
+      "}",
+    })
+  end)
+
   t.it("orders record keys by FIELD_ORDER, then by name", function()
     t.eq(
       emit.inline({ zeta = 1, name = "n", t = "struct", alpha = 2 }),
