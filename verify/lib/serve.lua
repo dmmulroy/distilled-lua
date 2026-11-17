@@ -74,6 +74,10 @@ function serve.client(transport, base)
   function s.requests()
     return call("GET", "/_dl/requests")
   end
+  -- streamed responses (task 29): { { path, sent = { unix times }, ended }, ... }
+  function s.streams()
+    return call("GET", "/_dl/streams")
+  end
   return s
 end
 

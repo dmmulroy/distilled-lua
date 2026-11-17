@@ -198,11 +198,12 @@ local function transfer_new(opts, one_way)
       if cleaned then
         return ""
       end
-      local line = r:read("*l")
+      -- "*L" keeps the newline, so a last line cut by a dropped connection shows (task 29)
+      local line = r:read("*L")
       if line == nil then
         return ""
       end
-      return line .. "\n"
+      return line
     end
     function proc.finish()
       local code

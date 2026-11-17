@@ -45,31 +45,38 @@ t.describe("stream: framing", function()
     t.eq(e, nil)
   end)
 
-  t.it("ndjson.collect reads a whole NDJSON body as { items } only for that content type", function()
-    local nd = require("distilled.stream.ndjson")
-    t.same(nd.collect('{"a":1}\n{"a":2}\n', "application/x-ndjson; charset=utf-8").json.items, {
-      { a = 1 },
-      { a = 2 },
-    })
-    t.eq(nd.collect('{"a":1}', "application/json"), nil)
-    t.truthy(nd.collect("{bad\n", "application/x-ndjson").non_json)
-  end)
+  t.it(
+    "ndjson.collect reads a whole NDJSON body as { items } only for that content type",
+    function()
+      local nd = require("distilled.stream.ndjson")
+      t.same(nd.collect('{"a":1}\n{"a":2}\n', "application/x-ndjson; charset=utf-8").json.items, {
+        { a = 1 },
+        { a = 2 },
+      })
+      t.eq(nd.collect('{"a":1}', "application/json"), nil)
+      t.truthy(nd.collect("{bad\n", "application/x-ndjson").non_json)
+    end
+  )
 
-  t.it("sse frames: data lines joined, comments, event names, id kept, no-data events dropped", function()
-    local text = ": hello\n\nevent: ping\n\nid: 7\ndata: {\"a\":\ndata:1}\n\nevent: done\ndata: x\n\ndata: cut"
-    local f = stream_lib.framing("sse")(stream_lib.string_reader(text))
-    local e1 = f.next()
-    t.eq(e1.event, "message")
-    t.eq(e1.data, '{"a":\n1}')
-    t.eq(e1.id, "7")
-    local e2 = f.next()
-    t.eq(e2.event, "done")
-    t.eq(e2.data, "x")
-    t.eq(e2.id, "7")
-    local v, e = f.next()
-    t.eq(v, nil) -- the unterminated last event is dropped
-    t.eq(e, nil)
-  end)
+  t.it(
+    "sse frames: data lines joined, comments, event names, id kept, no-data events dropped",
+    function()
+      local text =
+        ': hello\n\nevent: ping\n\nid: 7\ndata: {"a":\ndata:1}\n\nevent: done\ndata: x\n\ndata: cut'
+      local f = stream_lib.framing("sse")(stream_lib.string_reader(text))
+      local e1 = f.next()
+      t.eq(e1.event, "message")
+      t.eq(e1.data, '{"a":\n1}')
+      t.eq(e1.id, "7")
+      local e2 = f.next()
+      t.eq(e2.event, "done")
+      t.eq(e2.data, "x")
+      t.eq(e2.id, "7")
+      local v, e = f.next()
+      t.eq(v, nil) -- the unterminated last event is dropped
+      t.eq(e, nil)
+    end
+  )
 
   t.it("string_reader.read_exact reports a body that ends inside a frame", function()
     local r = stream_lib.string_reader("abc")
@@ -247,7 +254,8 @@ t.describe("stream: Boat's NDJSON operations", function()
         { headers = NDJSON, chunks = { '{"type":"attached","processId":4,"stdoutOffset":0}\n' } },
       },
     })
-    local s = ok(boat(tr):attach_command_stream({ sandboxId = "sb1", processId = 4, stdoutOffset = 10 }))
+    local s =
+      ok(boat(tr):attach_command_stream({ sandboxId = "sb1", processId = 4, stdoutOffset = 10 }))
     t.eq(tr.requests[1].method, "GET")
     t.match(tr.requests[1].url, "/sandboxes/sb1/commands/4/stream%?stdoutOffset=10$")
     t.eq(s:next().processId, 4)
@@ -273,7 +281,9 @@ t.describe("stream: Boat's NDJSON operations", function()
 
   t.it("a frame that is not JSON ends the stream with the parse error", function()
     local tr = testing.stream_transport({
-      responses = { { headers = NDJSON, chunks = { '{"type":"started"}\n', "not json\n", '{"type":"exit"}\n' } } },
+      responses = {
+        { headers = NDJSON, chunks = { '{"type":"started"}\n', "not json\n", '{"type":"exit"}\n' } },
+      },
     })
     local s = ok(boat(tr):execute_sandbox_command_stream(EXEC))
     local got = {}
@@ -306,11 +316,14 @@ t.describe("stream: Boat's NDJSON operations", function()
     t.eq(#tr.requests, 2, "no retry after the first item")
   end)
 
-  t.it("a transport that cannot stream is a ConfigError; an op without op.stream has no method", function()
-    local c = boat(testing.transport({ responses = {} }))
-    t.fails_with("ConfigError", c:execute_sandbox_command_stream(EXEC))
-    t.eq(c.get_sandbox_stream, nil)
-  end)
+  t.it(
+    "a transport that cannot stream is a ConfigError; an op without op.stream has no method",
+    function()
+      local c = boat(testing.transport({ responses = {} }))
+      t.fails_with("ConfigError", c:execute_sandbox_command_stream(EXEC))
+      t.eq(c.get_sandbox_stream, nil)
+    end
+  )
 
   t.it("stream options become the request's max_time and idle_timeout; bad ones raise", function()
     local tr = testing.stream_transport({ responses = { { headers = NDJSON, chunks = {} } } })
@@ -350,7 +363,10 @@ t.describe("stream: Boat's NDJSON operations", function()
     local tracer = trace.new({ level = "operation", exporter = mem })
     local tr = testing.stream_transport({
       responses = {
-        { headers = NDJSON, chunks = { '{"type":"started"}\n', errors.new("TransportError", { message = "x" }) } },
+        {
+          headers = NDJSON,
+          chunks = { '{"type":"started"}\n', errors.new("TransportError", { message = "x" }) },
+        },
         { headers = NDJSON, chunks = { '{"type":"started"}\n', '{"type":"exit"}\n' } },
       },
     })

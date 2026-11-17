@@ -152,6 +152,14 @@ function M.conn(proc, req)
       end
       return nil, nil
     end
+    if string.sub(line, -1) ~= "\n" then
+      -- the body ended without a newline: a cut connection must not pass a half line
+      -- off as the last one
+      local err = failure()
+      if err then
+        return nil, err
+      end
+    end
     line = string.gsub(line, "\n$", "")
     line = string.gsub(line, "\r$", "")
     return line

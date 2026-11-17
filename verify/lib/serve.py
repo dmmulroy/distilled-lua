@@ -25,6 +25,11 @@ A <response> is an object with any of:
   body (text), body_b64 (bytes), json (any value, encoded; sets content-type),
   delay (seconds before answering), drop (true: close without answering),
   continue (true: send "100 Continue" first), stall (seconds between headers and body).
+  Streaming (task 29): chunks (list of text) or chunks_b64 (list of base64 bytes) send a
+  chunked body one chunk at a time, chunk_delay seconds apart (after `stall`);
+  drop_after (n: cut the connection after n chunks, half-way through the next one);
+  hang (seconds to wait after the last chunk before ending the body: a stalled stream).
+  GET /_dl/streams lists each streamed response: {path, sent: [unix times], ended}.
 
 A path with no script, or whose script ran out (and repeat_last is false), gets 404 with
 header x-dl-serve: unscripted, so a test that sends too many requests sees it.
@@ -47,6 +52,7 @@ import serve_eventstream  # noqa: E402  AWS event stream endpoints (task 31), ne
 LOCK = threading.Lock()
 SCRIPTS = {}  # path -> {"responses": [...], "next": 0, "repeat_last": bool}
 REQUESTS = []  # recorded requests, oldest first
+STREAMS = []  # streamed responses (task 29): {"path", "sent": [times], "ended"}
 
 
 def raw_text(value):
@@ -143,11 +149,58 @@ class Handler(BaseHTTPRequestHandler):
         self.wfile.write(b"HTTP/1.1 100 Continue\r\n\r\n")
         self.wfile.flush()
 
+    def write_chunk(self, data):
+        self.wfile.write(("%x\r\n" % len(data)).encode("ascii") + data + b"\r\n")
+        self.wfile.flush()
+
+    def streamed(self, entry, info, headers):
+        """A chunked body sent piece by piece (task 29): slow, stalled or dropped streams."""
+        if "chunks_b64" in entry:
+            chunks = [base64.b64decode(c) for c in entry["chunks_b64"]]
+        else:
+            chunks = [str(c).encode("utf-8") for c in entry["chunks"]]
+        log = {"path": info["path"], "sent": [], "ended": None}
+        with LOCK:
+            STREAMS.append(log)
+        self.send_response_only(int(entry.get("status", 200)))
+        for name, value in headers:
+            self.send_header(name, value)
+        self.send_header("Transfer-Encoding", "chunked")
+        self.end_headers()
+        self.wfile.flush()
+        if entry.get("stall"):
+            time.sleep(float(entry["stall"]))
+        delay = float(entry.get("chunk_delay") or 0)
+        drop_after = entry.get("drop_after")
+        try:
+            for i, chunk in enumerate(chunks):
+                if i > 0 and delay:
+                    time.sleep(delay)
+                if drop_after is not None and i == int(drop_after):
+                    self.wfile.write(("%x\r\n" % len(chunk)).encode("ascii") + chunk[: len(chunk) // 2])
+                    self.wfile.flush()
+                    return self.drop()
+                self.write_chunk(chunk)
+                log["sent"].append(time.time())
+            if entry.get("hang"):
+                time.sleep(float(entry["hang"]))
+            self.wfile.write(b"0\r\n\r\n")
+            self.wfile.flush()
+            log["ended"] = time.time()
+        except (BrokenPipeError, ConnectionResetError):
+            log["ended"] = "client closed"
+        self.close_connection = True
+
     def scripted(self, entry, info):
         if entry.get("delay"):
             time.sleep(float(entry["delay"]))
         if entry.get("drop"):
             return self.drop()
+        if "chunks" in entry or "chunks_b64" in entry:
+            headers = entry.get("headers") or []
+            if isinstance(headers, dict):
+                headers = list(headers.items())
+            return self.streamed(entry, info, [(str(k), str(v)) for k, v in headers])
         if entry.get("continue"):
             self.send_continue()
         headers = entry.get("headers") or []
@@ -175,7 +228,14 @@ class Handler(BaseHTTPRequestHandler):
         body = self.read_body()
         info = self.describe(body)
         path = info["path"]
-        control = path in ("/_dl/script", "/_dl/reset", "/_dl/requests", "/_dl/health", "/_dl/shutdown")
+        control = path in (
+            "/_dl/script",
+            "/_dl/reset",
+            "/_dl/requests",
+            "/_dl/health",
+            "/_dl/shutdown",
+            "/_dl/streams",
+        )
         if not control:
             with LOCK:
                 REQUESTS.append(info)
@@ -191,10 +251,14 @@ class Handler(BaseHTTPRequestHandler):
                     "repeat_last": bool(spec.get("repeat_last")),
                 }
             return self.send_json(200, {"scripted": spec["path"], "count": len(spec.get("responses") or [])})
+        if path == "/_dl/streams":
+            with LOCK:
+                return self.send_json(200, list(STREAMS))
         if path == "/_dl/reset":
             with LOCK:
                 SCRIPTS.clear()
                 REQUESTS.clear()
+                STREAMS.clear()
             return self.send_json(200, {"reset": True})
         if path == "/_dl/requests":
             with LOCK:
