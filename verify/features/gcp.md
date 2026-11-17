@@ -100,10 +100,15 @@ Gmail.new({ host = host, access_token = token }):list_users_messages({ userId = 
   transport's default applies).
 - Distilled has no long-running-operation helpers; `Operation` results are returned as
   data, as there.
-- 17 TypeScript service files (408 ops: `apigeeregistry_v1`, `content_v2_1`,
-  `datalabeling_v1beta1`, 13 `merchantapi_*_v1beta`, `mybusinessqanda_v1`) have no model
-  in `.generated-specs`: they are stale outputs on Distilled's side, so there is nothing
-  to generate from.
+- Every model's operations are generated (per-model counts equal the TS files'). `dl
+  parity` still shows gcp 13290 of 13901 stable ops because Distilled's `src/services/`
+  has 8 files without a stable model: `devicerun_v1alpha`, `displayvideo_v4`,
+  `integrations_v1` (323 ops; their models are in `unstable/` now and generate as
+  `gcp.unstable.*`, equal to the TS unstable files) and `apigeeregistry_v1`,
+  `content_v2_1`, `datalabeling_v1beta1`, `merchantapi_reviews_v1beta`,
+  `mybusinessqanda_v1` (288 ops, no model at all). `src/unstable-services/` has 13
+  `merchantapi_*` files (121 ops) without a model. These are stale outputs on Distilled's
+  side: there is nothing to generate from.
 - `clients/gcp` is large (about 187 MB of Lua); `gen-diff gcp` takes about 2.5 minutes.
 - The `credentials` client option takes a provider table; wrap a function with
   `creds.custom(fn)`.
