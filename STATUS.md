@@ -1570,3 +1570,35 @@ clients/coinbase 178/178, clients/polymarket 223/223 (7 models), both `verify/dl
 - The default host's `random` is a 31-bit Park-Miller generator: fine for multipart
   boundaries, weak for Coinbase's JWT nonce. A host field for random bytes (Rex:
   `/dev/urandom` via `rex.exec`) would make nonces unpredictable.
+
+## 30 grpc-streams
+
+**Status: in progress** (branch `task-30`).
+
+Built so far:
+- `lua/distilled/stream/grpc.lua`: gRPC frames pulled one at a time from a reader
+  (`read_exact`), gRPC-Web trailer frames collected, `rest` for an incomplete last frame.
+- `lua/distilled/stream/connect.lua`: Connect envelopes (flags, length, JSON; 0x02 end).
+- `protocol.grpc`: `protocol.stream(ctx, op, input) -> parts, nil, meta | nil, err, meta`.
+
+### For task 29 (proposed contract additions; I code against them now)
+
+- **Protocol-level entry point:** `protocol.stream(ctx, op, input)` with the same ctx as
+  `protocol.call`, returning `parts = { status, headers, next = fn() -> item | nil, nil |
+  nil, err, close = fn() }` (plus `nil, err, meta`). Failures before the first item
+  (transport, non-2xx, a trailers-only gRPC error) come back as `nil, err, meta`, so the
+  retry loop can retry them. I expect operation.lua to wrap `parts` in the Stream object.
+  If task 29 picks another shape, I adapt after merging.
+- **`read_exact` at EOF mid-read:** the contract gives `nil, err`. A framed decoder must
+  tell "the body ended inside a frame" (Distilled: read the status first, then
+  "truncated gRPC frame") from a dropped connection. Proposed: that err carries
+  `eof = true` and `partial = <bytes read>`. Without it a truncation reads as a
+  transport error, which is still a failure, just less precise.
+- **HTTP trailers of a streamed reply:** proposed `res.trailers` set by the transport once
+  the body has ended, or `reader.trailers` (table, or `reader:trailers()`), names
+  lowercased. curl writes trailers to the header dump after the body. Without them a
+  binary gRPC (HTTP/2) stream with messages and no status counts as OK, as Distilled
+  reads a fetch reply without trailers.
+- **transport.stream:** I look it up as `transport.stream` on a table (or callable table).
+- Spec helper `spec/grpc_stream_stub.lua` (a stub reader and stream transport) is mine
+  until `distilled.testing` has a scripted streaming transport.

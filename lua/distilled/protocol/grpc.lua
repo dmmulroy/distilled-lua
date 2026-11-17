@@ -46,6 +46,7 @@ local json = require("distilled.json")
 local noop = require("distilled.trace.noop")
 local protobuf = require("distilled.protobuf")
 local rest = require("distilled.protocol.rest")
+local frames = require("distilled.stream.grpc")
 local retry = require("distilled.retry")
 
 local grpc = {}
@@ -195,6 +196,38 @@ local function sdk_error(message)
 end
 
 local TRANSPORT_HINT = require("distilled.host").TRANSPORT_HINT
+
+--- grpc.stream_entry(transport) -> fn(request) -> res | nil: the transport's streaming
+-- entry point (distilled.stream contract: `transport.stream(request)`), or nil
+function grpc.stream_entry(transport)
+  local ok_table = type(transport) == "table"
+    or (type(transport) == "userdata" and getmetatable(transport) ~= nil)
+  if ok_table and type(transport.stream) == "function" then
+    return transport.stream
+  end
+  return nil
+end
+
+--- grpc.trailers_of(res, reader) -> { [lowercase name] = value } | nil
+-- The HTTP trailers of a streamed reply, once its body has ended: the transport may put
+-- them on the response (res.trailers), on the reader (reader.trailers) or offer
+-- reader:trailers(). nil when it reports none (then, as with fetch, a reply with
+-- messages and no status is OK).
+function grpc.trailers_of(res, reader)
+  local tr = res.trailers
+  if tr == nil and type(reader) == "table" then
+    tr = rawget(reader, "trailers")
+    if type(tr) == "function" then
+      tr = tr(reader)
+    elseif tr == nil and type(reader.trailers) == "function" then
+      tr = reader:trailers()
+    end
+  end
+  if type(tr) ~= "table" then
+    return nil
+  end
+  return lower_headers(tr)
+end
 
 --- grpc.new(opts) -> protocol { call, encode, decode, rest }
 function grpc.new(opts)
@@ -534,8 +567,10 @@ function grpc.new(opts)
     )
   end
 
-  --- protocol.call(ctx, op, input) -> value, nil, meta | nil, err, meta
-  function protocol.call(ctx, op, input)
+  -- the request built and sent: res (lowercased headers), meta | nil, err [, meta].
+  -- `streaming` sends it through the transport's stream entry point, so res.body is a
+  -- reader (distilled.stream contract) instead of a string.
+  local function send(ctx, op, input, streaming)
     local tracer = ctx.tracer or noop
     local span = ctx.span or noop.NOOP_SPAN
     local host = ctx.host or {}
@@ -579,11 +614,23 @@ function grpc.new(opts)
           { message = "no transport; " .. TRANSPORT_HINT, key = "transport" }
         )
     end
+    local send_fn = transport
+    if streaming then
+      send_fn = grpc.stream_entry(transport)
+      if send_fn == nil then
+        return nil,
+          errors.new("ConfigError", {
+            message = "the transport cannot stream (it has no `stream` entry point); "
+              .. TRANSPORT_HINT,
+            key = "transport",
+          })
+      end
+    end
     local res, terr = tracer:with("distilled.transport", {
       debug = true,
       attributes = { ["http.request.method"] = req.method, ["server.address"] = server },
     }, function(s)
-      local r, e = transport(req)
+      local r, e = send_fn(req)
       if type(r) == "table" then
         s:set("http.response.status_code", r.status)
       end
@@ -606,6 +653,9 @@ function grpc.new(opts)
         })
     end
     if type(res.status) ~= "number" then
+      if streaming and type(res.body) == "table" and type(res.body.close) == "function" then
+        res.body:close()
+      end
       return nil, errors.new("TransportError", { message = "the transport returned no status" })
     end
     local headers = lower_headers(res.headers)
@@ -615,18 +665,190 @@ function grpc.new(opts)
       attempt.hint_ms = retry.bounded_hint_ms(headers)
     end
     span:set("http.response.status_code", res.status)
+    return {
+      status = res.status,
+      headers = headers,
+      body = res.body,
+      trailers = res.trailers,
+    },
+      meta
+  end
+
+  --- protocol.call(ctx, op, input) -> value, nil, meta | nil, err, meta
+  function protocol.call(ctx, op, input)
+    local res, meta = send(ctx, op, input, false)
+    if res == nil then
+      return nil, meta
+    end
+    local tracer = ctx.tracer or noop
     local value, derr = tracer:with("distilled.decode", { debug = true }, function()
-      return protocol.decode(ctx, op, {
-        status = res.status,
-        headers = headers,
-        body = res.body,
-        trailers = res.trailers,
-      })
+      return protocol.decode(ctx, op, res)
     end)
     if value == nil and derr ~= nil then
       return nil, derr, meta
     end
     return value, nil, meta
+  end
+
+  -- one message of a server stream as the operation's output schema reads it: decoded
+  -- as `{ items = { message } }` (the collected form's shape) and taken out again, as
+  -- Distilled's streamReply does, so sensitive members and validation apply per item
+  local function stream_item(ctx, op, method, headers, payload)
+    local v, derr = protobuf.decode(d, method[2], payload, { nonfinite = "null" })
+    if v == nil then
+      return nil, parse_failure(op, #payload, derr)
+    end
+    local text, jerr = json.encode(json.object({ items = json.array({ v }) }))
+    if not text then
+      return nil, parse_failure(op, #payload, jerr)
+    end
+    local out, err =
+      inner.decode(ctx, op, { status = 200, headers = plain_headers(headers), body = text })
+    if out == nil then
+      return nil, err
+    end
+    if type(out) ~= "table" or type(out.items) ~= "table" then
+      return nil, sdk_error("the output of " .. tostring(op.name) .. " has no items list")
+    end
+    return out.items[1]
+  end
+
+  --- protocol.stream(ctx, op, input) -> parts, nil, meta | nil, err, meta
+  -- A server-streaming call delivered message by message (Distilled's `.stream`):
+  -- parts = { status, headers, next = fn() -> item | nil, nil | nil, err, close = fn() }
+  -- (distilled.stream wraps them into a Stream). Failures known before the first message
+  -- (transport, a non-gRPC reply, a trailers-only reply's status) are returned here, so
+  -- the retry loop can retry them; later ones end the stream through next().
+  function protocol.stream(ctx, op, input)
+    ctx = ctx or {}
+    local path = method_path(op)
+    local method = d.methods[path]
+    if not method then
+      return nil, sdk_error("no gRPC descriptor for " .. tostring(path))
+    end
+    local res, meta = send(ctx, op, input, true)
+    if res == nil then
+      return nil, meta
+    end
+    local reader = res.body
+    if type(reader) ~= "table" or type(reader.read_exact) ~= "function" then
+      return nil,
+        errors.new("ConfigError", {
+          message = "the transport's stream entry point returned no body reader",
+          key = "transport",
+        }),
+        meta
+    end
+    local closed = false
+    local function close()
+      if not closed then
+        closed = true
+        reader:close()
+      end
+    end
+    -- whole-body cases: not gRPC, or a trailers-only reply (grpc-status in the headers)
+    local ct = res.headers["content-type"] or ""
+    local whole = res.status ~= 200
+      or string.sub(ct, 1, 16) ~= "application/grpc"
+      or res.headers["grpc-status"] ~= nil
+    if whole then
+      local body, rerr = reader:read_all()
+      close()
+      if body == nil then
+        return nil, rerr, meta
+      end
+      local full = {
+        status = res.status,
+        headers = res.headers,
+        body = body,
+        trailers = grpc.trailers_of(res, reader),
+      }
+      local failed = not_grpc(ctx, op, full)
+      if failed then
+        return nil, failed, meta
+      end
+      if body == "" then
+        local e = end_of(ctx, op, full, full.trailers or {}, false, full.trailers ~= nil)
+        if e then
+          return nil, e, meta
+        end
+        return {
+          status = res.status,
+          headers = res.headers,
+          next = function()
+            return nil, nil
+          end,
+          close = close,
+        },
+          nil,
+          meta
+      end
+      -- a body after all: read it as a collected stream would be, then replay its items
+      local value, derr = protocol.decode(ctx, op, full)
+      if value == nil then
+        return nil, derr, meta
+      end
+      local items, i = value.items or {}, 0
+      return {
+        status = res.status,
+        headers = res.headers,
+        next = function()
+          i = i + 1
+          return items[i]
+        end,
+        close = close,
+      },
+        nil,
+        meta
+    end
+
+    local decoder = frames.new(reader)
+    local finished = false
+    local function stop(err)
+      finished = true
+      close()
+      return nil, err
+    end
+    local function next_item()
+      if finished then
+        return nil, nil
+      end
+      local payload, ferr = decoder:next()
+      if payload ~= nil then
+        local item, ierr = stream_item(ctx, op, method, res.headers, payload)
+        if item == nil then
+          return stop(ierr or sdk_error("empty stream item"))
+        end
+        return item
+      end
+      if ferr ~= nil then
+        if errors.is_tag(ferr, "ParseError") and ferr.protobuf then
+          -- a compressed frame: gRPC's INTERNAL (badFrame)
+          return stop(fail_with(ctx, op, res.headers, 13, ferr.message))
+        end
+        return stop(ferr)
+      end
+      -- the body ended: the call's status decides (endOf), then a truncated frame
+      local transport_trailers = grpc.trailers_of(res, reader)
+      local all = {}
+      for k, v in pairs(transport_trailers or {}) do
+        all[k] = v
+      end
+      for k, v in pairs(decoder.trailers) do
+        all[k] = v
+      end
+      local e = end_of(ctx, op, res, all, decoder.saw_body, transport_trailers ~= nil)
+      if e then
+        return stop(e)
+      end
+      if decoder.rest ~= 0 then
+        return stop(fail_with(ctx, op, res.headers, 13, "truncated gRPC frame"))
+      end
+      return stop(nil)
+    end
+    return { status = res.status, headers = res.headers, next = next_item, close = close },
+      nil,
+      meta
   end
 
   return protocol

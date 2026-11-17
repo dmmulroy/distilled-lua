@@ -40,6 +40,7 @@ return {
   "graphql_conform_spec.lua",
   "graphql_runtime_spec.lua",
   "grpc_spec.lua",
+  "grpc_stream_spec.lua",
   "harness_spec.lua",
   "host_popen_spec.lua",
   "init_spec.lua",
