@@ -12,9 +12,8 @@ copies Distilled's `manual-specs/`, SimpleDB). S3 itself is task 25 (`clients/s3
 `src/services`. Every generated service has Distilled's operation count exactly. The 202
 missing operations belong to 7 services AWS retired and removed from its spec mirror
 (finspace, finspace-data, iot-events, iot-events-data, panorama, simspaceweaver, tnb);
-Distilled still ships their old generated files. 58 of the 19,429 operations (event
-streams) are generated and refuse the call with `SdkError`, as the provider spec
-acknowledges (`allow_unsupported = { "streaming" }`).
+Distilled still ships their old generated files. The 29 event-stream operations (19 output-only and 10 bidirectional, in
+16 services, plus s3 SelectObjectContent) are streamed; see "Event streams" below.
 
 ## Sub-features
 
@@ -146,6 +145,60 @@ acknowledges (`allow_unsupported = { "streaming" }`).
   - **Layout:** large services are split by task 18's layout (EC2: `service.lua` plus
     `service/`).
 
+## Event streams (task 31)
+
+- **Codec** (`aws/eventstream.lua`): the `application/vnd.amazon.eventstream` message
+  (prelude, headers of all 10 types, payload, prelude and message CRC-32 from
+  `crypto/crc32.lua`). A bad CRC or a bad length is a `ParseError` with Distilled's
+  message. A repeated header name keeps its first position and takes the last value.
+  Byte-exact against aws-sdk-go-v2's positive and negative vectors and Distilled's
+  encodings (`spec/aws_eventstream_spec.lua`).
+- **Framing** (`stream/aws_eventstream.lua`): one message per two `read_exact` calls
+  (prelude, then the rest). A body that ends mid-message is a `ParseError` ("Stream ended
+  with N bytes of incomplete message data").
+- **Events** (`aws/stream.lua`): `:message-type` `event` becomes the union member named by
+  `:event-type`, with `@eventPayload` and `@eventHeader` members. `exception` becomes the
+  modelled error class (the union's error members), and `error` (`:error-code`) or an
+  unknown exception becomes `UnknownAwsError`. Either one ends the stream as `nil, err`.
+  An `initial-response` event (awsJson services such as kinesis) fills `stream.output`;
+  on REST services the HTTP-bound output members do.
+- **Plain call**: an output stream is read whole into a list in its member (Distilled's
+  collected form). A bidirectional operation is refused with `SdkError`.
+- **Stream call**: `protocol.stream(ctx, op, input)` returns the parts that task 29's
+  Stream object wraps: `status`, `headers`, `output`, `next()`, `close()`, and for
+  bidirectional operations `send(event)` and `close_input()`. A non-2xx response is read
+  whole and decoded as the operation's error.
+- **Input events**: encoded with the union form (`{ AudioEvent = {...} }`) or Distilled's
+  `_tag` form. Each frame is signed with SigV4 event signing: `:date` and
+  `:chunk-signature`, chained from the request's seed signature. The request has
+  `X-Amz-Content-Sha256: STREAMING-AWS4-HMAC-SHA256-EVENTS`, and `close_input()` sends the
+  empty signed end frame. Matches `@smithy/signature-v4`'s vectors.
+- **Transports**: `transport.stream` and `transport.duplex` come from
+  `transport/curl_duplex.lua`, `popen_curl_duplex.lua` (stock Lua: curl on two FIFOs)
+  and `exec_curl_duplex.lua` (Rex: `rex.exec.start` with stdin open). curl runs with
+  `upload-file = "."`, because `-T -` holds back reply data until the next input arrives.
+  On https it uses HTTP/2.
+
+Proof (all three runtimes):
+
+- `spec/aws_eventstream_spec.lua` (52): the codec and signing vectors.
+- `spec/aws_eventstream_conform_spec.lua` (19): 13 output and 4 input streams replayed
+  against Distilled's TypeScript output (`verify/lib/aws_eventstream_conform.mjs`).
+  Covered: the signed requests, events, errors, `stream.output`, and the bytes and
+  signatures of input frames. Deliberate differences are listed in its `INTENDED` table.
+- `spec/aws_eventstream_stream_spec.lua` (21): edge paths (bad CRC mid-stream, empty
+  body, truncation, a non-2xx before the stream, close, unknown event types).
+- `spec/aws_eventstream_http_spec.lua` (7, `verify/dl test --http`), against
+  `dl serve` (`verify/lib/serve_eventstream.py`):
+  - the first event is read while the server has sent one frame only (its log says so);
+  - a dropped connection and an HTTP 400 are handled;
+  - bidirectional transfers: lex StartConversation and a 768-byte binary sagemaker
+    payload. Each event is answered before the next is sent, and the server checks
+    every frame's chained signature, including the end frame's.
+
+Not proven: a live AWS endpoint, because tests make no live calls. HTTP/2 duplex was
+measured by hand with curl `--http2-prior-knowledge`; `dl serve` only speaks HTTP/1.1.
+
 ## How a user reaches it
 
 ```lua
@@ -173,7 +226,7 @@ Lua strings, timestamps are epoch seconds, and secrets come back as `distilled.s
 | `luajit verify/lib/aws_protocol_tests.lua [svc] [case]` | The protocol-tests runner on its own, with a per-service table and a diff for each failure. |
 | `luajit verify/lib/aws_endpoint_tests.lua` | All 14,066 `endpointTests` cases of the 433 models: 0 failed (lua and luajit; it lists files with `io.popen`). |
 | `verify/dl conform aws [--replay]` | A differential test against Distilled. `verify/conform/node/aws.mjs` runs Distilled's generated services (`packages/aws/src/services/*.ts`) through a fake HttpClient. `verify/conform/aws_compare.lua` runs `clients/aws` with the same canned responses and compares: method, URL, query, headers, SigV4 scope and signed headers, body (JSON as values, form pairs, canonical XML), decoded value, error tag, message and fields. 36 cases over DynamoDB, SQS, SNS, STS, IAM, EC2, Lambda, Route 53, S3 Control, CloudFront, CloudWatch and SimpleDB (where the SigV2 signatures match byte for byte); 36 passed on lua, luajit and Rex. `--replay` needs no Node (`verify/conform/ref/aws/outcomes.json`). |
-| `lua verify/lib/aws_call_all.lua .` (or `verify/dl rex verify/lib/aws_call_all.lua root=$PWD`) | Every one of the 19,429 operations called through its client, with a synthesized minimal input, once against a protocol-shaped empty success and once against a throttling error. 0 raised; 19,381 decode; the 58 event-stream calls are refused as acknowledged; 188 are the modelled refusals of the synthetic input (`EndpointError` for a KVS ARN "x", and EC2's undeclared `RequestLimitExceeded` as `UnknownAwsError`, as in Distilled); every other error from the throttling response is a throttling
+| `lua verify/lib/aws_call_all.lua .` (or `verify/dl rex verify/lib/aws_call_all.lua root=$PWD`) | Every one of the 19,429 operations called through its client, with a synthesized minimal input, once against a protocol-shaped empty success and once against a throttling error. 0 raised; 19,381 decode; the 10 bidirectional calls are refused by the plain call (`SdkError`: use the stream), and 19 output streams given the fake non-frame body are a `ParseError` (both counted as expected); 188 are the modelled refusals of the synthetic input (`EndpointError` for a KVS ARN "x", and EC2's undeclared `RequestLimitExceeded` as `UnknownAwsError`, as in Distilled); every other error from the throttling response is a throttling
 error. On all three runtimes (Rex takes 2.5 min). |
 | `verify/dl gen-diff aws` | Regenerates all 433 services (identical under lua and luajit), diffs against `clients/aws`, runs `stylua --check`, and loads and checks every service in all three runtimes (117,527 shapes, 271,127 refs, 19,400 requests built). |
 | `verify/dl parity` | aws 19,429 of 19,631 (the 7 retired services above). |
