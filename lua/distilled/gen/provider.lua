@@ -29,7 +29,8 @@
 --       words = { "OAuth" },                  -- extra mixed-case words for snake_case
 --       operations = { GetThing = "fetch_thing" },   -- per-operation method names
 --     },
---     pagination = { items_fallback = "items" },     -- items path when the trait has none
+--     pagination = { items_fallback = "items" },     -- items path when the trait has none;
+--                                                    -- modes = { page = "total_count" }
 --     allow_unsupported = { "streaming" },   -- emit operations the runtime refuses at
 --                                            -- call time (SdkError) instead of failing
 --                                            -- (provider.UNSUPPORTED)
@@ -490,11 +491,35 @@ function provider.validate(spec, opts)
     p[#p + 1] = "provider spec: pagination must be a table"
     pg = {}
   end
-  check_keys("provider spec pagination", pg, { items_fallback = true }, p)
+  check_keys("provider spec pagination", pg, { items_fallback = true, modes = true }, p)
   if pg.items_fallback ~= nil and type(pg.items_fallback) ~= "string" then
     p[#p + 1] = "provider spec pagination.items_fallback must be a string"
   end
   out.pagination = { items_fallback = pg.items_fallback or "items" }
+  -- pagination.modes = { page = "total_count" }: the runtime strategy for a trait mode
+  -- (Distilled's paginationProfiles; task 27). Keys are smithy.api#paginated modes,
+  -- values distilled.paginate modes.
+  if pg.modes ~= nil then
+    local runtime_modes = require("distilled.paginate").MODES
+    if type(pg.modes) ~= "table" then
+      p[#p + 1] = "provider spec pagination.modes must be { [trait mode] = runtime mode }"
+    else
+      out.pagination.modes = {}
+      for k, v in pairs(pg.modes) do
+        if type(k) ~= "string" or not runtime_modes[k] or k == "total_count" then
+          p[#p + 1] = "provider spec pagination.modes: " .. tostring(k) .. " is not a trait mode"
+        elseif type(v) ~= "string" or not runtime_modes[v] then
+          p[#p + 1] = "provider spec pagination.modes."
+            .. k
+            .. ": "
+            .. tostring(v)
+            .. " is not a distilled.paginate mode"
+        else
+          out.pagination.modes[k] = v
+        end
+      end
+    end
+  end
 
   -- models: multi-model packages (one spec, one module per model)
   out.models = { skip = {}, override = {} }

@@ -326,7 +326,9 @@ function ops.pagination(ctx, op)
   -- validatePaginated: the token must be an input member and the items root an output
   -- member; Distilled quietly degrades such an operation to a plain one, we fail.
   local items = pg.items or ctx.provider.pagination.items_fallback
-  local out = { mode = mode }
+  -- a provider strategy for the mode (task 27, Distilled's paginationProfiles): Scaleway
+  -- pages by total count (paginate.lua strategies.total_count)
+  local out = { mode = (ctx.provider.pagination.modes or {})[mode] or mode }
   if pg.inputToken then
     out.input_token = lua_path(ctx, op.input, pg.inputToken)
   end

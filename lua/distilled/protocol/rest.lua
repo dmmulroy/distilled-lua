@@ -1118,7 +1118,7 @@ function rest.new(opts)
       input = v
     end
     local service = ctx.service or {}
-    return request.build({
+    local req, berr = request.build({
       op = op,
       input = input,
       registry = service.shapes,
@@ -1131,6 +1131,12 @@ function rest.new(opts)
       -- the multipart boundary comes from host.random (deterministic under a test host)
       host = ctx.host,
     })
+    if req and op.raw_download then
+      -- a `...Raw` file download (Scaleway, task 12's op.raw_download) asks for the file
+      -- itself, not its JSON description: ScalewayProtocol appends dl=1
+      req.url = req.url .. (string.find(req.url, "?", 1, true) and "&" or "?") .. "dl=1"
+    end
+    return req, berr
   end
 
   -----------------------------------------------------------------------------------
