@@ -19,6 +19,8 @@ local SCALAR = {
   blob = "bytes",
 }
 
+local DEPTH_ERROR = "required members nest deeper than "
+
 local value_for -- forward
 
 local function struct_value(node, registry, depth)
@@ -37,7 +39,7 @@ end
 
 function value_for(node, registry, depth, member)
   if depth > synth.MAX_DEPTH then
-    return nil, "required members nest deeper than " .. synth.MAX_DEPTH
+    return nil, DEPTH_ERROR .. synth.MAX_DEPTH
   end
   local resolved, err = schema.resolve(node, registry)
   if not resolved then
@@ -64,7 +66,11 @@ function value_for(node, registry, depth, member)
     return resolved.values[1]
   elseif t == "list" then
     local item, ierr = value_for(resolved.item, registry, depth + 1)
-    if ierr then
+    if ierr and string.find(ierr, DEPTH_ERROR, 1, true) then
+      -- a cycle through a required list (starburst-galaxy's nestedColumns, task 26): an
+      -- empty list ends it
+      return json.array({})
+    elseif ierr then
       return nil, ierr
     end
     return json.array({ item })
