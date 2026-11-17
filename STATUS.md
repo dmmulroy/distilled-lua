@@ -882,3 +882,44 @@ gives 1016 models ok, 0 failed, 2 skipped (models.skip). Two generator changes m
 possible: an `error_classes` tag that a model also declares uses the model's class (Vercel,
 Whop, Starburst, Atlas declare PaymentRequired / PreconditionFailed in some models only),
 and `naming.operations` is not checked against a single model of a multi-model package (exa).
+
+## 18 big-models
+
+**Done.** See `tasks/18-big-models.done.md` and `verify/features/generator.md` ("Large
+models"). infisical's client now loads on luajit, and `require` takes 74 ms in Rex
+(was 10.6 s); every one of the 10 largest models loads in all three runtimes.
+
+### Contract update (for `docs/interfaces.md`, service descriptor)
+
+- A **split service** (generated when `service.lua` would pass 512 KB or ~20,000
+  constants) has `service.shape_chunks`: a list of module names, each returning
+  `{ [name] = node }`. Then `service.shapes` is a registry with an `__index` metamethod
+  that loads a shape's whole file on first lookup: **indexing works as before,
+  `pairs(service.shapes)` only sees loaded shapes.** Code that needs every shape
+  iterates `shape_chunks` (gen_check does). Unknown names are nil; a missing file raises.
+- `service.ops` and `service.errors` stay plain complete tables (loaded eagerly from
+  `service/ops_NNN.lua` / `errors_NNN.lua`). `client.lua` needed no change.
+- `gen.generate` returns `files.dirs` (subdirectories, sorted; `{}` for one-file
+  clients). File names may contain `/` (`service/shapes_001.lua`). `gen.write` still runs
+  no process: the caller creates `files.dirs`.
+- Neon and Hetzner are byte-identical; nothing regenerated.
+
+### Edits outside my file list
+
+- `bin/distilled-lua`: `write_files` creates `files.dirs` and removes a generated
+  client's old `service/` directory before writing (generate and package). Needed for the
+  layout; no other change.
+- New verify scripts (measurement only): `verify/lib/load_bench.lua`,
+  `verify/lib/big_models.sh`, `verify/lib/bench_sanitize.mjs`, `verify/lib/big_synth.lua`,
+  `verify/lib/lua_limits.lua`. Proposed (orchestrator): `dl big-models` / `dl lua-limits`
+  wrappers in `verify/dl`.
+
+### For the AWS / Azure / Cloudflare / GCP / Tencent tasks
+
+- Nothing to do: any model the generator accepts is split when needed. ~33 ms of Rex
+  `require` per 1,000 operations remains (op descriptors are eager); shapes cost only
+  when used (~10-60 ms for a first call in Rex).
+- One shape with tens of thousands of enum values or members cannot be split: gopher-lua
+  compiles a 100,000-string constructor in 17 s. Generation fails past 60,000 constants
+  in one statement (LuaJIT's 65,536 limit).
+- `types.lua` is not split (12 MB for infisical); it is only read by LuaLS.
