@@ -492,7 +492,7 @@ sigv4.sign{
 sigv4.presign{ url, method?, headers?, credentials, region?, service?, expires_in?,
                now_epoch | datetime, all_headers?, append_session_token?, single_encode? }
   -> url | nil, err
-sigv4.canonical_request{ same as sign } -> string | nil, err
+sigv4.canonical_request{ same as sign } -> string | nil, err   -- holds the session token: do not log
 sigv4.signing_key(secret_access_key, "YYYYMMDD", region, service) -> binary key
 sigv4.guess_service_region(url [, headers]) -> service, region   ("" when unknown)
 sigv4.amz_datetime(epoch) -> "YYYYMMDDTHHMMSSZ"
