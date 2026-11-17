@@ -168,7 +168,7 @@ bin/distilled-lua package --models models/github --out clients/github   # REST +
 `require` of a generated client takes about 0.1 ms once the runtime is loaded, and about
 4 ms for the first, which loads the runtime. `roots()` builds every root in 1–3 ms on
 lua and luajit, and 2–12 ms on rex. GitHub's 1,080 types parse in full in 10.5 ms on
-lua 5.5 and 7.3 ms on luajit; a normal run parses only the types it touches.
+lua 5.5, 7.3 ms on luajit and 33.5 ms on rex; a normal run parses only the types it touches.
 
 ## Gotchas
 
