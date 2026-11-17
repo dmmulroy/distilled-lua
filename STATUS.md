@@ -473,3 +473,53 @@ neon` ok (177/178 operations build; the multipart one is acknowledged, see below
   for an assignment whose `target = {` cannot fit (`gen/emit.lua`). Neon output unchanged.
 - `docs/interfaces.md` updated to the code (all deviations listed in sections 01-08).
 - Still open: `verify/conform/node/*.mjs` bind only Neon.
+
+## 13 providers
+
+Done (see `tasks/13-providers.done.md`).
+
+- Survey: `docs/providers-survey.md`, 106 packages: 18 A, 83 B, 5 C. 97 specs in
+  `providers/` (neon plus 96 new; 27 with a glue module in `providers/glue/`). Not
+  written: hetzner (task 10 owns it), questrade (refresh token in a URL query), scaleway
+  and slack (reasons in the survey).
+- New spec keys (`lua/distilled/gen/provider_ext.lua`, called from `provider.validate`):
+  `options`, env lists, `headers`, `auth.kind = "basic"`, `auth.prefix`,
+  `auth.optional`, templated or required `base_url` with `trim_slash`, `ensure_suffix`,
+  `origin`; `require_one_of`, `public_operations`, `user_agent`, `oauth`,
+  `error_classes`, `unknown_fields`, `transform_response`, `empty_json_body`,
+  `query_style`, pointer lists in `error_envelope`, `glue`. A spec with none of them
+  generates exactly as before.
+- Runtime: `rest.new{ provider = ..., glue = ..., unknown_fields, transform_input,
+  classify_success }`, `rest.envelope`, `rest.transforms`, `rest.strip_nulls`,
+  `rest.compile_provider`. `credentials.from_env` takes a list of names.
+  `classify_error`'s info gained `now`; `classify_success` may return `true` (read the
+  2xx answer as a failure).
+
+Files outside my list that I had to change (orchestrator, please check on merge):
+
+- `lua/distilled/gen/writer.lua`: the protocol and options of `init.lua` are emitted
+  there, not in `gen/init.lua`; `writer.client` now emits `provider = ...` for task-13
+  specs (classic specs unchanged), `error_classes`, pointer-list envelopes, `glue`;
+  the README options table (`writer.option_rows`). Task 12 also edits this file.
+- `lua/distilled/gen/types.lua`: the `Options` fields of task-13 specs.
+- `spec/gen_provider_spec.lua`: one line, `kind = "basic"` is now valid (the case uses
+  `"digest"`).
+
+For task 10 (merge): `models.override` should be able to carry `auth`, `options` and
+`headers` (clerk, convex, digitalocean, e2b, exa, fly-io, mailchimp, onepassword have
+models with different auth; their spec comments say what). Apply an override to the raw
+spec *before* `provider.validate`: the runtime data (`spec.runtime`) is computed there,
+so changing `spec.base_url` after validation does not reach it. entire's Core models
+need only `base_url = { option = "core_base_url", env = "ENTIRE_CORE_BASE_URL",
+default = "https://us.console.entire.io" }`.
+
+For task 12: glue `base_url(settings, route)` reads `route.server` (stackit: the http
+trait's `baseUrl`, region applied by the glue; digitalocean: the server name
+`inference` / `actions`). Please put the per-operation value in `route.server`; the spec
+keys stay as they are. Model gaps that block whole-model generation (task 11/12 area):
+nullable list items / map values, http `accept` (mongodb-atlas), http `baseUrl`
+(stackit), http `server` (digitalocean), streaming (boat-dev), `distilled.errors#bodies`
+targeting `smithy.api#String` (workos, zendesk), type-name collisions with the client
+class (auth0, clerk, launchdarkly, grafana, redis_cloud), a crash in `gen/ops.lua:101`
+on stripe.json, nullable rawResponse members (discord, tailscale), cursor pagination
+without outputToken (resend).
