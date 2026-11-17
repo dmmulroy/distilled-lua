@@ -2,3 +2,9 @@
 .DS_Store
 /out/
 /verify/tmp/
+# Models are synced from ../distilled (verify/dl models sync) and not committed, as in
+# Distilled; only the Neon model stays, for conformance and the specs.
+/models/*
+!/models/neon/
+/models/neon/*
+!/models/neon/neon.json

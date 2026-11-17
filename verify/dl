@@ -193,7 +193,7 @@ json_fuzz() {
 }
 
 cmd_json_bench() {
-  file=${1:-$ROOT/models/neon.json}
+  file=${1:-$ROOT/models/neon/neon.json}
   for rt in $RUNTIMES; do
     case $rt in
       lua | luajit) "$rt" "$LIB/json_bench.lua" "$file" ;;
@@ -604,66 +604,272 @@ cmd_jaeger() {
 }
 
 # ----------------------------------------------------------------------------------
+# models (task 10): copy Distilled's patched models into models/<pkg>/<model>.json
+# ----------------------------------------------------------------------------------
+
+# Distilled's checkout: a sibling of this repository (DL_DISTILLED overrides it). For a
+# worktree (../distilled-lua-NN) it is the same sibling.
+DISTILLED=${DL_DISTILLED:-$(cd "$ROOT/.." && pwd)/distilled}
+PACKAGES="$DISTILLED/packages"
+
+# lua_name PKG: the Lua module name of a package (fly-io -> fly_io)
+lua_name() { printf '%s' "$1" | tr '-' '_'; }
+
+# pkg_of NAME: the package name for a package or Lua name, looked up in models/ and then in
+# Distilled's packages (fly_io -> fly-io); prints NAME itself when neither knows it
+pkg_of() {
+  if [ -d "$ROOT/models/$1" ] || [ -d "$PACKAGES/$1" ]; then
+    printf '%s' "$1"
+    return
+  fi
+  dashed=$(printf '%s' "$1" | tr '_' '-')
+  if [ -d "$ROOT/models/$dashed" ] || [ -d "$PACKAGES/$dashed" ]; then
+    printf '%s' "$dashed"
+    return
+  fi
+  printf '%s' "$1"
+}
+
+# spec_packages: every Distilled package with a .generated-specs/*.json model
+spec_packages() {
+  for d in "$PACKAGES"/*/.generated-specs; do
+    [ -d "$d" ] || continue
+    ls "$d" | grep -q '\.json$' || continue
+    basename "$(dirname "$d")"
+  done
+}
+
+NODE_CONVERT="node --conditions=bun --experimental-transform-types --no-warnings"
+
+cmd_models() {
+  sub=${1:-help}
+  [ $# -gt 0 ] && shift
+  case $sub in
+    sync) ;;
+    *) die "usage: dl models sync [--convert] [pkg ...]" ;;
+  esac
+  convert=0
+  pkgs=""
+  for a in "$@"; do
+    case $a in
+      --convert) convert=1 ;;
+      -*) die "models sync: unknown flag $a" ;;
+      *) pkgs="$pkgs $(pkg_of "$a")" ;;
+    esac
+  done
+  mkdir -p "$TMP"
+  [ -d "$PACKAGES" ] || die "models sync: no Distilled checkout at $DISTILLED (set DL_DISTILLED)"
+  [ -n "$pkgs" ] || pkgs=$(spec_packages)
+  status=0
+  total=0
+  for pkg in $pkgs; do
+    src="$PACKAGES/$pkg/.generated-specs"
+    if [ "$convert" -eq 1 ]; then
+      if [ ! -f "$PACKAGES/$pkg/scripts/convert.ts" ]; then
+        say "FAIL $pkg: no scripts/convert.ts"
+        status=1
+        continue
+      fi
+      if ! (cd "$PACKAGES/$pkg" && $NODE_CONVERT scripts/convert.ts) >"$TMP/convert-$pkg.log" 2>&1; then
+        say "FAIL $pkg: convert failed ($TMP/convert-$pkg.log): $(tail -n 1 "$TMP/convert-$pkg.log")"
+        status=1
+        continue
+      fi
+    fi
+    if [ ! -d "$src" ] || ! ls "$src" | grep -q '\.json$'; then
+      if [ -d "$PACKAGES/$pkg/.generated-graphql" ]; then
+        say "skip $pkg: a GraphQL package (.generated-graphql), not a Smithy model"
+      else
+        say "FAIL $pkg: no models in $src (run with --convert, or the package's specs are not fetched)"
+        status=1
+      fi
+      continue
+    fi
+    dst="$ROOT/models/$pkg"
+    mkdir -p "$dst"
+    new=0
+    changed=0
+    same=0
+    removed=0
+    for f in "$dst"/*.json; do
+      [ -f "$f" ] || continue
+      if [ ! -f "$src/$(basename "$f")" ]; then
+        rm -f "$f"
+        removed=$((removed + 1))
+      fi
+    done
+    for f in "$src"/*.json; do
+      b=$(basename "$f")
+      if [ ! -f "$dst/$b" ]; then
+        new=$((new + 1))
+      elif cmp -s "$f" "$dst/$b"; then
+        same=$((same + 1))
+        continue
+      else
+        changed=$((changed + 1))
+      fi
+      cp "$f" "$dst/$b.tmp" && mv "$dst/$b.tmp" "$dst/$b"
+    done
+    n=$((new + changed + same))
+    total=$((total + n))
+    say "ok   $pkg: $n models ($new new, $changed changed, $removed removed)"
+  done
+  say "models sync: $total models"
+  exit $status
+}
+
+# ----------------------------------------------------------------------------------
 # gen-diff (task 06): regenerate, diff against clients/<provider>/, check in every runtime
 # ----------------------------------------------------------------------------------
 
+# gen_package RUNTIME PKG OUT [--quiet]: bin/distilled-lua package for models/<pkg>/ with
+# providers/<lua>.lua into OUT
+gen_package() {
+  rt=$1
+  gp_pkg=$2
+  gp_out=$3
+  shift 3
+  "$rt" "$ROOT/bin/distilled-lua" package --models "$ROOT/models/$gp_pkg" \
+    --provider "$ROOT/providers/$(lua_name "$gp_pkg").lua" --out "$gp_out" "$@"
+}
+
 cmd_gen_diff() {
-  provider=${1:-}
-  [ -n "$provider" ] || die "usage: dl gen-diff <provider>"
-  model="$ROOT/models/$provider.json"
-  spec="$ROOT/providers/$provider.lua"
-  committed="$ROOT/clients/$provider"
-  [ -f "$model" ] || die "no model: $model"
+  [ -n "${1:-}" ] || die "usage: dl gen-diff <package>"
+  pkg=$(pkg_of "$1")
+  lua=$(lua_name "$pkg")
+  spec="$ROOT/providers/$lua.lua"
+  committed="$ROOT/clients/$lua"
+  ls "$ROOT/models/$pkg"/*.json >/dev/null 2>&1 || die "no models in models/$pkg (dl models sync $pkg)"
   [ -f "$spec" ] || die "no provider spec: $spec"
   out="$TMP/gen-diff"
   rm -rf "$out"
   mkdir -p "$out/lua" "$out/luajit"
   status=0
   for rt in lua luajit; do
-    if ! "$rt" "$ROOT/bin/distilled-lua" generate --model "$model" --provider "$spec" \
-      --out "$out/$rt/$provider" --quiet; then
-      say "FAIL generate ($rt)"
+    if ! gen_package "$rt" "$pkg" "$out/$rt/$lua" --quiet >"$out/$rt.log" 2>&1; then
+      say "FAIL generate ($rt):"
+      grep -v '^ok ' "$out/$rt.log" | head -n 20
       exit 1
     fi
   done
-  if diff -r "$out/lua/$provider" "$out/luajit/$provider" >/dev/null; then
+  say "ok   generate: $(tail -n 1 "$out/lua.log" | sed "s|$out/lua/||")"
+  if diff -r "$out/lua/$lua" "$out/luajit/$lua" >/dev/null; then
     say "ok   generate: lua and luajit write identical files"
   else
     say "FAIL generate: lua and luajit output differ"
     status=1
   fi
   if [ -d "$committed" ]; then
-    if diff -ru "$committed" "$out/lua/$provider" >"$out/diff.txt"; then
-      say "ok   diff: clients/$provider matches a fresh generation"
+    if diff -ru "$committed" "$out/lua/$lua" >"$out/diff.txt"; then
+      say "ok   diff: clients/$lua matches a fresh generation"
     else
-      say "FAIL diff: clients/$provider differs from a fresh generation ($(wc -l <"$out/diff.txt" | tr -d ' ') diff lines, $out/diff.txt):"
+      say "FAIL diff: clients/$lua differs from a fresh generation ($(wc -l <"$out/diff.txt" | tr -d ' ') diff lines, $out/diff.txt):"
       head -n 40 "$out/diff.txt"
       status=1
     fi
     check_dir="$ROOT/clients"
   else
-    say "FAIL diff: clients/$provider is not committed (fresh output in $out/lua/$provider)"
+    say "FAIL diff: clients/$lua is not committed (fresh output in $out/lua/$lua)"
     status=1
     check_dir="$out/lua"
   fi
-  if stylua --check --config-path "$ROOT/stylua.toml" "$out/lua/$provider" >/dev/null 2>&1; then
+  if stylua --check --config-path "$ROOT/stylua.toml" "$out/lua/$lua" >/dev/null 2>&1; then
     say "ok   stylua --check: generated Lua is formatted"
   else
     say "FAIL stylua --check on the generated Lua:"
-    stylua --check --config-path "$ROOT/stylua.toml" "$out/lua/$provider" 2>&1 | head -n 20
+    stylua --check --config-path "$ROOT/stylua.toml" "$out/lua/$lua" 2>&1 | head -n 20
     status=1
   fi
   for rt in $RUNTIMES; do
     case $rt in
-      lua | luajit) res=$("$rt" "$LIB/gen_check.lua" "$ROOT" "$check_dir" "$provider" 2>&1) ;;
-      rex) res=$(rex do "$LIB/gen_check.lua" "root=$ROOT" "dir=$check_dir" "provider=$provider" 2>&1) ;;
+      lua | luajit) res=$("$rt" "$LIB/gen_check.lua" "$ROOT" "$check_dir" "$lua" 2>&1) ;;
+      rex) res=$(rex do "$LIB/gen_check.lua" "root=$ROOT" "dir=$check_dir" "provider=$lua" 2>&1) ;;
     esac
     code=$?
     printf '%s\n' "$res" | grep -v '^"'
     [ "$code" -eq 0 ] || status=1
   done
-  if [ "$status" -eq 0 ]; then say "gen-diff $provider: ok"; else say "gen-diff $provider: FAIL"; fi
+  if [ "$status" -eq 0 ]; then say "gen-diff $pkg: ok"; else say "gen-diff $pkg: FAIL"; fi
   exit $status
+}
+
+# ----------------------------------------------------------------------------------
+# gen-all (task 10): regenerate every package with a provider spec into clients/
+# ----------------------------------------------------------------------------------
+
+# spec_pkgs: package names (from models/) whose Lua name has providers/<lua>.lua
+spec_pkgs() {
+  for d in "$ROOT"/models/*/; do
+    p=$(basename "$d")
+    [ -f "$ROOT/providers/$(lua_name "$p").lua" ] && printf '%s\n' "$p"
+  done
+}
+
+# gen_all_one PKG: one package, its report in $TMP/gen-all/<pkg>.txt (run by xargs)
+gen_all_one() {
+  pkg=$1
+  lua=$(lua_name "$pkg")
+  report="$TMP/gen-all/$pkg.txt"
+  if ! ls "$ROOT/models/$pkg"/*.json >/dev/null 2>&1; then
+    say "FAIL $pkg: no models in models/$pkg (dl models sync $pkg)" >"$report"
+    return 1
+  fi
+  gen_package "${DL_GEN_RUNTIME:-luajit}" "$pkg" "$ROOT/clients/$lua" >"$report" 2>&1
+}
+
+cmd_gen_all() {
+  jobs=$(sysctl -n hw.ncpu 2>/dev/null || nproc 2>/dev/null || echo 4)
+  pkgs=""
+  while [ $# -gt 0 ]; do
+    case $1 in
+      --jobs)
+        [ $# -ge 2 ] || die "--jobs needs a number"
+        jobs=$2
+        shift 2
+        ;;
+      --jobs=*)
+        jobs=${1#--jobs=}
+        shift
+        ;;
+      -*) die "gen-all: unknown flag $1" ;;
+      *)
+        p=$(pkg_of "$1")
+        [ -f "$ROOT/providers/$(lua_name "$p").lua" ] || die "gen-all: no provider spec providers/$(lua_name "$p").lua"
+        pkgs="$pkgs $p"
+        shift
+        ;;
+    esac
+  done
+  [ -n "$pkgs" ] || pkgs=$(spec_pkgs)
+  [ -n "$pkgs" ] || die "gen-all: no package has both models/<pkg>/ and providers/<lua>.lua"
+  rm -rf "$TMP/gen-all"
+  mkdir -p "$TMP/gen-all"
+  # one process per package, $jobs at a time; each writes its own report
+  # shellcheck disable=SC2086
+  printf '%s\n' $pkgs | xargs -n 1 -P "$jobs" "$0" _gen-all-one
+  ok=0
+  failed=0
+  skipped=0
+  for pkg in $pkgs; do
+    report="$TMP/gen-all/$pkg.txt"
+    cat "$report"
+    ok=$((ok + $(grep -c '^ok ' "$report")))
+    failed=$((failed + $(grep -c '^FAIL ' "$report")))
+    skipped=$((skipped + $(grep -c '^skip ' "$report")))
+    # a package that failed as a whole (spec error, nothing generated) has no model lines
+    if ! grep -q -E '^(ok|FAIL|skip) ' "$report"; then failed=$((failed + 1)); fi
+  done
+  say "gen-all: $(printf '%s\n' $pkgs | wc -l | tr -d ' ') packages; models: $ok ok, $failed failed, $skipped skipped"
+  [ "$failed" -eq 0 ]
+}
+
+# ----------------------------------------------------------------------------------
+# parity (task 10): the phase 2 progress meter (verify/lib/parity.lua)
+# ----------------------------------------------------------------------------------
+
+cmd_parity() {
+  [ -d "$PACKAGES" ] || die "parity: no Distilled checkout at $DISTILLED (set DL_DISTILLED)"
+  lua "$LIB/parity.lua" "$ROOT" "$PACKAGES"
 }
 
 # ----------------------------------------------------------------------------------
@@ -681,7 +887,7 @@ verify/dl: distilled-lua verification driver
       --http                start a private dl serve and run the HTTP specs too (DL_SERVE_URL)
   dl manifest               regenerate spec/manifest.lua (dl test does this too)
   dl fmt [--check]          format (or check) Lua with stylua
-  dl json-bench [file]      time json.decode of a file (default models/neon.json)
+  dl json-bench [file]      time json.decode of a file (default models/neon/neon.json)
   dl trace <script>         run a script with a tracer (verify/lib/trace_env.lua), write
                             OTLP/JSON lines to verify/tmp/trace/, print the span tree
       --level L             debug (default) | operation
@@ -701,9 +907,20 @@ verify/dl: distilled-lua verification driver
   dl jaeger start|stop|url|check   Jaeger all-in-one in Docker (OTLP HTTP 4318, UI 16686);
                             check exports one trace and finds it in the query API.
                             Exit 3 (skipped) when Docker is not running.
-  dl gen-diff <provider>    regenerate clients/<provider>/ (lua and luajit), diff it,
-                            stylua --check it, then load it under lua, luajit and rex,
-                            resolve every ref and build a request for every operation
+  dl models sync [pkg ...]  copy ../distilled/packages/<pkg>/.generated-specs/*.json to
+                            models/<pkg>/ (all packages when none named; git-ignored
+                            except models/neon/). DL_DISTILLED overrides ../distilled
+      --convert             first re-run the package's scripts/convert.ts (Node)
+  dl gen-all [pkg ...]      regenerate every package with models/<pkg>/ and
+                            providers/<lua>.lua into clients/<lua>/, in parallel (luajit;
+                            DL_GEN_RUNTIME); one ok / FAIL / skip line per model
+      --jobs N              parallel packages (default: CPU count)
+  dl gen-diff <pkg>         regenerate clients/<lua>/ (lua and luajit; every model of a
+                            multi-model package), diff it, stylua --check it, then load it
+                            under lua, luajit and rex (the index too), resolve every ref
+                            and build a request for every operation
+  dl parity                 table: TS ops (Distilled src/services), Lua ops (clients/),
+                            models generated/total, missing; writes verify/features/parity.md
   dl conform <provider>     differential test against Distilled: write the cases, dump
                             Distilled's requests/outcomes with Node, diff the Lua side (lua)
       --replay              no Node: diff the saved verify/conform/ref dumps under lua,
@@ -803,6 +1020,10 @@ case $cmd in
   trace) cmd_trace_or_expect trace "$@" ;;
   expect) cmd_trace_or_expect expect "$@" ;;
   conform) cmd_conform "$@" ;;
+  models) cmd_models "$@" ;;
+  gen-all) cmd_gen_all "$@" ;;
+  _gen-all-one) gen_all_one "$@" ;;
+  parity) cmd_parity "$@" ;;
   gen-diff) cmd_gen_diff "$@" ;;
   serve) cmd_serve "$@" ;;
   rex) cmd_rex "$@" ;;

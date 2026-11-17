@@ -284,7 +284,7 @@ t.describe("gen: the CLI", function()
       bin
         .. " generate --model "
         .. root
-        .. "/models/neon.json --provider "
+        .. "/models/neon/neon.json --provider "
         .. root
         .. "/providers/neon.lua --out "
         .. dir
@@ -302,7 +302,7 @@ t.describe("gen: the CLI", function()
       bin
         .. " generate --model "
         .. root
-        .. "/models/neon.json --provider "
+        .. "/models/neon/neon.json --provider "
         .. root
         .. "/providers/neon.lua --out "
         .. dir

@@ -1,4 +1,4 @@
--- A small fake service for specs, shaped like the real Neon model (models/neon.json):
+-- A small fake service for specs, shaped like the real Neon model (models/neon/neon.json):
 -- the same operation names, URIs, bindings, pagination trait and error matchers, cut
 -- down to what the layer 2-6 specs need.
 --

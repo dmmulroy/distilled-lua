@@ -33,6 +33,16 @@
 --     allow_unsupported = { "<gap>" },       -- emit operations the runtime refuses at
 --                                            -- call time (SdkError) instead of failing
 --                                            -- (provider.UNSUPPORTED; empty today)
+--     models = {                             -- packages with several models (one module
+--                                            -- each, `require("hetzner.servers")`)
+--       skip = { "pricing" },                -- models not generated (Lua model names)
+--       override = {                         -- per-model changes, keyed by Lua model name
+--         servers = {
+--           title = "HetznerServers",        -- class name (default: title .. PascalCase)
+--           base_url = "https://other.test", -- a URL (replaces the default only) or a
+--         },                                 -- partial { default, option, env }
+--       },
+--     },
 --   }
 local compat = require("distilled.compat")
 local naming = require("distilled.gen.naming")
@@ -80,6 +90,34 @@ local function check_keys(where, t, allowed, problems)
   end
 end
 
+-- A base URL: a URL string or { default, option, env }. Returns the table form (empty
+-- when unusable) and adds problems under `where`. `partial` (per-model overrides) allows
+-- a table without `default`.
+local function normalize_base_url(where, base, p, partial)
+  if type(base) == "string" then
+    base = { default = base }
+  end
+  if type(base) ~= "table" then
+    p[#p + 1] = where .. " must be a URL string or { default, option, env }"
+    return {}
+  end
+  check_keys(where, base, { default = true, option = true, env = true }, p)
+  if partial and base.default == nil then
+    -- keeps the package's default
+  elseif type(base.default) ~= "string" or not string.find(base.default, "^https?://[^/]") then
+    p[#p + 1] = where .. ".default must be an http(s) URL"
+  elseif string.sub(base.default, -1) == "/" then
+    p[#p + 1] = where .. ".default must not end with /"
+  end
+  if base.option ~= nil and not naming.is_identifier(base.option) then
+    p[#p + 1] = where .. ".option must be an identifier"
+  end
+  if base.env ~= nil and not is_env(base.env) then
+    p[#p + 1] = where .. ".env must be an environment variable name"
+  end
+  return base
+end
+
 local TOP = {
   name = true,
   title = true,
@@ -95,6 +133,7 @@ local TOP = {
   naming = true,
   pagination = true,
   allow_unsupported = true,
+  models = true,
 }
 
 -- Runtime gaps a provider may acknowledge (see allow_unsupported above). None today:
@@ -106,6 +145,78 @@ provider.UNSUPPORTED = {}
 provider.CLOSED_GAPS = {
   multipart = "request.build encodes multipart bodies now; remove it from allow_unsupported",
 }
+
+--- provider.is_model_name(s) -> boolean: a model's Lua name (the last part of its module
+-- name, `hetzner.server_actions`): lower-case letters, digits and `_`, starting with a
+-- letter. Keywords are allowed: the package index reaches them as index["end"].
+function provider.is_model_name(s)
+  return type(s) == "string" and string.find(s, "^[a-z][a-z0-9_]*$") ~= nil
+end
+
+--- provider.check_models(spec, names) -> true | nil, message
+-- Every model that `models.skip` and `models.override` name must exist in the package
+-- (names: the Lua names of the package's models). Fails early on a stale spec.
+function provider.check_models(spec, names)
+  local known = {}
+  for _, n in ipairs(names) do
+    known[n] = true
+  end
+  local p = {}
+  for _, what in ipairs({ "skip", "override" }) do
+    local list = {}
+    for n in pairs(spec.models[what]) do
+      list[#list + 1] = n
+    end
+    table.sort(list)
+    for _, n in ipairs(list) do
+      if not known[n] then
+        local cands = {}
+        for _, k in ipairs(names) do
+          cands[#cands + 1] = k
+        end
+        table.sort(cands)
+        p[#p + 1] = "provider spec models."
+          .. what
+          .. " names "
+          .. n
+          .. ", which is not a model of the package; nearest: "
+          .. compat.concat(naming.nearest(n, cands, 3), ", ")
+      end
+    end
+  end
+  if #p > 0 then
+    return nil, compat.concat(p, "\n")
+  end
+  return true
+end
+
+--- provider.for_model(spec, model_name) -> the spec for one model of a multi-model package
+-- A validated copy whose `name` is the module name (`hetzner.servers`: it sets the module
+-- name, the type prefix and the README), whose `title` is the class name (default: the
+-- package title and the model in PascalCase, `HetznerServers`), with the model's
+-- `models.override` applied. `package` keeps the package's own name.
+function provider.for_model(spec, model_name)
+  if type(spec) ~= "table" or not spec.__validated then
+    error("distilled.gen.provider.for_model: expected a validated spec", 2)
+  end
+  if not provider.is_model_name(model_name) then
+    error("distilled.gen.provider.for_model: bad model name " .. tostring(model_name), 2)
+  end
+  local out = {}
+  for k, v in pairs(spec) do
+    out[k] = v
+  end
+  local ov = spec.models.override[model_name] or {}
+  local pascal = string.gsub(model_name, "_?(%w)(%w*)", function(first, rest)
+    return string.upper(first) .. rest
+  end)
+  out.package = spec.name
+  out.model_name = model_name
+  out.name = spec.name .. "." .. model_name
+  out.title = ov.title or (string.gsub(spec.title, "[^%w_]", "") .. pascal)
+  out.base_url = ov.base_url or spec.base_url
+  return out
+end
 
 --- provider.validate(spec) -> normalized spec | nil, message
 -- Normalized: base_url is always a table, auth always has kind; defaults filled in.
@@ -131,27 +242,7 @@ function provider.validate(spec)
     )
 
   -- base_url
-  local base = spec.base_url
-  if type(base) == "string" then
-    base = { default = base }
-  end
-  if type(base) ~= "table" then
-    p[#p + 1] = "provider spec: base_url must be a URL string or { default, option, env }"
-    base = {}
-  else
-    check_keys("provider spec base_url", base, { default = true, option = true, env = true }, p)
-    if type(base.default) ~= "string" or not string.find(base.default, "^https?://[^/]") then
-      p[#p + 1] = "provider spec base_url.default must be an http(s) URL"
-    elseif string.sub(base.default, -1) == "/" then
-      p[#p + 1] = "provider spec base_url.default must not end with /"
-    end
-    if base.option ~= nil and not naming.is_identifier(base.option) then
-      p[#p + 1] = "provider spec base_url.option must be an identifier"
-    end
-    if base.env ~= nil and not is_env(base.env) then
-      p[#p + 1] = "provider spec base_url.env must be an environment variable name"
-    end
-  end
+  local base = normalize_base_url("provider spec base_url", spec.base_url, p)
   out.base_url = { default = base.default, option = base.option or "base_url", env = base.env }
 
   -- auth
@@ -304,6 +395,87 @@ function provider.validate(spec)
     p[#p + 1] = "provider spec pagination.items_fallback must be a string"
   end
   out.pagination = { items_fallback = pg.items_fallback or "items" }
+
+  -- models: multi-model packages (one spec, one module per model)
+  out.models = { skip = {}, override = {} }
+  if spec.models ~= nil then
+    local ms = spec.models
+    if type(ms) ~= "table" then
+      p[#p + 1] = "provider spec: models must be { skip = { ... }, override = { ... } }"
+      ms = {}
+    end
+    check_keys("provider spec models", ms, { skip = true, override = true }, p)
+    if ms.skip ~= nil then
+      if type(ms.skip) ~= "table" then
+        p[#p + 1] = "provider spec models.skip must be a list of model names"
+      else
+        for k in pairs(ms.skip) do
+          if type(k) ~= "number" then
+            p[#p + 1] = "provider spec models.skip must be a list of model names"
+            break
+          end
+        end
+        for i, v in ipairs(ms.skip) do
+          if not provider.is_model_name(v) then
+            p[#p + 1] = "provider spec models.skip["
+              .. i
+              .. "] must be a model name (lower-case, like server_actions)"
+          elseif out.models.skip[v] then
+            p[#p + 1] = "provider spec models.skip lists " .. v .. " twice"
+          else
+            out.models.skip[v] = true
+          end
+        end
+      end
+    end
+    if ms.override ~= nil then
+      if type(ms.override) ~= "table" then
+        p[#p + 1] = "provider spec models.override must be { [model] = { base_url, title } }"
+      else
+        local names = {}
+        for k in pairs(ms.override) do
+          names[#names + 1] = k
+        end
+        table.sort(names, function(a, b)
+          return tostring(a) < tostring(b)
+        end)
+        for _, k in ipairs(names) do
+          local o = ms.override[k]
+          local where = "provider spec models.override." .. tostring(k)
+          if not provider.is_model_name(k) then
+            p[#p + 1] = "provider spec models.override: key "
+              .. tostring(k)
+              .. " is not a model name (lower-case, like server_actions)"
+          elseif out.models.skip[k] then
+            p[#p + 1] = where .. ": the model is also in models.skip"
+          elseif type(o) ~= "table" then
+            p[#p + 1] = where .. " must be a table"
+          else
+            check_keys(where, o, { base_url = true, title = true }, p)
+            local ov = {}
+            if o.title ~= nil then
+              if type(o.title) ~= "string" or not naming.is_identifier(o.title) then
+                p[#p + 1] = where .. ".title must be a Lua identifier (it names the class)"
+              end
+              ov.title = o.title
+            end
+            if o.base_url ~= nil then
+              local b = normalize_base_url(where .. ".base_url", o.base_url, p, true)
+              ov.base_url = {
+                default = b.default or out.base_url.default,
+                option = b.option or out.base_url.option,
+                env = b.env or out.base_url.env,
+              }
+              if out.auth.from ~= nil and ov.base_url.option == out.auth.from then
+                p[#p + 1] = where .. ": auth.from and base_url.option are the same option"
+              end
+            end
+            out.models.override[k] = ov
+          end
+        end
+      end
+    end
+  end
 
   out.allow_unsupported = {}
   if spec.allow_unsupported ~= nil then

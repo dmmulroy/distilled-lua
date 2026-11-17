@@ -39,7 +39,7 @@
 ## How a user reaches it
 
 ```sh
-bin/distilled-lua generate --model models/neon.json --provider providers/neon.lua \
+bin/distilled-lua generate --model models/neon/neon.json --provider providers/neon.lua \
   --out clients/neon [--ops get_project,list_projects] [--no-telemetry]
 bin/distilled-lua vendor --out vendor        # runtime modules, without gen/ and testing/
 ```

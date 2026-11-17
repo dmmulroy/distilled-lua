@@ -478,3 +478,54 @@ neon` ok (177/178 operations build; the multipart one is acknowledged, see below
   for an assignment whose `target = {` cannot fit (`gen/emit.lua`). Neon output unchanged.
 - `docs/interfaces.md` updated to the code (all deviations listed in sections 01-08).
 - Still open: `verify/conform/node/*.mjs` bind only Neon.
+
+## 10 layout
+
+**Done.** See `tasks/10-layout.done.md` and `docs/generating.md`.
+
+### What others can use
+
+- `verify/dl models sync [--convert] [pkg ...]`: `../distilled/packages/<pkg>/.generated-specs/*.json`
+  -> `models/<pkg>/<model>.json` (mirror: stale files removed). `DL_DISTILLED` overrides
+  `../distilled`. `models/` is git-ignored except `models/neon/neon.json`.
+- **`models/neon.json` moved to `models/neon/neon.json`** (every reference updated: specs,
+  docs, examples, README, NOTICE, `dl json-bench`). A branch that adds a new reference to
+  the old path breaks after the merge.
+- `bin/distilled-lua package --models models/<pkg> --provider providers/<lua>.lua --out clients/<lua>`:
+  every model; one line per model (`ok` / `skip` / `FAIL <first line>`), exit 1 when one
+  failed (the rest are written). A generator raise fails only that model ("generator
+  raised: ..."). Writes `<out>.staging` and swaps it in. `generate --model-name <m>`
+  emits one model as `<lua>.<m>`.
+- `verify/dl gen-all [pkg ...] [--jobs N]` (luajit, `DL_GEN_RUNTIME`), `verify/dl gen-diff <pkg>`
+  (package or Lua name; multi-model: all models, the index checked in all three runtimes),
+  `verify/dl parity` (writes `verify/features/parity.md`; commit it after gen-all).
+- Layout: one model -> `clients/<lua>/`; several -> `clients/<lua>/<model>/` (module
+  `<lua>.<model>`) plus the index `clients/<lua>/init.lua`: `index.services` (sorted
+  names), `index.<name>` (lazy require), `index.new(options)` (one client per service,
+  built on first use with the same options). Model Lua names: Distilled's slug rule
+  (`dnsClient` -> `dns_client`; digits stay: `v1alpha1`, `k8s_v1`), `gen.lua_model_name`.
+  `new` and `services` are reserved model names.
+- Provider spec `models = { skip = { <model> }, override = { [<model>] = { title, base_url } } }`,
+  strictly validated; a name that is not a model of the package fails (`provider.check_models`).
+  `provider.for_model(spec, model)` returns the per-model spec: `name` = module name
+  (`hetzner.servers`), `title` = class name (`HetznerServers`), plus `package` and `model_name`.
+- `providers/hetzner.lua` and `clients/hetzner/` (30 models, 178/178 operations).
+
+### Problems found in files I do not own (proposed changes)
+
+- `gen/writer.lua`: for a multi-model module the README says "the directory holding
+  `hetzner.servers/`" and both headers say "with provider spec hetzner.servers". Proposed:
+  use `spec.package or spec.name` for the directory and the spec name (for_model sets
+  `package`). The README summary of Hetzner is "# Overview" (the service doc's first
+  heading): `naming.summary` could skip markdown headings.
+- `gen/ops.lua:101` raises on stripe/stripe (`attempt to index local 'def' (a nil value)`
+  in `ops.output`: the output shape id is not in the model). Task 11/12.
+- Provider-spec features Hetzner and npm need (task 13): extra error classes for a
+  `status_map` that the model does not declare (Hetzner 405 MethodNotAllowed, 410 Gone,
+  412 PreconditionFailed); extra fields on the unknown error (Hetzner `details`); an
+  optional bearer token (npm: public operations need none). Until then Hetzner's 405/410/412
+  are `UnknownHetznerError`, and npm has no committed spec.
+- `gcp/.generated-specs/` has `stable/` and `unstable/` subdirectories; `models sync` only
+  copies top-level `*.json`, so gcp is not synced (the GCP task should decide the layout).
+- `verify/features/README.md` should list `parity.md`; `verify/SKILL.md` should mention
+  `models sync`, `gen-all`, `parity`.

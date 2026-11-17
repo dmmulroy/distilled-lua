@@ -47,8 +47,8 @@ telemetry names. distilled-lua reuses those models unchanged and has its own run
 generator, written in Lua:
 
 ```text
-provider spec ─ Distilled convert (Node, once per spec update) ─▶ models/neon.json
-models/neon.json + providers/neon.lua ─ bin/distilled-lua generate ─▶ clients/neon/
+provider spec ─ Distilled convert (Node, once per spec update) ─▶ models/neon/neon.json
+models/neon/neon.json + providers/neon.lua ─ bin/distilled-lua generate ─▶ clients/neon/
 clients/neon/ + lua/distilled/ ─ require("neon") ─▶ your Lua program
 ```
 

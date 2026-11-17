@@ -2,7 +2,7 @@
 -- the vendor tree. No network: a hand-written transport answers.
 --
 --   lua bin/distilled-lua vendor --out /tmp/dlv/vendor
---   lua bin/distilled-lua generate --model models/neon.json --provider providers/neon.lua \
+--   lua bin/distilled-lua generate --model models/neon/neon.json --provider providers/neon.lua \
 --     --out /tmp/dlv/vendor/neon
 --   cd /tmp/dlv && lua    <repo>/examples/vendored_client.lua /tmp/dlv/vendor
 --   cd /tmp/dlv && luajit <repo>/examples/vendored_client.lua /tmp/dlv/vendor
