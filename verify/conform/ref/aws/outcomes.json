@@ -1,0 +1,853 @@
+[
+ {
+  "id": "dynamodb.put_item",
+  "request": {
+   "method": "POST",
+   "url": "https://dynamodb.us-east-1.amazonaws.com/",
+   "params": [],
+   "headers": {
+    "authorization": "AWS4-HMAC-SHA256 Credential=AKIDEXAMPLE/20261117/us-east-1/dynamodb/aws4_request, SignedHeaders=host;x-amz-date;x-amz-target, Signature=9600fe759db46189d8ae842991b81f2f72ca6457e35010320bc5782abdc4e9c4",
+    "content-type": "application/x-amz-json-1.0",
+    "user-agent": "distilled-aws/1.0",
+    "x-amz-date": "20261117T145755Z",
+    "x-amz-target": "DynamoDB_20120810.PutItem",
+    "content-length": "263"
+   },
+   "body": "{\"TableName\":\"users\",\"Item\":{\"id\":{\"S\":\"u-1\"},\"age\":{\"N\":\"42\"},\"tags\":{\"SS\":[\"a\",\"b\"]},\"profile\":{\"M\":{\"active\":{\"BOOL\":true},\"nick\":{\"NULL\":true}}},\"scores\":{\"L\":[{\"N\":\"1\"},{\"N\":\"2.5\"}]}},\"ReturnValues\":\"ALL_OLD\",\"ConditionExpression\":\"attribute_not_exists(id)\"}"
+  },
+  "outcome": {
+   "ok": {
+    "Attributes": {
+     "id": {
+      "S": "u-1"
+     },
+     "age": {
+      "N": "41"
+     }
+    },
+    "ConsumedCapacity": {
+     "TableName": "users",
+     "CapacityUnits": 1
+    }
+   }
+  }
+ },
+ {
+  "id": "dynamodb.get_item.not_found",
+  "request": {
+   "method": "POST",
+   "url": "https://dynamodb.us-east-1.amazonaws.com/",
+   "params": [],
+   "headers": {
+    "authorization": "AWS4-HMAC-SHA256 Credential=AKIDEXAMPLE/20261117/us-east-1/dynamodb/aws4_request, SignedHeaders=host;x-amz-date;x-amz-target, Signature=32354c72688398eef66d80b2ba2fcafcb497c8ae405b445ba5253c4f56f6caed",
+    "content-type": "application/x-amz-json-1.0",
+    "user-agent": "distilled-aws/1.0",
+    "x-amz-date": "20261117T145755Z",
+    "x-amz-target": "DynamoDB_20120810.GetItem",
+    "content-length": "46"
+   },
+   "body": "{\"TableName\":\"missing\",\"Key\":{\"id\":{\"S\":\"x\"}}}"
+  },
+  "outcome": {
+   "error": {
+    "tag": "ResourceNotFoundException",
+    "message": "Requested resource not found",
+    "fields": {}
+   }
+  }
+ },
+ {
+  "id": "dynamodb.put_item.conditional",
+  "request": {
+   "method": "POST",
+   "url": "https://dynamodb.us-east-1.amazonaws.com/",
+   "params": [],
+   "headers": {
+    "authorization": "AWS4-HMAC-SHA256 Credential=AKIDEXAMPLE/20261117/us-east-1/dynamodb/aws4_request, SignedHeaders=host;x-amz-date;x-amz-target, Signature=adbadffea519fc56dd9a47207f76827dacc6675ee21dcfaed950fe57897362e6",
+    "content-type": "application/x-amz-json-1.0",
+    "user-agent": "distilled-aws/1.0",
+    "x-amz-date": "20261117T145755Z",
+    "x-amz-target": "DynamoDB_20120810.PutItem",
+    "content-length": "47"
+   },
+   "body": "{\"TableName\":\"users\",\"Item\":{\"id\":{\"S\":\"u-1\"}}}"
+  },
+  "outcome": {
+   "error": {
+    "tag": "ConditionalCheckFailedException",
+    "message": "The conditional request failed",
+    "fields": {
+     "Item": {
+      "id": {
+       "S": "u-1"
+      }
+     }
+    }
+   }
+  }
+ },
+ {
+  "id": "dynamodb.list_tables",
+  "request": {
+   "method": "POST",
+   "url": "https://dynamodb.us-east-1.amazonaws.com/",
+   "params": [],
+   "headers": {
+    "authorization": "AWS4-HMAC-SHA256 Credential=AKIDEXAMPLE/20261117/us-east-1/dynamodb/aws4_request, SignedHeaders=host;x-amz-date;x-amz-target, Signature=56335d33a465de726ab468077789486c0e620262db06fc7ae44810f225cb87ff",
+    "content-type": "application/x-amz-json-1.0",
+    "user-agent": "distilled-aws/1.0",
+    "x-amz-date": "20261117T145755Z",
+    "x-amz-target": "DynamoDB_20120810.ListTables",
+    "content-length": "41"
+   },
+   "body": "{\"ExclusiveStartTableName\":\"a\",\"Limit\":2}"
+  },
+  "outcome": {
+   "ok": {
+    "TableNames": [
+     "b",
+     "c"
+    ],
+    "LastEvaluatedTableName": "c"
+   }
+  }
+ },
+ {
+  "id": "dynamodb.describe_table.dates",
+  "request": {
+   "method": "POST",
+   "url": "https://dynamodb.us-east-1.amazonaws.com/",
+   "params": [],
+   "headers": {
+    "authorization": "AWS4-HMAC-SHA256 Credential=AKIDEXAMPLE/20261117/us-east-1/dynamodb/aws4_request, SignedHeaders=host;x-amz-date;x-amz-target, Signature=5feea812654e2a7add97d7578589e8e077cd4d40e793e16e1cd0118b5560c0c5",
+    "content-type": "application/x-amz-json-1.0",
+    "user-agent": "distilled-aws/1.0",
+    "x-amz-date": "20261117T145755Z",
+    "x-amz-target": "DynamoDB_20120810.DescribeTable",
+    "content-length": "21"
+   },
+   "body": "{\"TableName\":\"users\"}"
+  },
+  "outcome": {
+   "ok": {
+    "Table": {
+     "TableName": "users",
+     "KeySchema": [
+      {
+       "AttributeName": "id",
+       "KeyType": "HASH"
+      }
+     ],
+     "TableStatus": "ACTIVE",
+     "CreationDateTime": 1700000000.123,
+     "ItemCount": 3
+    }
+   }
+  }
+ },
+ {
+  "id": "dynamodb.throttled",
+  "request": {
+   "method": "POST",
+   "url": "https://dynamodb.us-east-1.amazonaws.com/",
+   "params": [],
+   "headers": {
+    "authorization": "AWS4-HMAC-SHA256 Credential=AKIDEXAMPLE/20261117/us-east-1/dynamodb/aws4_request, SignedHeaders=host;x-amz-date;x-amz-target, Signature=7c32a0acfea539326a569961b299b228b94cee1753abe11c7979809d2c85622d",
+    "content-type": "application/x-amz-json-1.0",
+    "user-agent": "distilled-aws/1.0",
+    "x-amz-date": "20261117T145755Z",
+    "x-amz-target": "DynamoDB_20120810.ListTables",
+    "content-length": "2"
+   },
+   "body": "{}"
+  },
+  "outcome": {
+   "error": {
+    "tag": "ThrottlingException",
+    "message": "Rate exceeded",
+    "fields": {}
+   }
+  }
+ },
+ {
+  "id": "dynamodb.unknown_error",
+  "request": {
+   "method": "POST",
+   "url": "https://dynamodb.us-east-1.amazonaws.com/",
+   "params": [],
+   "headers": {
+    "authorization": "AWS4-HMAC-SHA256 Credential=AKIDEXAMPLE/20261117/us-east-1/dynamodb/aws4_request, SignedHeaders=host;x-amz-date;x-amz-target, Signature=7c32a0acfea539326a569961b299b228b94cee1753abe11c7979809d2c85622d",
+    "content-type": "application/x-amz-json-1.0",
+    "user-agent": "distilled-aws/1.0",
+    "x-amz-date": "20261117T145755Z",
+    "x-amz-target": "DynamoDB_20120810.ListTables",
+    "content-length": "2"
+   },
+   "body": "{}"
+  },
+  "outcome": {
+   "error": {
+    "tag": "UnknownAwsError",
+    "message": "new",
+    "fields": {
+     "status": 400,
+     "code": "SomethingNewException",
+     "body": {
+      "message": "new"
+     },
+     "service": "DynamoDB",
+     "operation": "ListTables"
+    }
+   }
+  }
+ },
+ {
+  "id": "sqs.send_message",
+  "request": {
+   "method": "POST",
+   "url": "https://sqs.us-east-1.amazonaws.com/",
+   "params": [],
+   "headers": {
+    "authorization": "AWS4-HMAC-SHA256 Credential=AKIDEXAMPLE/20261117/us-east-1/sqs/aws4_request, SignedHeaders=host;x-amz-date;x-amz-target;x-amzn-query-mode, Signature=248e65926bd7432405cde0933dee831bbc333eab179adf9516008742cccbc936",
+    "content-type": "application/x-amz-json-1.0",
+    "user-agent": "distilled-aws/1.0",
+    "x-amz-date": "20261117T145755Z",
+    "x-amz-target": "AmazonSQS.SendMessage",
+    "x-amzn-query-mode": "true",
+    "content-length": "176"
+   },
+   "body": "{\"QueueUrl\":\"https://sqs.us-east-1.amazonaws.com/123456789012/q\",\"MessageBody\":\"hello\",\"DelaySeconds\":5,\"MessageAttributes\":{\"color\":{\"StringValue\":\"red\",\"DataType\":\"String\"}}}"
+  },
+  "outcome": {
+   "ok": {
+    "MD5OfMessageBody": "5d41402abc4b2a76b9719d911017c592",
+    "MessageId": "m-1"
+   }
+  }
+ },
+ {
+  "id": "sqs.queue_does_not_exist",
+  "request": {
+   "method": "POST",
+   "url": "https://sqs.us-east-1.amazonaws.com/",
+   "params": [],
+   "headers": {
+    "authorization": "AWS4-HMAC-SHA256 Credential=AKIDEXAMPLE/20261117/us-east-1/sqs/aws4_request, SignedHeaders=host;x-amz-date;x-amz-target;x-amzn-query-mode, Signature=84ef6a7ca513ac19d25a8096b2b1c24e7162313018b32fabd397cb1b2348bd9c",
+    "content-type": "application/x-amz-json-1.0",
+    "user-agent": "distilled-aws/1.0",
+    "x-amz-date": "20261117T145755Z",
+    "x-amz-target": "AmazonSQS.GetQueueUrl",
+    "x-amzn-query-mode": "true",
+    "content-length": "20"
+   },
+   "body": "{\"QueueName\":\"nope\"}"
+  },
+  "outcome": {
+   "error": {
+    "tag": "QueueDoesNotExist",
+    "message": "The specified queue does not exist.",
+    "fields": {}
+   }
+  }
+ },
+ {
+  "id": "sqs.receive_message",
+  "request": {
+   "method": "POST",
+   "url": "https://sqs.us-east-1.amazonaws.com/",
+   "params": [],
+   "headers": {
+    "authorization": "AWS4-HMAC-SHA256 Credential=AKIDEXAMPLE/20261117/us-east-1/sqs/aws4_request, SignedHeaders=host;x-amz-date;x-amz-target;x-amzn-query-mode, Signature=ac291a49b4ff32c79e0d69ddcd51e0e223f7604696db90dfb7a424bb01d73a75",
+    "content-type": "application/x-amz-json-1.0",
+    "user-agent": "distilled-aws/1.0",
+    "x-amz-date": "20261117T145755Z",
+    "x-amz-target": "AmazonSQS.ReceiveMessage",
+    "x-amzn-query-mode": "true",
+    "content-length": "127"
+   },
+   "body": "{\"QueueUrl\":\"https://sqs.us-east-1.amazonaws.com/123456789012/q\",\"MessageSystemAttributeNames\":[\"All\"],\"MaxNumberOfMessages\":2}"
+  },
+  "outcome": {
+   "ok": {
+    "Messages": [
+     {
+      "MessageId": "m-1",
+      "ReceiptHandle": "rh",
+      "Body": "hi",
+      "Attributes": {
+       "SentTimestamp": "1700000000000"
+      }
+     }
+    ]
+   }
+  }
+ },
+ {
+  "id": "sns.publish",
+  "request": {
+   "method": "POST",
+   "url": "https://sns.us-east-1.amazonaws.com/",
+   "params": [],
+   "headers": {
+    "authorization": "AWS4-HMAC-SHA256 Credential=AKIDEXAMPLE/20261117/us-east-1/sns/aws4_request, SignedHeaders=host;x-amz-date, Signature=dbbca50a1ee686cf8f0cf0f251b9b96cb062750f47a1233dda6216f383c5204e",
+    "content-type": "application/x-www-form-urlencoded",
+    "user-agent": "distilled-aws/1.0",
+    "x-amz-date": "20261117T145755Z",
+    "content-length": "383"
+   },
+   "body": "Action=Publish&Version=2010-03-31&TopicArn=arn%3Aaws%3Asns%3Aus-east-1%3A123456789012%3At&Message=hello%20%26%20bye&Subject=s&MessageAttributes.entry.1.Name=a&MessageAttributes.entry.1.Value.DataType=String&MessageAttributes.entry.1.Value.StringValue=x%20y&MessageAttributes.entry.2.Name=b&MessageAttributes.entry.2.Value.DataType=Number&MessageAttributes.entry.2.Value.StringValue=1"
+  },
+  "outcome": {
+   "ok": {
+    "MessageId": "m-1"
+   }
+  }
+ },
+ {
+  "id": "sns.list_topics",
+  "request": {
+   "method": "POST",
+   "url": "https://sns.us-east-1.amazonaws.com/",
+   "params": [],
+   "headers": {
+    "authorization": "AWS4-HMAC-SHA256 Credential=AKIDEXAMPLE/20261117/us-east-1/sns/aws4_request, SignedHeaders=host;x-amz-date, Signature=cc38bc7cd396f09b88d46ccc03003d184c21a0c3d8697fd6f7ea076ae4ca02db",
+    "content-type": "application/x-www-form-urlencoded",
+    "user-agent": "distilled-aws/1.0",
+    "x-amz-date": "20261117T145755Z",
+    "content-length": "36"
+   },
+   "body": "Action=ListTopics&Version=2010-03-31"
+  },
+  "outcome": {
+   "ok": {
+    "Topics": [
+     {
+      "TopicArn": "arn:1"
+     },
+     {
+      "TopicArn": "arn:2"
+     }
+    ],
+    "NextToken": "n"
+   }
+  }
+ },
+ {
+  "id": "sns.not_found",
+  "request": {
+   "method": "POST",
+   "url": "https://sns.us-east-1.amazonaws.com/",
+   "params": [],
+   "headers": {
+    "authorization": "AWS4-HMAC-SHA256 Credential=AKIDEXAMPLE/20261117/us-east-1/sns/aws4_request, SignedHeaders=host;x-amz-date, Signature=7224520d94528f886816aeacc7ec8041df60a9d9ce505e91e45542af7d7ca9c4",
+    "content-type": "application/x-www-form-urlencoded",
+    "user-agent": "distilled-aws/1.0",
+    "x-amz-date": "20261117T145755Z",
+    "content-length": "103"
+   },
+   "body": "Action=GetTopicAttributes&Version=2010-03-31&TopicArn=arn%3Aaws%3Asns%3Aus-east-1%3A123456789012%3Anone"
+  },
+  "outcome": {
+   "error": {
+    "tag": "NotFoundException",
+    "message": "Topic does not exist",
+    "fields": {}
+   }
+  }
+ },
+ {
+  "id": "sts.get_caller_identity",
+  "request": {
+   "method": "POST",
+   "url": "https://sts.us-east-1.amazonaws.com/",
+   "params": [],
+   "headers": {
+    "authorization": "AWS4-HMAC-SHA256 Credential=AKIDEXAMPLE/20261117/us-east-1/sts/aws4_request, SignedHeaders=host;x-amz-date, Signature=c13c6870d980f8e6b8246ea7658807bc80cc4dcdd0e34ba53360527ac1e7b5ec",
+    "content-type": "application/x-www-form-urlencoded",
+    "user-agent": "distilled-aws/1.0",
+    "x-amz-date": "20261117T145755Z",
+    "content-length": "43"
+   },
+   "body": "Action=GetCallerIdentity&Version=2011-06-15"
+  },
+  "outcome": {
+   "ok": {
+    "UserId": "AIDA",
+    "Account": "123456789012",
+    "Arn": "arn:aws:iam::123456789012:user/me"
+   }
+  }
+ },
+ {
+  "id": "iam.list_users",
+  "request": {
+   "method": "POST",
+   "url": "https://iam.amazonaws.com/",
+   "params": [],
+   "headers": {
+    "authorization": "AWS4-HMAC-SHA256 Credential=AKIDEXAMPLE/20261117/us-east-1/iam/aws4_request, SignedHeaders=host;x-amz-date, Signature=2104ce572cbdc07ab918d702e87af1e592be5aa0eeb471e41838733a2584b255",
+    "content-type": "application/x-www-form-urlencoded",
+    "user-agent": "distilled-aws/1.0",
+    "x-amz-date": "20261117T145755Z",
+    "content-length": "62"
+   },
+   "body": "Action=ListUsers&Version=2010-05-08&PathPrefix=%2F&MaxItems=10"
+  },
+  "outcome": {
+   "ok": {
+    "Users": [
+     {
+      "Path": "/",
+      "UserName": "me",
+      "UserId": "AIDA",
+      "Arn": "arn:aws:iam::1:user/me",
+      "CreateDate": 1700000000
+     }
+    ],
+    "IsTruncated": false
+   }
+  }
+ },
+ {
+  "id": "ec2.describe_instances",
+  "request": {
+   "method": "POST",
+   "url": "https://ec2.us-east-1.amazonaws.com/",
+   "params": [],
+   "headers": {
+    "authorization": "AWS4-HMAC-SHA256 Credential=AKIDEXAMPLE/20261117/us-east-1/ec2/aws4_request, SignedHeaders=host;x-amz-date, Signature=f140cb02d03ab58d17c6784130b85a199f55c4248e210f639741805a47b1bf61",
+    "content-type": "application/x-www-form-urlencoded",
+    "user-agent": "distilled-aws/1.0",
+    "x-amz-date": "20261117T145755Z",
+    "content-length": "157"
+   },
+   "body": "Action=DescribeInstances&Version=2016-11-15&InstanceId.1=i-1&Filter.1.Name=instance-state-name&Filter.1.Value.1=running&Filter.1.Value.2=stopped&MaxResults=5"
+  },
+  "outcome": {
+   "ok": {
+    "Reservations": [
+     {
+      "ReservationId": "r-1",
+      "OwnerId": "1",
+      "Instances": [
+       {
+        "Tags": [
+         {
+          "Key": "Name",
+          "Value": "web"
+         }
+        ],
+        "InstanceId": "i-1",
+        "State": {
+         "Code": 16,
+         "Name": "running"
+        },
+        "InstanceType": "t3.micro",
+        "LaunchTime": 1700000000
+       }
+      ]
+     }
+    ]
+   }
+  }
+ },
+ {
+  "id": "ec2.run_instances",
+  "request": {
+   "method": "POST",
+   "url": "https://ec2.us-east-1.amazonaws.com/",
+   "params": [],
+   "headers": {
+    "authorization": "AWS4-HMAC-SHA256 Credential=AKIDEXAMPLE/20261117/us-east-1/ec2/aws4_request, SignedHeaders=host;x-amz-date, Signature=62fc1c84052869a4f71902cee7a4ea254ab006e1cdf263c77fbb5bffd4ce19d1",
+    "content-type": "application/x-www-form-urlencoded",
+    "user-agent": "distilled-aws/1.0",
+    "x-amz-date": "20261117T145755Z",
+    "content-length": "226"
+   },
+   "body": "Action=RunInstances&Version=2016-11-15&ImageId=ami-1&InstanceType=t3.micro&MaxCount=1&MinCount=1&TagSpecification.1.ResourceType=instance&TagSpecification.1.Tag.1.Key=Name&TagSpecification.1.Tag.1.Value=web&ClientToken=token-1"
+  },
+  "outcome": {
+   "ok": {
+    "ReservationId": "r-1",
+    "OwnerId": "1",
+    "Instances": [
+     {
+      "InstanceId": "i-1"
+     }
+    ]
+   }
+  }
+ },
+ {
+  "id": "ec2.error",
+  "request": {
+   "method": "POST",
+   "url": "https://ec2.us-east-1.amazonaws.com/",
+   "params": [],
+   "headers": {
+    "authorization": "AWS4-HMAC-SHA256 Credential=AKIDEXAMPLE/20261117/us-east-1/ec2/aws4_request, SignedHeaders=host;x-amz-date, Signature=84ebf462199b28e399326c24cfa2db40381d3ba40c02fa3e6960bae4838e5c2e",
+    "content-type": "application/x-www-form-urlencoded",
+    "user-agent": "distilled-aws/1.0",
+    "x-amz-date": "20261117T145755Z",
+    "content-length": "43"
+   },
+   "body": "Action=DescribeInstances&Version=2016-11-15"
+  },
+  "outcome": {
+   "error": {
+    "tag": "InvalidInstanceID.NotFound",
+    "message": "The instance ID 'i-1' does not exist",
+    "fields": {}
+   }
+  }
+ },
+ {
+  "id": "lambda.invoke",
+  "request": {
+   "method": "POST",
+   "url": "https://lambda.us-east-1.amazonaws.com/2015-03-31/functions/my%20fn/invocations?Qualifier=%24LATEST",
+   "params": [],
+   "headers": {
+    "authorization": "AWS4-HMAC-SHA256 Credential=AKIDEXAMPLE/20261117/us-east-1/lambda/aws4_request, SignedHeaders=host;x-amz-date;x-amz-invocation-type;x-amz-log-type, Signature=b73676ab860f5ff5d2ddb5ff0d2af7da37b1851dc218d7eb87c067c3995163d1",
+    "content-type": "application/octet-stream",
+    "user-agent": "distilled-aws/1.0",
+    "x-amz-date": "20261117T145755Z",
+    "x-amz-invocation-type": "RequestResponse",
+    "x-amz-log-type": "Tail",
+    "content-length": "7"
+   },
+   "body": "{\"k\":1}"
+  },
+  "outcome": {
+   "ok": {
+    "StatusCode": 200,
+    "FunctionError": "Unhandled",
+    "LogResult": "bG9n",
+    "Payload": {
+     "$bytes": "{\"ok\":true}"
+    },
+    "ExecutedVersion": "$LATEST"
+   }
+  }
+ },
+ {
+  "id": "lambda.get_function",
+  "request": {
+   "method": "GET",
+   "url": "https://lambda.us-east-1.amazonaws.com/2015-03-31/functions/arn%3Aaws%3Alambda%3Aus-east-1%3A1%3Afunction%3Af?Qualifier=2",
+   "params": [],
+   "headers": {
+    "authorization": "AWS4-HMAC-SHA256 Credential=AKIDEXAMPLE/20261117/us-east-1/lambda/aws4_request, SignedHeaders=host;x-amz-date, Signature=2c860dc5ecf13fb92644267229cc6f6d746828949966b4cdd132e6b5a13bec8f",
+    "user-agent": "distilled-aws/1.0",
+    "x-amz-date": "20261117T145755Z"
+   },
+   "body": ""
+  },
+  "outcome": {
+   "ok": {
+    "Configuration": {
+     "FunctionName": "f",
+     "Runtime": "nodejs20.x",
+     "MemorySize": 128,
+     "LastModified": "2023-11-14T22:13:20.000+0000"
+    },
+    "Tags": {
+     "a": "b"
+    }
+   }
+  }
+ },
+ {
+  "id": "lambda.list_functions",
+  "request": {
+   "method": "GET",
+   "url": "https://lambda.us-east-1.amazonaws.com/2015-03-31/functions?Marker=m%2F1&MaxItems=3",
+   "params": [],
+   "headers": {
+    "authorization": "AWS4-HMAC-SHA256 Credential=AKIDEXAMPLE/20261117/us-east-1/lambda/aws4_request, SignedHeaders=host;x-amz-date, Signature=2857604311cd2f0594f7dc0c91bba7a613e068d8bf906b31b3dfcd02e87a957a",
+    "user-agent": "distilled-aws/1.0",
+    "x-amz-date": "20261117T145755Z"
+   },
+   "body": ""
+  },
+  "outcome": {
+   "ok": {
+    "NextMarker": "m2",
+    "Functions": [
+     {
+      "FunctionName": "f"
+     }
+    ]
+   }
+  }
+ },
+ {
+  "id": "lambda.not_found",
+  "request": {
+   "method": "GET",
+   "url": "https://lambda.us-east-1.amazonaws.com/2015-03-31/functions/nope",
+   "params": [],
+   "headers": {
+    "authorization": "AWS4-HMAC-SHA256 Credential=AKIDEXAMPLE/20261117/us-east-1/lambda/aws4_request, SignedHeaders=host;x-amz-date, Signature=23d05fc56d993f295ad0222aef99c53971ee636c09d9a600445c22d3c32c7a93",
+    "user-agent": "distilled-aws/1.0",
+    "x-amz-date": "20261117T145755Z"
+   },
+   "body": ""
+  },
+  "outcome": {
+   "error": {
+    "tag": "ResourceNotFoundException",
+    "message": "Function not found: nope",
+    "fields": {
+     "Type": "User"
+    }
+   }
+  }
+ },
+ {
+  "id": "lambda.throttled",
+  "request": {
+   "method": "GET",
+   "url": "https://lambda.us-east-1.amazonaws.com/2015-03-31/functions",
+   "params": [],
+   "headers": {
+    "authorization": "AWS4-HMAC-SHA256 Credential=AKIDEXAMPLE/20261117/us-east-1/lambda/aws4_request, SignedHeaders=host;x-amz-date, Signature=94ff8c044cb71b558bc5d924b06d24a85068c0d5df0e191d37146644f891641b",
+    "user-agent": "distilled-aws/1.0",
+    "x-amz-date": "20261117T145755Z"
+   },
+   "body": ""
+  },
+  "outcome": {
+   "error": {
+    "tag": "TooManyRequestsException",
+    "message": "Rate exceeded",
+    "fields": {
+     "retryAfterSeconds": "3",
+     "Reason": "CallerRateLimitExceeded",
+     "retryAfter": {
+      "value": {
+       "_tag": "Millis",
+       "millis": 3000
+      }
+     }
+    }
+   }
+  }
+ },
+ {
+  "id": "route53.change_resource_record_sets",
+  "request": {
+   "method": "POST",
+   "url": "https://route53.amazonaws.com/2013-04-01/hostedzone/%2Fhostedzone%2FZ123/rrset",
+   "params": [],
+   "headers": {
+    "authorization": "AWS4-HMAC-SHA256 Credential=AKIDEXAMPLE/20261117/us-east-1/route53/aws4_request, SignedHeaders=host;x-amz-date, Signature=e5cde1e033cbb7e5adf41d7d72ec7038982f7ba7306655aa80d125263adfd66c",
+    "content-type": "application/xml",
+    "user-agent": "distilled-aws/1.0",
+    "x-amz-date": "20261117T145755Z",
+    "content-length": "478"
+   },
+   "body": "<ChangeResourceRecordSetsRequest xmlns=\"https://route53.amazonaws.com/doc/2013-04-01/\"><ChangeBatch><Comment>c &amp; d</Comment><Changes><Change><Action>UPSERT</Action><ResourceRecordSet><Name>www.example.com</Name><Type>A</Type><TTL>60</TTL><ResourceRecords><ResourceRecord><Value>192.0.2.1</Value></ResourceRecord><ResourceRecord><Value>192.0.2.2</Value></ResourceRecord></ResourceRecords></ResourceRecordSet></Change></Changes></ChangeBatch></ChangeResourceRecordSetsRequest>"
+  },
+  "outcome": {
+   "ok": {
+    "ChangeInfo": {
+     "Id": "/change/C1",
+     "Status": "PENDING",
+     "SubmittedAt": 1700000000
+    }
+   }
+  }
+ },
+ {
+  "id": "route53.list_hosted_zones",
+  "request": {
+   "method": "GET",
+   "url": "https://route53.amazonaws.com/2013-04-01/hostedzone?marker=Z0&maxitems=2",
+   "params": [],
+   "headers": {
+    "authorization": "AWS4-HMAC-SHA256 Credential=AKIDEXAMPLE/20261117/us-east-1/route53/aws4_request, SignedHeaders=host;x-amz-date, Signature=c2d17e2685d059a07af2d06365dbd6c991d8afbd9ba3553d8a0738f086216d70",
+    "user-agent": "distilled-aws/1.0",
+    "x-amz-date": "20261117T145755Z"
+   },
+   "body": ""
+  },
+  "outcome": {
+   "ok": {
+    "HostedZones": [
+     {
+      "Id": "/hostedzone/Z1",
+      "Name": "example.com.",
+      "CallerReference": "c",
+      "Config": {
+       "PrivateZone": false
+      },
+      "ResourceRecordSetCount": 2
+     }
+    ],
+    "Marker": "Z0",
+    "IsTruncated": true,
+    "NextMarker": "Z2",
+    "MaxItems": 2
+   }
+  }
+ },
+ {
+  "id": "route53.no_such_zone",
+  "request": {
+   "method": "GET",
+   "url": "https://route53.amazonaws.com/2013-04-01/hostedzone/Z9",
+   "params": [],
+   "headers": {
+    "authorization": "AWS4-HMAC-SHA256 Credential=AKIDEXAMPLE/20261117/us-east-1/route53/aws4_request, SignedHeaders=host;x-amz-date, Signature=44af6f55da8251ba23223ae259c5a2da5d7cdd0ce73f7806a5225317b44ab48b",
+    "user-agent": "distilled-aws/1.0",
+    "x-amz-date": "20261117T145755Z"
+   },
+   "body": ""
+  },
+  "outcome": {
+   "error": {
+    "tag": "NoSuchHostedZone",
+    "message": "No hosted zone found with ID: Z9",
+    "fields": {}
+   }
+  }
+ },
+ {
+  "id": "s3control.list_access_points",
+  "request": {
+   "method": "GET",
+   "url": "https://123456789012.s3-control.us-east-1.amazonaws.com/v20180820/accesspoint?bucket=b&maxResults=5",
+   "params": [],
+   "headers": {
+    "authorization": "AWS4-HMAC-SHA256 Credential=AKIDEXAMPLE/20261117/us-east-1/s3/aws4_request, SignedHeaders=host;x-amz-account-id;x-amz-content-sha256;x-amz-date, Signature=0b975d2354baae4e3901881bd35c1bef4ebf1571874ed1ef13b5af5cd2e87052",
+    "user-agent": "distilled-aws/1.0",
+    "x-amz-account-id": "123456789012",
+    "x-amz-content-sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "x-amz-date": "20261117T145755Z"
+   },
+   "body": ""
+  },
+  "outcome": {
+   "ok": {
+    "AccessPointList": [
+     {
+      "Name": "ap",
+      "NetworkOrigin": "Internet",
+      "Bucket": "b"
+     }
+    ]
+   }
+  }
+ },
+ {
+  "id": "cloudfront.get_distribution",
+  "request": {
+   "method": "GET",
+   "url": "https://cloudfront.amazonaws.com/2020-05-31/distribution/E1",
+   "params": [],
+   "headers": {
+    "authorization": "AWS4-HMAC-SHA256 Credential=AKIDEXAMPLE/20261117/us-east-1/cloudfront/aws4_request, SignedHeaders=host;x-amz-date, Signature=9e23b23a37d6acc27b8f3e497e67048be4335a269d9a597ce4712342e4f1258b",
+    "user-agent": "distilled-aws/1.0",
+    "x-amz-date": "20261117T145755Z"
+   },
+   "body": ""
+  },
+  "outcome": {
+   "ok": {
+    "Distribution": {
+     "Id": "E1",
+     "ARN": "arn:aws:cloudfront::1:distribution/E1",
+     "Status": "Deployed",
+     "LastModifiedTime": 1700000000,
+     "InProgressInvalidationBatches": 0,
+     "DomainName": "d.cloudfront.net"
+    },
+    "ETag": "E2Q"
+   }
+  }
+ },
+ {
+  "id": "eu.dynamodb.region",
+  "request": {
+   "method": "POST",
+   "url": "https://dynamodb.eu-west-1.amazonaws.com/",
+   "params": [],
+   "headers": {
+    "authorization": "AWS4-HMAC-SHA256 Credential=AKIDEXAMPLE/20261117/eu-west-1/dynamodb/aws4_request, SignedHeaders=host;x-amz-date;x-amz-target, Signature=523527206e28b01188aa47d1253101e2c4ed2727477b39bc22891d0c5d606158",
+    "content-type": "application/x-amz-json-1.0",
+    "user-agent": "distilled-aws/1.0",
+    "x-amz-date": "20261117T145755Z",
+    "x-amz-target": "DynamoDB_20120810.ListTables",
+    "content-length": "2"
+   },
+   "body": "{}"
+  },
+  "outcome": {
+   "ok": {
+    "TableNames": []
+   }
+  }
+ },
+ {
+  "id": "internal_error",
+  "request": {
+   "method": "POST",
+   "url": "https://sqs.us-east-1.amazonaws.com/",
+   "params": [],
+   "headers": {
+    "authorization": "AWS4-HMAC-SHA256 Credential=AKIDEXAMPLE/20261117/us-east-1/sqs/aws4_request, SignedHeaders=host;x-amz-date;x-amz-target;x-amzn-query-mode, Signature=f9f925f0454705c6e12df24f2d9242893ddfdb595c849abf9c13f61645c650f7",
+    "content-type": "application/x-amz-json-1.0",
+    "user-agent": "distilled-aws/1.0",
+    "x-amz-date": "20261117T145755Z",
+    "x-amz-target": "AmazonSQS.ListQueues",
+    "x-amzn-query-mode": "true",
+    "content-length": "2"
+   },
+   "body": "{}"
+  },
+  "outcome": {
+   "error": {
+    "tag": "ParseError",
+    "message": "No error code found in response. Headers: {}, Body: ",
+    "fields": {}
+   }
+  }
+ },
+ {
+  "id": "cloudwatch.get_metric_data",
+  "request": {
+   "method": "POST",
+   "url": "https://monitoring.us-east-1.amazonaws.com/",
+   "params": [],
+   "headers": {
+    "authorization": "AWS4-HMAC-SHA256 Credential=AKIDEXAMPLE/20261117/us-east-1/monitoring/aws4_request, SignedHeaders=host;x-amz-date;x-amz-target;x-amzn-query-mode, Signature=38a33d287ddb34493fe4e9e47babb6848f133c9b2c2c08f700a4fd3c89614cd9",
+    "content-type": "application/x-amz-json-1.0",
+    "user-agent": "distilled-aws/1.0",
+    "x-amz-date": "20261117T145755Z",
+    "x-amz-target": "GraniteServiceVersion20100801.GetMetricData",
+    "x-amzn-query-mode": "true",
+    "content-length": "237"
+   },
+   "body": "{\"MetricDataQueries\":[{\"Id\":\"q1\",\"MetricStat\":{\"Metric\":{\"Namespace\":\"AWS/EC2\",\"MetricName\":\"CPUUtilization\",\"Dimensions\":[{\"Name\":\"InstanceId\",\"Value\":\"i-1\"}]},\"Period\":60,\"Stat\":\"Average\"}}],\"StartTime\":1700000000,\"EndTime\":1700003600}"
+  },
+  "outcome": {
+   "ok": {
+    "MetricDataResults": [
+     {
+      "Id": "q1",
+      "Timestamps": [
+       1700000000,
+       1700000060
+      ],
+      "Values": [
+       1.5,
+       2
+      ],
+      "StatusCode": "Complete"
+     }
+    ]
+   }
+  }
+ }
+]

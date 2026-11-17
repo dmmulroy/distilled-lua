@@ -465,6 +465,19 @@ function gen.plan(args)
       error_classes[#error_classes + 1] = d
     end
   end
+  if ctx.aws then
+    -- an AWS error's tag is its aws.codegen#errorTag (EC2's InvalidInstanceID.NotFound):
+    -- the operations name their errors by that tag
+    local tag_of = {}
+    for _, d in ipairs(error_classes) do
+      tag_of[naming.local_name(d.id)] = d.tag
+    end
+    for _, op in ipairs(plan_ops) do
+      for i, name in ipairs(op.error_tags) do
+        op.error_tags[i] = tag_of[name] or name
+      end
+    end
+  end
   local error_tags_set = {}
   for _, d in ipairs(error_classes) do
     error_tags_set[d.tag] = true

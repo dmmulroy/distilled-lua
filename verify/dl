@@ -1141,6 +1141,26 @@ cmd_conform() {
     shift
   done
   [ -n "$provider" ] || die "usage: dl conform <provider> [--replay] [--runtime R] [--only cats]"
+  if [ "$provider" = "aws" ]; then
+    # task 17: Distilled's AWS services vs clients/aws (verify/conform/aws_compare.lua)
+    if [ "$replay" -eq 0 ]; then
+      (cd "$ROOT/verify/conform/node" && $NODE_TS aws.mjs) || die "conform: the Node side (aws.mjs) failed"
+      [ -n "$runtimes" ] || runtimes="lua"
+    fi
+    [ -n "$runtimes" ] || runtimes=$RUNTIMES
+    status=0
+    for rt in $runtimes; do
+      case $rt in
+        lua | luajit) "$rt" "$ROOT/verify/conform/aws_compare.lua" "$ROOT" || status=1 ;;
+        rex)
+          out=$(rex do "$ROOT/verify/conform/aws_compare.lua" "root=$ROOT" 2>&1) || status=1
+          printf '%s\n' "$out" | grep -v '^{'
+          ;;
+        *) die "unknown runtime $rt (lua, luajit or rex)" ;;
+      esac
+    done
+    return $status
+  fi
   [ -f "$ROOT/clients/$provider/init.lua" ] || die "conform: no generated client clients/$provider"
   CONF="$ROOT/verify/conform"
   if [ "$replay" -eq 0 ]; then
