@@ -7,7 +7,7 @@
 --   ecdsa.public_key(curve, point) -> key | nil, err          SEC1 point bytes
 --   ecdsa.sign(key, message [, opts]) -> signature, recovery_id | nil, err
 --   ecdsa.sign_digest(key, digest [, opts]) -> signature, recovery_id | nil, err
---       opts.hash   "sha256" (default) | "sha384" | "sha512" | "sha1" | "keccak256":
+--       opts.hash   "sha256" (default) | "sha224" | "sha384" | "sha512" | "sha1" | "keccak256":
 --                   the message hash (sign) and the RFC 6979 HMAC hash (SHA-256 for
 --                   keccak256 and for sign_digest, as libsecp256k1 and noble do)
 --       opts.format "raw" (default: r || s, 32 bytes each, as JWS wants) | "der"
@@ -368,7 +368,7 @@ end
 -- signatures
 ---------------------------------------------------------------------------------------
 
-local HASH_BITS = { sha1 = 160, sha256 = 256, sha384 = 384, sha512 = 512, keccak256 = 256 }
+local HASH_BITS = { sha1 = 160, sha224 = 224, sha256 = 256, sha384 = 384, sha512 = 512, keccak256 = 256 }
 
 -- bits2int (RFC 6979 2.3.2): the leftmost qlen bits of the digest
 local function bits2int(C, digest)
