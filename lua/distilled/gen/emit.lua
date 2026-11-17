@@ -159,7 +159,7 @@ function emit.string(s)
     elseif c == "\r" then
       return "\\r"
     elseif string.byte(c) >= 128 then
-      -- UTF-8 bytes stay as they are (stylua leaves them; widths count characters)
+      -- UTF-8 bytes stay as they are (stylua leaves them; code widths count bytes)
       return c
     end
     return string.format("\\%03d", string.byte(c))
@@ -188,12 +188,21 @@ function emit.key(k)
   return "[" .. emit.string(k) .. "] = "
 end
 
--- display width of a line: UTF-8 characters, not bytes
+-- display width of a line: UTF-8 characters, not bytes (comment wrapping; stylua does not
+-- reflow comments)
 local function width(s)
   local _, cont = string.gsub(s, "[\128-\191]", "")
   return #s - cont
 end
 emit.width = width
+
+-- the width stylua (2.6) measures for code layout: BYTES, not characters. Measured: a
+-- table holding non-ASCII strings is kept on one line only while its byte length fits
+-- (`"é"` counts 2, `"🔥"` 4). Found on huggingface/papers' emoji enum (task 26).
+local function code_width(s)
+  return #s
+end
+emit.code_width = code_width
 
 local inline -- forward
 
@@ -288,7 +297,7 @@ function emit.value(v, indent, prefix, suffix)
   prefix = prefix or ""
   suffix = suffix or ""
   local one = indent .. prefix .. inline(v) .. suffix
-  if width(one) <= emit.WIDTH or not expandable(v) then
+  if code_width(one) <= emit.WIDTH or not expandable(v) then
     return { one }
   end
   local inner = indent .. emit.INDENT
@@ -327,15 +336,15 @@ end
 -- model, task 09). Otherwise the value hugs `=`: stylua keeps an expanded table expanded.
 function emit.assign(target, v)
   local one = target .. " = " .. inline(v)
-  if width(one) <= emit.WIDTH then
+  if code_width(one) <= emit.WIDTH then
     return { one }
   end
   local lines = emit.value(v, "", target .. " = ", "")
-  if #lines > 1 and width(lines[1]) <= emit.WIDTH then
+  if #lines > 1 and code_width(lines[1]) <= emit.WIDTH then
     return lines
   end
   local hung = emit.INDENT .. inline(v)
-  if width(hung) <= emit.WIDTH then
+  if code_width(hung) <= emit.WIDTH then
     return { target .. " =", hung }
   end
   lines = { target .. " =" }
