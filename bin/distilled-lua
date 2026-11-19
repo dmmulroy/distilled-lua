@@ -8,6 +8,7 @@
 --   distilled-lua generate-graphql --model <file> --provider <file> --out <dir>
 --                                  [--no-telemetry] [--quiet]
 --   distilled-lua vendor --out <dir>
+--   distilled-lua rockspec --version <x.y.z> --out <dir> [--only distilled,twitch,...] [--quiet]
 --
 -- Runs under lua (5.1 to 5.5) and luajit. Not meant for Rex: it writes files and makes
 -- directories (with `mkdir -p`; this CLI is the only place the generator runs a process).
@@ -36,6 +37,12 @@ usage:
       types.lua, README.md (task 16; `package` does this by itself for
       <models>/graphql/<pkg>.json)
   distilled-lua vendor --out <dir>
+  distilled-lua rockspec --version <x.y.z> --out <dir> [--only distilled,twitch,...] [--quiet]
+      LuaRocks packaging: <out>/<rock>-<x.y.z>-1.rockspec and <rock>.files (the paths
+      its source archive holds) for the runtime (rock `distilled`) and every
+      clients/<provider> (rock `distilled-<provider>`, modules distilled.clients.<provider>.*).
+      --only takes rock names without "distilled-" (`distilled` is the runtime).
+      scripts/build_rocks.sh turns them into archives, .src.rock files and a manifest.
 ]]
 
 local function die(message, code)
@@ -593,6 +600,108 @@ local function cmd_vendor(args)
   end
 end
 
+-- rockspec: LuaRocks packaging for the runtime and each generated client (rockspec.lua).
+local function list_files(dir, pattern)
+  local list = {}
+  local p = io.popen(
+    "cd "
+      .. shell_quote(ROOT)
+      .. " && find "
+      .. shell_quote(dir)
+      .. " -type f -name "
+      .. shell_quote(pattern)
+      .. " | LC_ALL=C sort"
+  )
+  if not p then
+    die("cannot list " .. ROOT .. "/" .. dir)
+  end
+  for line in p:lines() do
+    list[#list + 1] = line
+  end
+  p:close()
+  return list
+end
+
+-- "# Twitch clients (generated)" -> "Twitch"
+local function client_title(provider)
+  local f = io.open(ROOT .. "/clients/" .. provider .. "/README.md", "rb")
+  local first = f and f:read("*l") or ""
+  if f then
+    f:close()
+  end
+  local title = string.match(first, "^#%s+(.-)%s+clients?%s+%(generated%)%s*$")
+  return title or provider
+end
+
+local function cmd_rockspec(args)
+  local rockspec = require("distilled.gen.rockspec")
+  local o = parse(args, { version = "value", out = "value", only = "value", quiet = "flag" })
+  if not o.version or not o.out then
+    die("rockspec needs --version and --out\n" .. USAGE, 2)
+  end
+  local only
+  if o.only then
+    only = {}
+    for name in string.gmatch(o.only, "[^,]+") do
+      only[name] = true
+    end
+  end
+  local rocks = {}
+  if not only or only.distilled then
+    local files = {}
+    for index, rel in ipairs(runtime_files()) do
+      files[index] = "lua/" .. rel
+    end
+    rocks[#rocks + 1] = { rockspec.runtime_rockspec({ version = o.version, files = files }) }
+  end
+  local p = io.popen("cd " .. shell_quote(ROOT .. "/clients") .. " && ls -1 | LC_ALL=C sort")
+  if not p then
+    die("cannot list " .. ROOT .. "/clients")
+  end
+  local providers = {}
+  for name in p:lines() do
+    providers[#providers + 1] = name
+  end
+  p:close()
+  for _, provider in ipairs(providers) do
+    if not only or only[provider] then
+      if only then
+        only[provider] = nil
+      end
+      rocks[#rocks + 1] = {
+        rockspec.client_rockspec({
+          version = o.version,
+          provider = provider,
+          title = client_title(provider),
+          files = list_files("clients/" .. provider, "*.lua"),
+        }),
+      }
+    end
+  end
+  if only then
+    only.distilled = nil
+    for name in pairs(only) do
+      die("rockspec: no client " .. name .. " in clients/")
+    end
+  end
+  mkdir_p(o.out)
+  for _, result in ipairs(rocks) do
+    local rock, err = result[1], result[2]
+    if not rock then
+      die("rockspec: " .. tostring(err))
+    end
+    local spec = assert(io.open(o.out .. "/" .. rock.rockspec_file, "wb"))
+    spec:write(rock.text)
+    spec:close()
+    local list = assert(io.open(o.out .. "/" .. rock.name .. ".files", "wb"))
+    list:write(rock.archive_dir .. "\n" .. table.concat(rock.files, "\n") .. "\n")
+    list:close()
+  end
+  if not o.quiet then
+    print(string.format("rockspec: %d rocks -> %s", #rocks, o.out))
+  end
+end
+
 local argv = {}
 for i = 1, #arg do
   argv[i] = arg[i]
@@ -606,6 +715,8 @@ elseif command == "package" then
   cmd_package(argv)
 elseif command == "vendor" then
   cmd_vendor(argv)
+elseif command == "rockspec" then
+  cmd_rockspec(argv)
 elseif command == nil or command == "help" or command == "--help" or command == "-h" then
   io.write(USAGE)
 else

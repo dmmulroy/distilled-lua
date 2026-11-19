@@ -8,3 +8,4 @@
 !/models/neon/
 /models/neon/*
 !/models/neon/neon.json
+/dist/

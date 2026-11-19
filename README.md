@@ -20,10 +20,54 @@ files run on PUC Lua 5.1 to 5.5, on LuaJIT and on gopher-lua inside
 - **Streams.** `client:<op>_stream` reads NDJSON, server-sent events, gRPC, Connect and
   AWS event streams one item at a time.
 
-distilled-lua is not on LuaRocks. You copy the runtime and the clients you need into your
-project.
-
 ## Install
+
+### With LuaRocks
+
+The runtime is the rock `distilled`, and each provider's client is its own rock,
+`distilled-<provider>` (underscores become dashes: `distilled-boat-dev`). A client rock
+depends on the runtime of the same version:
+
+```sh
+luarocks install distilled-twitch            # also installs distilled
+```
+
+Installed clients are modules under `distilled.clients`, so names such as `aws` or
+`twitch` stay free for other rocks:
+
+```lua
+local Twitch = require("distilled.clients.twitch")
+local R2 = require("distilled.clients.cloudflare.r2")
+```
+
+The examples in each client's `README.md` use the vendored name (`require("twitch.chat")`);
+with LuaRocks add the `distilled.clients.` prefix. The files are the same: a generated
+client finds its own modules from the name it was loaded as.
+
+For Rex (Lua 5.1), install into a tree of its own and put the tree on `package.path`:
+
+```sh
+luarocks --lua-version 5.1 --tree ~/.local/share/rex/rocks install distilled-twitch
+```
+
+#### Building the rocks
+
+`scripts/build_rocks.sh <version> [rock,...]` writes `dist/rocks/<version>/`: a rockspec,
+a source archive and a `.src.rock` per rock, and a manifest. Each rock's source is its
+own archive (the rockspec points at a GitHub release asset of tag `v<version>`) because
+`clients/` is hundreds of megabytes and a rock built from the git repository would clone
+all of it. The directory is a LuaRocks server by itself, so a build can be tried before
+it is published:
+
+```sh
+scripts/build_rocks.sh 0.1.0 distilled,twitch
+luarocks --lua-version 5.1 --tree /tmp/rocks \
+  --only-server "file://$PWD/dist/rocks/0.1.0" install distilled-twitch
+```
+
+The script's header has the publishing commands (`gh release create`, `luarocks upload`).
+
+### Vendored
 
 Copy the runtime and a client into a `vendor` directory. This copies the R2 service of
 the Cloudflare client:
@@ -126,7 +170,8 @@ the intended differences.
 | --- | --- |
 | `lua/distilled/` | The runtime: protocols, errors, retries, pagination, credentials, streams, tracing |
 | `lua/distilled/gen/` | The generator. A program does not need it at run time |
-| `bin/distilled-lua` | The command line: `package`, `generate` and `vendor` |
+| `bin/distilled-lua` | The command line: `package`, `generate`, `vendor` and `rockspec` |
+| `scripts/build_rocks.sh` | Builds the LuaRocks release into `dist/rocks/<version>/` |
 | `providers/` | One spec per provider. A spec is a Lua table with what the model does not say |
 | `models/` | Models synced from Distilled. Git tracks only `models/neon/neon.json` |
 | `clients/` | The generated clients, one directory per provider |

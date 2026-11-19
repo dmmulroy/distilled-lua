@@ -39,6 +39,7 @@ return {
   "gen_ops_spec.lua",
   "gen_output_spec.lua",
   "gen_provider_spec.lua",
+  "gen_rockspec_spec.lua",
   "gen_shapes_spec.lua",
   "gen_traits_spec.lua",
   "graphql_client_spec.lua",
