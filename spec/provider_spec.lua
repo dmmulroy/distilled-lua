@@ -183,6 +183,7 @@ local NAMES = {
   "trigger_dev",
   "turbopuffer",
   "turso",
+  "twitch",
   "typesense",
   "unkey",
   "vanta",
